@@ -21,4 +21,4 @@
 
 * [Лабораторные работы (разработка)](lab_works/lab_works_dev.md)
 * [Командная работа](../team_work.md)
-* [ТЗ на прототип](requirements_spec.md)
+* [ТЗ на прототип](../requirements_spec.md)
