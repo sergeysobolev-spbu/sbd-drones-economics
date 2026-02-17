@@ -3,6 +3,7 @@ Kafka реализация EventBus для распределенной пере
 Требует запущенный Apache Kafka broker.
 """
 import json
+import os
 import threading
 import time
 from typing import Callable, Dict, List
@@ -27,13 +28,16 @@ class KafkaEventBus(EventBus):
     События сериализуются в JSON для передачи через Kafka.
     """
 
-    def __init__(self, bootstrap_servers: str = None, client_id: str = "drone_event_bus"):
+    def __init__(self, bootstrap_servers: str = None, client_id: str = "drone_event_bus",
+                 username: str = None, password: str = None):
         """
         Инициализация Kafka EventBus.
         
         Args:
             bootstrap_servers: Адрес Kafka broker (например, "localhost:9092")
             client_id: Идентификатор клиента Kafka
+            username: SASL логин (или BROKER_USER из env)
+            password: SASL пароль (или BROKER_PASSWORD из env)
         """
         if not KAFKA_AVAILABLE:
             raise ImportError(
@@ -43,12 +47,15 @@ class KafkaEventBus(EventBus):
         # Используем переданный адрес или берем из env через shared/ports
         self.bootstrap_servers = bootstrap_servers or get_kafka_bootstrap()
         self.client_id = client_id
+        self.username = username or os.environ.get("BROKER_USER")
+        self.password = password or os.environ.get("BROKER_PASSWORD")
         
         # Producer для отправки событий
         self._producer = KafkaProducer(
-            bootstrap_servers=bootstrap_servers,
+            bootstrap_servers=self.bootstrap_servers,
             client_id=client_id,
-            value_serializer=lambda v: json.dumps(v).encode('utf-8')
+            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+            **self._get_sasl_config()
         )
         
         # Словарь consumers для каждого модуля (для pull-модели)
@@ -59,6 +66,17 @@ class KafkaEventBus(EventBus):
         self._consumer_threads: Dict[str, threading.Thread] = {}
         # Флаг для остановки потоков
         self._running: Dict[str, bool] = {}
+
+    def _get_sasl_config(self) -> dict:
+        """SASL-конфиг для producer/consumer, если заданы username/password."""
+        if self.username and self.password:
+            return {
+                'security_protocol': 'SASL_PLAINTEXT',
+                'sasl_mechanism': 'PLAIN',
+                'sasl_plain_username': self.username,
+                'sasl_plain_password': self.password
+            }
+        return {}
 
     def _get_topic_name(self, module_name: str) -> str:
         """Формирует имя топика для модуля."""
@@ -132,15 +150,24 @@ class KafkaEventBus(EventBus):
         """
         self._callbacks[module_name] = callback
         
-        # Создаем consumer для модуля
+        # Создаем топик предварительной отправкой (Kafka auto-create)
         topic = self._get_topic_name(module_name)
+        try:
+            self._producer.send(topic, {"_init": True}).get(timeout=5)
+            self._producer.flush()
+        except Exception:
+            pass
+
+        from uuid import uuid4
         consumer = KafkaConsumer(
             topic,
             bootstrap_servers=self.bootstrap_servers,
             client_id=f"{self.client_id}_{module_name}",
+            group_id=f"{self.client_id}_{module_name}_{uuid4().hex[:8]}",
             value_deserializer=lambda m: json.loads(m.decode('utf-8')),
             auto_offset_reset='latest',
-            enable_auto_commit=True
+            enable_auto_commit=True,
+            **self._get_sasl_config()
         )
         self._consumers[module_name] = consumer
         
@@ -154,8 +181,8 @@ class KafkaEventBus(EventBus):
         thread.start()
         self._consumer_threads[module_name] = thread
         
-        # Даем consumer время на инициализацию
-        time.sleep(0.1)
+        # Даем consumer время подключиться и получить partition assignment
+        time.sleep(2.0)
         
         return True
 
@@ -207,7 +234,8 @@ class KafkaEventBus(EventBus):
                 client_id=f"{self.client_id}_{module_name}_pull",
                 value_deserializer=lambda m: json.loads(m.decode('utf-8')),
                 auto_offset_reset='latest',
-                consumer_timeout_ms=100  # Таймаут для non-blocking чтения
+                consumer_timeout_ms=100,
+                **self._get_sasl_config()
             )
             events = []
             for message in consumer:

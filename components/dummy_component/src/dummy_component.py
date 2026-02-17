@@ -1,99 +1,68 @@
 """
 DummyComponent - шаблон для создания новых компонентов дрона.
 
+Использует единую шину SystemBus (как и системы).
 Копируй эту папку и адаптируй под свои нужды.
 """
-from broker import EventBus
-from shared.event import Event
+from typing import Dict, Any, Optional
+
+from shared.base_component import BaseComponent
+from shared.topics import ComponentTopics, DummyComponentActions
+from broker.system_bus import SystemBus
 
 
-class DummyComponent:
+class DummyComponent(BaseComponent):
     """
     Шаблон компонента дрона.
-    
-    Компонент:
-    - Подписывается на события через EventBus
-    - Обрабатывает входящие события
-    - Отправляет ответы через security_monitor
+
+    Для создания своего компонента:
+    1. Скопируй эту папку
+    2. Переименуй класс
+    3. Добавь свои handlers
     """
 
-    def __init__(self, event_bus: EventBus):
-        """
-        Args:
-            event_bus: Шина событий дрона
-        """
-        self.event_bus = event_bus
-        
-        # Подписка на события для этого компонента
-        self.event_bus.subscribe("dummy_component", self._handle_event)
-        
-        # Внутреннее состояние
+    def __init__(
+        self,
+        component_id: str,
+        name: str,
+        bus: SystemBus,
+    ):
+        self.name = name
         self._state = {"counter": 0}
-
-    def _handle_event(self, event: Event):
-        """
-        Обработчик входящих событий.
-        Маршрутизация по event.operation.
-        """
-        if event.operation == "echo":
-            self._handle_echo(event)
-        elif event.operation == "increment":
-            self._handle_increment(event)
-        elif event.operation == "get_state":
-            self._handle_get_state(event)
-        else:
-            print(f"dummy_component: Unknown operation: {event.operation}")
-
-    def _handle_echo(self, event: Event):
-        """Возвращает полученные данные обратно."""
-        response = Event(
-            source="dummy_component",
-            destination=event.source,
-            operation="echo_response",
-            parameters=event.parameters
+        super().__init__(
+            component_id=component_id,
+            component_type="dummy_component",
+            topic=ComponentTopics.DUMMY_COMPONENT,
+            bus=bus,
         )
-        self.event_bus.publish(response, "security_monitor")
+        print(f"DummyComponent '{name}' initialized")
 
-    def _handle_increment(self, event: Event):
-        """Увеличивает счётчик."""
-        self._state["counter"] += event.parameters.get("value", 1)
-        
-        response = Event(
-            source="dummy_component",
-            destination=event.source,
-            operation="increment_response",
-            parameters={"counter": self._state["counter"]}
-        )
-        self.event_bus.publish(response, "security_monitor")
+    def _register_handlers(self):
+        """Регистрация обработчиков для каждого action."""
+        self.register_handler(DummyComponentActions.ECHO, self._handle_echo)
+        self.register_handler(DummyComponentActions.INCREMENT, self._handle_increment)
+        self.register_handler(DummyComponentActions.GET_STATE, self._handle_get_state)
 
-    def _handle_get_state(self, event: Event):
-        """Возвращает текущее состояние."""
-        response = Event(
-            source="dummy_component",
-            destination=event.source,
-            operation="state_response",
-            parameters=self._state.copy()
-        )
-        self.event_bus.publish(response, "security_monitor")
-
-    # =========================================================================
-    # Отправка событий другим компонентам
-    # =========================================================================
-
-    def send_to_component(self, destination: str, operation: str, params: dict):
+    def _handle_echo(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Отправка события другому компоненту.
-        
-        Args:
-            destination: Компонент-получатель (telemetry, communication, etc.)
-            operation: Операция
-            params: Параметры
+        Обработчик action=echo.
+        Возвращает полученные данные обратно.
         """
-        event = Event(
-            source="dummy_component",
-            destination=destination,
-            operation=operation,
-            parameters=params
-        )
-        # Все события проходят через security_monitor
-        self.event_bus.publish(event, "security_monitor")
+        payload = message.get("payload", {})
+        return {"echo": payload, "from": self.component_id}
+
+    def _handle_increment(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Обработчик action=increment.
+        Увеличивает счётчик на payload.value.
+        """
+        payload = message.get("payload", {})
+        self._state["counter"] += payload.get("value", 1)
+        return {"counter": self._state["counter"], "from": self.component_id}
+
+    def _handle_get_state(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Обработчик action=get_state.
+        Возвращает текущее состояние.
+        """
+        return {**self._state, "from": self.component_id}

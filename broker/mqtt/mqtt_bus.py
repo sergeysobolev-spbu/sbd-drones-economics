@@ -3,6 +3,7 @@ MQTT реализация EventBus для передачи событий чер
 Требует запущенный MQTT broker.
 """
 import json
+import os
 import threading
 from typing import Callable, Dict, List
 
@@ -24,7 +25,8 @@ class MQTTEventBus(EventBus):
     События сериализуются в JSON для передачи через MQTT.
     """
 
-    def __init__(self, broker: str = "localhost", port: int = 1883, client_id: str = "drone_event_bus", qos: int = 1):
+    def __init__(self, broker: str = "localhost", port: int = 1883, client_id: str = "drone_event_bus", qos: int = 1,
+                 username: str = None, password: str = None):
         """
         Инициализация MQTT EventBus.
         
@@ -33,6 +35,8 @@ class MQTTEventBus(EventBus):
             port: Порт MQTT broker
             client_id: Идентификатор клиента MQTT
             qos: Quality of Service level (0, 1, or 2)
+            username: Логин MQTT (или BROKER_USER из env)
+            password: Пароль MQTT (или BROKER_PASSWORD из env)
         """
         if not MQTT_AVAILABLE:
             raise ImportError(
@@ -43,11 +47,15 @@ class MQTTEventBus(EventBus):
         self.port = port
         self.client_id = client_id
         self.qos = qos
+        self.username = username or os.environ.get("BROKER_USER")
+        self.password = password or os.environ.get("BROKER_PASSWORD")
         
         # MQTT клиент
         self._client = mqtt.Client(client_id=client_id)
         self._client.on_connect = self._on_connect
         self._client.on_message = self._on_message
+        if self.username and self.password:
+            self._client.username_pw_set(self.username, self.password)
         
         # Словарь callback-функций для каждого модуля
         self._callbacks: Dict[str, Callable[[Event], None]] = {}

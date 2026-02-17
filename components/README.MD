@@ -1,6 +1,6 @@
 # Components
 
-Компоненты - модули дрона, взаимодействующие через EventBus.
+Компоненты — модули дрона, взаимодействующие через **SystemBus** (единая шина с системами).
 
 Шаблон: `dummy_component/`
 
@@ -17,29 +17,69 @@ components/my_component/
 
 ## Класс компонента
 
+Наследуется от `BaseComponent` (аналог `BaseSystem` для систем):
+
 ```python
-from broker import EventBus
-from shared.event import Event
+from shared.base_component import BaseComponent
+from broker.system_bus import SystemBus
 
-class MyComponent:
-    def __init__(self, event_bus: EventBus):
-        self.event_bus = event_bus
-        self.event_bus.subscribe("my_component", self._handle_event)
+class MyComponent(BaseComponent):
+    def __init__(self, component_id: str, name: str, bus: SystemBus):
+        super().__init__(
+            component_id=component_id,
+            component_type="my_component",
+            topic="components.my_component",
+            bus=bus,
+        )
 
-    def _handle_event(self, event: Event):
-        if event.operation == "do_action":
-            response = Event(
-                source="my_component",
-                destination=event.source,
-                operation="action_result",
-                parameters={"result": "ok"}
-            )
-            self.event_bus.publish(response, event.source)
+    def _register_handlers(self):
+        self.register_handler("do_action", self._handle_do_action)
+
+    def _handle_do_action(self, message: dict) -> dict:
+        payload = message.get("payload", {})
+        return {"result": "ok", "from": self.component_id}
 ```
 
-## EventBus API
+## SystemBus API
 
 ```python
-self.event_bus.subscribe("my_component", self._handle_event)
-self.event_bus.publish(event, destination)
+# Request/response (синхронный)
+response = bus.request("components.my_component", {
+    "action": "do_action",
+    "sender": "caller_id",
+    "payload": {"key": "value"},
+}, timeout=10.0)
+
+# Fire-and-forget
+bus.publish("components.my_component", {
+    "action": "do_action",
+    "sender": "caller_id",
+    "payload": {"key": "value"},
+})
+```
+
+## Самостоятельный запуск
+
+### Локально
+
+```bash
+export COMPONENT_ID=dummy_component_a
+export BROKER_TYPE=mqtt
+export MQTT_BROKER=localhost
+export MQTT_PORT=1883
+python -m components
+```
+
+Для Kafka: `BROKER_TYPE=kafka`, `KAFKA_BOOTSTRAP_SERVERS=localhost:9092`.
+
+### Docker
+
+- Используется общий `docker/Dockerfile` (единый с системами), команда переопределяется в compose.
+- Переменные окружения в `docker/.env`: `BROKER_TYPE` (общий), `COMPONENT_ID_A/B`, `COMPONENT_USER_A/B`, `COMPONENT_PASSWORD_A/B`.
+- В `docker-compose.yml` — сервисы `dummy_component_a` и `dummy_component_b` (профили `kafka`, `mqtt`).
+
+```bash
+cd docker
+cp example.env .env
+docker compose -f docker-compose.yml --env-file .env --profile mqtt up -d --build
 ```

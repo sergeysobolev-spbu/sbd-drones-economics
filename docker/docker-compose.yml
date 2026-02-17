@@ -29,6 +29,10 @@ services:
       DUMMY_PASSWORD_A: ${DUMMY_PASSWORD_A}
       DUMMY_USER_B: ${DUMMY_USER_B}
       DUMMY_PASSWORD_B: ${DUMMY_PASSWORD_B}
+      COMPONENT_USER_A: ${COMPONENT_USER_A}
+      COMPONENT_PASSWORD_A: ${COMPONENT_PASSWORD_A}
+      COMPONENT_USER_B: ${COMPONENT_USER_B}
+      COMPONENT_PASSWORD_B: ${COMPONENT_PASSWORD_B}
     command: >
       sh -c '
       echo "KafkaServer {
@@ -37,7 +41,9 @@ services:
         password=\"$$ADMIN_PASSWORD\"
         user_$${ADMIN_USER}=\"$$ADMIN_PASSWORD\"
         user_$${DUMMY_USER_A}=\"$$DUMMY_PASSWORD_A\"
-        user_$${DUMMY_USER_B}=\"$$DUMMY_PASSWORD_B\";
+        user_$${DUMMY_USER_B}=\"$$DUMMY_PASSWORD_B\"
+        user_$${COMPONENT_USER_A}=\"$$COMPONENT_PASSWORD_A\"
+        user_$${COMPONENT_USER_B}=\"$$COMPONENT_PASSWORD_B\";
       };" > /tmp/jaas.conf &&
       /etc/kafka/docker/run
       '
@@ -65,6 +71,10 @@ services:
       DUMMY_PASSWORD_A: ${DUMMY_PASSWORD_A}
       DUMMY_USER_B: ${DUMMY_USER_B}
       DUMMY_PASSWORD_B: ${DUMMY_PASSWORD_B}
+      COMPONENT_USER_A: ${COMPONENT_USER_A}
+      COMPONENT_PASSWORD_A: ${COMPONENT_PASSWORD_A}
+      COMPONENT_USER_B: ${COMPONENT_USER_B}
+      COMPONENT_PASSWORD_B: ${COMPONENT_PASSWORD_B}
     volumes:
       - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     command: >
@@ -73,8 +83,10 @@ services:
       mosquitto_passwd -b -c /mosquitto/data/passwd $$ADMIN_USER $$ADMIN_PASSWORD &&
       mosquitto_passwd -b /mosquitto/data/passwd $$DUMMY_USER_A $$DUMMY_PASSWORD_A &&
       mosquitto_passwd -b /mosquitto/data/passwd $$DUMMY_USER_B $$DUMMY_PASSWORD_B &&
-      printf "user %s\ntopic readwrite #\n\nuser %s\ntopic readwrite systems/#\ntopic readwrite replies/#\ntopic readwrite drones/#\n\nuser %s\ntopic readwrite systems/#\ntopic readwrite replies/#\ntopic readwrite drones/#\n"
-      "$$ADMIN_USER" "$$DUMMY_USER_A" "$$DUMMY_USER_B"
+      mosquitto_passwd -b /mosquitto/data/passwd $$COMPONENT_USER_A $$COMPONENT_PASSWORD_A &&
+      mosquitto_passwd -b /mosquitto/data/passwd $$COMPONENT_USER_B $$COMPONENT_PASSWORD_B &&
+      printf "user %s\ntopic readwrite #\n\nuser %s\ntopic readwrite systems/#\ntopic readwrite replies/#\n\nuser %s\ntopic readwrite systems/#\ntopic readwrite replies/#\n\nuser %s\ntopic readwrite components/#\ntopic readwrite replies/#\n\nuser %s\ntopic readwrite components/#\ntopic readwrite replies/#\n"
+      "$$ADMIN_USER" "$$DUMMY_USER_A" "$$DUMMY_USER_B" "$$COMPONENT_USER_A" "$$COMPONENT_USER_B"
       > /mosquitto/data/acl &&
       chown mosquitto:mosquitto /mosquitto/data/passwd /mosquitto/data/acl &&
       chmod 700 /mosquitto/data/acl &&
@@ -150,6 +162,60 @@ services:
       - PYTHONUNBUFFERED=1
     ports:
       - "${DUMMY_PORT_B:-9701}:${DUMMY_PORT_B:-9701}"
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  dummy_component_a:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: dummy_component_a
+    profiles: ["kafka", "mqtt"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+        required: false
+      mosquitto:
+        condition: service_healthy
+        required: false
+    environment:
+      - COMPONENT_ID=${COMPONENT_ID_A:-dummy_component_a}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${COMPONENT_USER_A}
+      - BROKER_PASSWORD=${COMPONENT_PASSWORD_A}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+    command: ["python", "-m", "components"]
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  dummy_component_b:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: dummy_component_b
+    profiles: ["kafka", "mqtt"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+        required: false
+      mosquitto:
+        condition: service_healthy
+        required: false
+    environment:
+      - COMPONENT_ID=${COMPONENT_ID_B:-dummy_component_b}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${COMPONENT_USER_B}
+      - BROKER_PASSWORD=${COMPONENT_PASSWORD_B}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+    command: ["python", "-m", "components"]
     networks:
       - drones_net
     restart: unless-stopped

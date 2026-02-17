@@ -19,13 +19,15 @@ def create_event_bus(
     bus_type: Optional[str] = None, config: Optional[Dict] = None
 ) -> "EventBus":
     """
-    Создает EventBus указанного типа.
-    
-    Args:
-        bus_type: Тип EventBus ("kafka", "mqtt").
-                  Если None, берется из config или EVENT_BUS_TYPE.
-        config: Словарь с конфигурацией.
+    DEPRECATED: Используй create_system_bus().
+    Создает EventBus указанного типа (оставлен для обратной совместимости).
     """
+    import warnings
+    warnings.warn(
+        "create_event_bus() is deprecated. Use create_system_bus() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if bus_type is None:
         if config and "event_bus" in config and "type" in config["event_bus"]:
             bus_type = config["event_bus"]["type"]

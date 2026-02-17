@@ -7,51 +7,73 @@ from unittest.mock import MagicMock, patch
 
 
 class TestDummyComponent:
-    """Unit тесты DummyComponent."""
+    """Unit тесты DummyComponent (SystemBus)."""
+
+    def _make_component(self):
+        from components.dummy_component.src.dummy_component import DummyComponent
+        mock_bus = MagicMock()
+        mock_bus.subscribe = MagicMock()
+        mock_bus.start = MagicMock()
+        component = DummyComponent(
+            component_id="test_component",
+            name="TestDummy",
+            bus=mock_bus,
+        )
+        return component, mock_bus
 
     def test_increment(self):
         """Тест increment: увеличение счётчика."""
-        from components.dummy_component.src.dummy_component import DummyComponent
-        from shared.event import Event
-
-        bus = MagicMock()
-        component = DummyComponent(bus)
-
+        component, bus = self._make_component()
         assert component._state["counter"] == 0
 
-        event = Event(
-            source="test",
-            destination="dummy_component",
-            operation="increment",
-            parameters={"value": 5}
-        )
-        component._handle_event(event)
-
+        message = {
+            "action": "increment",
+            "sender": "test_client",
+            "payload": {"value": 5},
+        }
+        result = component._handle_increment(message)
         assert component._state["counter"] == 5
+        assert result["counter"] == 5
 
     def test_echo(self):
         """Тест echo: возврат данных."""
-        from components.dummy_component.src.dummy_component import DummyComponent
-        from shared.event import Event
+        component, bus = self._make_component()
+        message = {
+            "action": "echo",
+            "sender": "test_client",
+            "payload": {"message": "hello"},
+        }
+        result = component._handle_echo(message)
+        assert result["echo"] == {"message": "hello"}
+        assert result["from"] == "test_component"
 
-        bus = MagicMock()
-        bus.publish = MagicMock(return_value=True)
+    def test_get_state(self):
+        """Тест get_state: возврат состояния."""
+        component, bus = self._make_component()
+        component._state["counter"] = 42
+        message = {"action": "get_state", "sender": "test_client", "payload": {}}
+        result = component._handle_get_state(message)
+        assert result["counter"] == 42
+        assert result["from"] == "test_component"
 
-        component = DummyComponent(bus)
+    def test_message_routing(self):
+        """Проверка маршрутизации action через _handle_message."""
+        component, bus = self._make_component()
+        message = {
+            "action": "echo",
+            "sender": "test_client",
+            "payload": {"data": "ping"},
+            "reply_to": "replies.test",
+            "correlation_id": "abc123",
+        }
+        component._handle_message(message)
+        bus.publish.assert_called_once()
 
-        event = Event(
-            source="test_sender",
-            destination="dummy_component",
-            operation="echo",
-            parameters={"message": "hello"}
-        )
-        component._handle_event(event)
-
-        assert bus.publish.called
-        call_args = bus.publish.call_args
-        response_event = call_args[0][0]
-        assert response_event.operation == "echo_response"
-        assert response_event.parameters == {"message": "hello"}
+    def test_subscribe_on_start(self):
+        """Компонент подписывается на топик при start (через BaseComponent)."""
+        component, bus = self._make_component()
+        component.start()
+        bus.subscribe.assert_called()
 
 
 class TestDummySystem:
@@ -61,7 +83,6 @@ class TestDummySystem:
         """Тест echo handler."""
         from systems.dummy_system.src.dummy import DummySystem
 
-        # Mock SystemBus
         mock_bus = MagicMock()
         mock_bus.subscribe = MagicMock()
         mock_bus.start = MagicMock()
