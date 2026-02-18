@@ -3,6 +3,7 @@ Kafka реализация EventBus для распределенной пере
 Требует запущенный Apache Kafka broker.
 """
 import json
+import os
 import threading
 import time
 from typing import Callable, Dict, List
@@ -40,15 +41,16 @@ class KafkaEventBus(EventBus):
                 "kafka-python is not installed. Install it with: pip install kafka-python"
             )
 
-        # Используем переданный адрес или берем из env через shared/ports
         self.bootstrap_servers = bootstrap_servers or get_kafka_bootstrap()
         self.client_id = client_id
+        self.username = os.environ.get("BROKER_USER")
+        self.password = os.environ.get("BROKER_PASSWORD")
         
-        # Producer для отправки событий
         self._producer = KafkaProducer(
-            bootstrap_servers=bootstrap_servers,
+            bootstrap_servers=self.bootstrap_servers,
             client_id=client_id,
-            value_serializer=lambda v: json.dumps(v).encode('utf-8')
+            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+            **self._get_sasl_config()
         )
         
         # Словарь consumers для каждого модуля (для pull-модели)
@@ -59,6 +61,16 @@ class KafkaEventBus(EventBus):
         self._consumer_threads: Dict[str, threading.Thread] = {}
         # Флаг для остановки потоков
         self._running: Dict[str, bool] = {}
+
+    def _get_sasl_config(self) -> dict:
+        if self.username and self.password:
+            return {
+                'security_protocol': 'SASL_PLAINTEXT',
+                'sasl_mechanism': 'PLAIN',
+                'sasl_plain_username': self.username,
+                'sasl_plain_password': self.password
+            }
+        return {}
 
     def _get_topic_name(self, module_name: str) -> str:
         """Формирует имя топика для модуля."""
@@ -132,7 +144,6 @@ class KafkaEventBus(EventBus):
         """
         self._callbacks[module_name] = callback
         
-        # Создаем consumer для модуля
         topic = self._get_topic_name(module_name)
         consumer = KafkaConsumer(
             topic,
@@ -140,7 +151,8 @@ class KafkaEventBus(EventBus):
             client_id=f"{self.client_id}_{module_name}",
             value_deserializer=lambda m: json.loads(m.decode('utf-8')),
             auto_offset_reset='latest',
-            enable_auto_commit=True
+            enable_auto_commit=True,
+            **self._get_sasl_config()
         )
         self._consumers[module_name] = consumer
         
@@ -207,7 +219,8 @@ class KafkaEventBus(EventBus):
                 client_id=f"{self.client_id}_{module_name}_pull",
                 value_deserializer=lambda m: json.loads(m.decode('utf-8')),
                 auto_offset_reset='latest',
-                consumer_timeout_ms=100  # Таймаут для non-blocking чтения
+                consumer_timeout_ms=100,
+                **self._get_sasl_config()
             )
             events = []
             for message in consumer:

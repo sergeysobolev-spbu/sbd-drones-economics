@@ -1,4 +1,4 @@
-.PHONY: help init install shell tests e2e-test unit-test integration-test docker-build docker-up docker-down docker-logs docker-ps docker-clean
+.PHONY: help init install shell tests e2e-test unit-test integration-test dummy-component-integration-test docker-build docker-up docker-down docker-logs docker-ps docker-clean
 
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
 LOAD_ENV = set -a && . docker/.env && set +a
@@ -11,6 +11,7 @@ help:
 	@echo "make e2e-test        - E2E тесты"
 	@echo "make unit-test       - Unit тесты"
 	@echo "make integration-test - Интеграционные тесты"
+	@echo "make dummy-component-integration-test - Интеграционные тесты DummyComponent + брокер"
 	@echo "make docker-build    - Собрать образы"
 	@echo "make docker-up       - Запустить контейнеры"
 	@echo "make docker-down     - Остановить"
@@ -48,6 +49,13 @@ integration-test:
 	@$(LOAD_ENV) && export BROKER_TYPE MQTT_PORT KAFKA_PORT && $(MAKE) docker-up
 	@sleep 20
 	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/integration/ -v
+	-$(MAKE) docker-down
+
+dummy-component-integration-test:
+	@test -f docker/.env || cp docker/example.env docker/.env
+	@$(LOAD_ENV) && export BROKER_TYPE MQTT_PORT KAFKA_PORT && $(MAKE) docker-up
+	@sleep 20
+	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) components/dummy_component/tests/integration/ -v
 	-$(MAKE) docker-down
 
 docker-build:

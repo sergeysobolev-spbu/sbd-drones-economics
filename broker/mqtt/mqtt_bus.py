@@ -3,6 +3,7 @@ MQTT реализация EventBus для передачи событий чер
 Требует запущенный MQTT broker.
 """
 import json
+import os
 import threading
 from typing import Callable, Dict, List
 
@@ -44,18 +45,19 @@ class MQTTEventBus(EventBus):
         self.client_id = client_id
         self.qos = qos
         
-        # MQTT клиент
         self._client = mqtt.Client(client_id=client_id)
         self._client.on_connect = self._on_connect
         self._client.on_message = self._on_message
         
-        # Словарь callback-функций для каждого модуля
+        username = os.environ.get("BROKER_USER")
+        password = os.environ.get("BROKER_PASSWORD")
+        if username and password:
+            self._client.username_pw_set(username, password)
+        
         self._callbacks: Dict[str, Callable[[Event], None]] = {}
-        # Буфер событий для pull-модели
         self._event_buffers: Dict[str, List[Event]] = {}
         self._buffer_lock = threading.Lock()
         
-        # Подключаемся к broker
         try:
             self._client.connect(broker, port, 60)
             self._client.loop_start()  # Запускаем фоновый поток для обработки сообщений

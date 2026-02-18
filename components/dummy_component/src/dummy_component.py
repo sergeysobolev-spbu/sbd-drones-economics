@@ -14,7 +14,7 @@ class DummyComponent:
     Компонент:
     - Подписывается на события через EventBus
     - Обрабатывает входящие события
-    - Отправляет ответы через security_monitor
+    - Отправляет ответы в destination
     """
 
     def __init__(self, event_bus: EventBus):
@@ -52,7 +52,7 @@ class DummyComponent:
             operation="echo_response",
             parameters=event.parameters
         )
-        self.event_bus.publish(response, "security_monitor")
+        self.event_bus.publish(response, response.destination)
 
     def _handle_increment(self, event: Event):
         """Увеличивает счётчик."""
@@ -64,7 +64,7 @@ class DummyComponent:
             operation="increment_response",
             parameters={"counter": self._state["counter"]}
         )
-        self.event_bus.publish(response, "security_monitor")
+        self.event_bus.publish(response, response.destination)
 
     def _handle_get_state(self, event: Event):
         """Возвращает текущее состояние."""
@@ -74,7 +74,7 @@ class DummyComponent:
             operation="state_response",
             parameters=self._state.copy()
         )
-        self.event_bus.publish(response, "security_monitor")
+        self.event_bus.publish(response, response.destination)
 
     # =========================================================================
     # Отправка событий другим компонентам
@@ -95,5 +95,4 @@ class DummyComponent:
             operation=operation,
             parameters=params
         )
-        # Все события проходят через security_monitor
-        self.event_bus.publish(event, "security_monitor")
+        self.event_bus.publish(event, destination)

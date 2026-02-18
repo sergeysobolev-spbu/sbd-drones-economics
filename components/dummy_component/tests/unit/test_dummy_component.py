@@ -22,7 +22,7 @@ def test_subscribe_on_init(mocker: MockerFixture, event_bus, component):
     """Компонент подписывается на события при инициализации."""
     # Проверяем, что subscribe был вызван ровно один раз
     assert event_bus.subscribe.call_count == 1
-    
+
     # Проверяем аргументы вызова subscribe
     call_args = event_bus.subscribe.call_args[0]
     assert call_args[0] == "dummy_component"
