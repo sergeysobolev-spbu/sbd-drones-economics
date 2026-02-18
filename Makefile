@@ -40,7 +40,7 @@ unit-test:
 	@test -f docker/.env || cp docker/example.env docker/.env
 	@$(LOAD_ENV) && export BROKER_TYPE MQTT_PORT KAFKA_PORT && $(MAKE) docker-up
 	@sleep 20
-	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/unit/ -v
+	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/unit/ components/dummy_component/tests/ -v
 	-$(MAKE) docker-down
 
 integration-test:
