@@ -1,85 +1,40 @@
-# Components
+# Компоненты
 
-Компоненты — модули дрона, взаимодействующие через **SystemBus** (единая шина с системами).
+Шаблон: `components/dummy_component/`
 
-Шаблон: `dummy_component/`
+## Создать свой компонент
+
+1. Скопировать `dummy_component` → `components/my_component/`
+2. В `src/my_component.py`: наследоваться от `BaseComponent`, реализовать `_register_handlers()`
+3. `__main__.py` — точка входа (standalone без брокера)
+4. `docker/Dockerfile` — `CMD ["python", "-m", "components.my_component"]`
+5. `Makefile`: `docker-build`, `docker-up`, `unit-test`
 
 ## Структура
 
 ```
 components/my_component/
 ├── src/
-│   ├── __init__.py
-│   └── my_component.py
-└── tests/
-    └── test_my_component.py
+│   └── my_component.py    # Класс от BaseComponent
+├── __main__.py            # Запуск standalone
+├── docker/Dockerfile
+├── tests/
+└── Makefile
 ```
 
-## Класс компонента
-
-Наследуется от `BaseComponent` (аналог `BaseSystem` для систем):
+## Класс
 
 ```python
-from shared.base_component import BaseComponent
-from broker.system_bus import SystemBus
+from sdk.base_component import BaseComponent
 
 class MyComponent(BaseComponent):
-    def __init__(self, component_id: str, name: str, bus: SystemBus):
-        super().__init__(
-            component_id=component_id,
-            component_type="my_component",
-            topic="components.my_component",
-            bus=bus,
-        )
+    def __init__(self, component_id: str, name: str, bus: SystemBus, topic: str = "components.my_component"):
+        super().__init__(component_id=component_id, component_type="my_component", topic=topic, bus=bus)
 
     def _register_handlers(self):
-        self.register_handler("do_action", self._handle_do_action)
-
-    def _handle_do_action(self, message: dict) -> dict:
-        payload = message.get("payload", {})
-        return {"result": "ok", "from": self.component_id}
+        self.register_handler("action_name", self._handle_action)
 ```
 
-## SystemBus API
+## В составе системы
 
-```python
-# Request/response (синхронный)
-response = bus.request("components.my_component", {
-    "action": "do_action",
-    "sender": "caller_id",
-    "payload": {"key": "value"},
-}, timeout=10.0)
-
-# Fire-and-forget
-bus.publish("components.my_component", {
-    "action": "do_action",
-    "sender": "caller_id",
-    "payload": {"key": "value"},
-})
-```
-
-## Самостоятельный запуск
-
-### Локально
-
-```bash
-export COMPONENT_ID=dummy_component_a
-export BROKER_TYPE=mqtt
-export MQTT_BROKER=localhost
-export MQTT_PORT=1883
-python -m components
-```
-
-Для Kafka: `BROKER_TYPE=kafka`, `KAFKA_BOOTSTRAP_SERVERS=localhost:9092`.
-
-### Docker
-
-- Используется общий `docker/Dockerfile` (единый с системами), команда переопределяется в compose.
-- Переменные окружения в `docker/.env`: `BROKER_TYPE` (общий), `COMPONENT_ID_A/B`, `COMPONENT_USER_A/B`, `COMPONENT_PASSWORD_A/B`.
-- В `docker-compose.yml` — сервисы `dummy_component_a` и `dummy_component_b` (профили `kafka`, `mqtt`).
-
-```bash
-cd docker
-cp example.env .env
-docker compose -f docker-compose.yml --env-file .env --profile mqtt up -d --build
-```
+Компонент копируется целиком в `systems/my_system/src/my_component_a/`. Добавляются `topics.py`, `.env` (COMPONENT_ID, BROKER_USER, BROKER_PASSWORD), `__main__.py` с подключением к брокеру.

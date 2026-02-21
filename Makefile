@@ -1,4 +1,4 @@
-.PHONY: help init install shell tests e2e-test unit-test integration-test docker-build docker-up docker-down docker-logs docker-ps docker-clean
+.PHONY: help init unit-test tests docker-up docker-down docker-logs docker-ps docker-clean
 
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
 LOAD_ENV = set -a && . docker/.env && set +a
@@ -6,65 +6,36 @@ PIPENV_PIPFILE = config/Pipfile
 PYTEST_CONFIG = config/pyproject.toml
 
 help:
-	@echo "make init            - Установить pipenv и зависимости"
-	@echo "make tests           - Docker up + pytest + docker-down"
-	@echo "make e2e-test        - E2E тесты"
-	@echo "make unit-test       - Unit тесты"
-	@echo "make integration-test - Интеграционные тесты"
-	@echo "make docker-build    - Собрать образы"
-	@echo "make docker-up       - Запустить контейнеры"
-	@echo "make docker-down     - Остановить"
-	@echo "make docker-logs     - Логи"
-	@echo "make docker-ps       - Статус"
-	@echo "make docker-clean    - Очистка"
+	@echo "make init              - Установить pipenv и зависимости"
+	@echo "make unit-test         - Unit тесты (SDK + broker + standalone компоненты)"
+	@echo "make tests             - Все тесты"
+	@echo "make docker-up         - Запустить инфраструктуру брокера"
+	@echo "make docker-down       - Остановить"
+	@echo "make docker-logs       - Логи"
+	@echo "make docker-ps         - Статус"
+	@echo "make docker-clean      - Очистка"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
 	PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv install --dev
 
-tests:
-	@test -f docker/.env || cp docker/example.env docker/.env
-	@$(LOAD_ENV) && export BROKER_TYPE MQTT_PORT KAFKA_PORT && $(MAKE) docker-up
-	@sleep 20
-	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/ -v
-	-$(MAKE) docker-down
-
-e2e-test:
-	@test -f docker/.env || cp docker/example.env docker/.env
-	@$(LOAD_ENV) && export BROKER_TYPE MQTT_PORT KAFKA_PORT && $(MAKE) docker-up
-	@sleep 20
-	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/e2e/ -v
-	-$(MAKE) docker-down
-
 unit-test:
-	@test -f docker/.env || cp docker/example.env docker/.env
-	@$(LOAD_ENV) && export BROKER_TYPE MQTT_PORT KAFKA_PORT && $(MAKE) docker-up
-	@sleep 20
-	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/unit/ components/dummy_component/tests/ -v
-	-$(MAKE) docker-down
+	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) \
+		tests/unit/ \
+		components/dummy_component/tests/ \
+		-v
 
-integration-test:
-	@test -f docker/.env || cp docker/example.env docker/.env
-	@$(LOAD_ENV) && export BROKER_TYPE MQTT_PORT KAFKA_PORT && $(MAKE) docker-up
-	@sleep 20
-	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/integration/ -v
-	-$(MAKE) docker-down
-
-docker-build:
-	@test -f docker/.env || cp docker/example.env docker/.env
-	$(DOCKER_COMPOSE) --profile kafka build
-	$(DOCKER_COMPOSE) --profile mqtt build
+tests: unit-test
 
 docker-up:
 	@test -f docker/.env || cp docker/example.env docker/.env
 	@profile=$${BROKER_TYPE:-$$(grep '^BROKER_TYPE=' docker/.env 2>/dev/null | cut -d= -f2)}; \
 	profile=$${profile:-kafka}; \
-	$(DOCKER_COMPOSE) --profile $$profile up -d --build
+	$(DOCKER_COMPOSE) --profile $$profile up -d
 
 docker-down:
 	-$(DOCKER_COMPOSE) --profile kafka down 2>/dev/null
 	-$(DOCKER_COMPOSE) --profile mqtt down 2>/dev/null
-	-docker ps -aq --filter "label=type=drone" | xargs -r docker rm -f
 
 docker-logs:
 	$(DOCKER_COMPOSE) --profile $$(grep BROKER_TYPE docker/.env | cut -d= -f2) logs -f
@@ -75,5 +46,3 @@ docker-ps:
 docker-clean:
 	-$(DOCKER_COMPOSE) --profile kafka down -v --rmi local 2>/dev/null
 	-$(DOCKER_COMPOSE) --profile mqtt down -v --rmi local 2>/dev/null
-	-docker ps -aq --filter "label=type=drone" | xargs -r docker rm -f
-	-docker images -q "drones_v2*" | xargs -r docker rmi -f
