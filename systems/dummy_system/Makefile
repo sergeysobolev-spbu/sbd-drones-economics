@@ -19,15 +19,24 @@ prepare:
 
 docker-up: prepare
 	@set -a && . $(GENERATED)/.env && set +a && \
-		$(DOCKER_COMPOSE) --profile $${BROKER_TYPE:-kafka} up -d --build
+		profiles="--profile $${BROKER_TYPE:-kafka}"; \
+		[ "$${ENABLE_ELK:-false}" = "true" ] && profiles="$$profiles --profile elk"; \
+		[ "$${ENABLE_FABRIC:-false}" = "true" ] && profiles="$$profiles --profile fabric"; \
+		$(DOCKER_COMPOSE) $$profiles up -d --build
 
 docker-down:
-	-$(DOCKER_COMPOSE) --profile kafka down 2>/dev/null
-	-$(DOCKER_COMPOSE) --profile mqtt down 2>/dev/null
+	@set -a && . $(GENERATED)/.env && set +a && \
+		profiles="--profile $${BROKER_TYPE:-kafka}"; \
+		[ "$${ENABLE_ELK:-false}" = "true" ] && profiles="$$profiles --profile elk"; \
+		[ "$${ENABLE_FABRIC:-false}" = "true" ] && profiles="$$profiles --profile fabric"; \
+		$(DOCKER_COMPOSE) $$profiles down 2>/dev/null || true
 
 docker-logs:
 	@set -a && . $(GENERATED)/.env && set +a && \
-		$(DOCKER_COMPOSE) --profile $${BROKER_TYPE:-kafka} logs -f
+		profiles="--profile $${BROKER_TYPE:-kafka}"; \
+		[ "$${ENABLE_ELK:-false}" = "true" ] && profiles="$$profiles --profile elk"; \
+		[ "$${ENABLE_FABRIC:-false}" = "true" ] && profiles="$$profiles --profile fabric"; \
+		$(DOCKER_COMPOSE) $$profiles logs -f
 
 unit-test:
 	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/test_dummy_unit.py -v

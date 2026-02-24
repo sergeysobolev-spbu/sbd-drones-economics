@@ -75,7 +75,9 @@ def prepare_system(system_dir: str):
     broker_compose = yaml.safe_load(broker_compose_path.read_text())
     system_compose = yaml.safe_load(system_compose_path.read_text())
 
+    example_env = parse_env_file(root / "docker" / "example.env")
     root_env = parse_env_file(root / "docker" / ".env")
+    root_env = {**example_env, **root_env}
 
     # Discover components and their .env files (under system src/)
     components_dir = system_path / "src"
@@ -98,12 +100,16 @@ def prepare_system(system_dir: str):
         merged_env[f"COMPONENT_USER_{suffix}"] = env.get("BROKER_USER", "")
         merged_env[f"COMPONENT_PASSWORD_{suffix}"] = env.get("BROKER_PASSWORD", "")
 
-    # --- Rewrite broker volume paths ---
+    # --- Rewrite broker volume paths and build context ---
     broker_dir = broker_compose_path.parent
     broker_services = deepcopy(broker_compose.get("services", {}))
     for svc_name, svc in broker_services.items():
         if "volumes" in svc:
             svc["volumes"] = rewrite_volumes(svc["volumes"], broker_dir, output_dir)
+        if "build" in svc:
+            build = svc["build"]
+            if isinstance(build, dict) and "context" in build:
+                build["context"] = rewrite_path(build["context"], broker_dir, output_dir)
 
         # Update broker env: replace hardcoded COMPONENT_USER_* with discovered ones
         env_block = svc.get("environment", {})

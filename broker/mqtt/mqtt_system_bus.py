@@ -4,8 +4,11 @@ import threading
 import time
 import asyncio
 import os
+from datetime import datetime, timezone
 from typing import Callable, Dict, Any, Optional
 from uuid import uuid4
+
+LOGS_TOPIC = "logs.application"
 from concurrent.futures import Future, ThreadPoolExecutor
 
 try:
@@ -99,7 +102,26 @@ class MQTTSystemBus(SystemBus):
         except Exception as e:
             print(f"Error processing MQTT message: {e}")
 
+    def _mirror_to_logs(self, direction: str, topic: str, message: Dict[str, Any]) -> None:
+        """Копирует сообщение в logs.application при ENABLE_ELK=true."""
+        if os.environ.get("ENABLE_ELK", "").lower() not in ("1", "true", "yes"):
+            return
+        if topic == LOGS_TOPIC:
+            return
+        try:
+            log_msg = {
+                "direction": direction,
+                "topic": topic,
+                "message": message,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            mqtt_topic = self._topic_to_mqtt(LOGS_TOPIC)
+            self._client.publish(mqtt_topic, json.dumps(log_msg), qos=0)
+        except Exception:
+            pass
+
     def _safe_callback(self, topic: str, callback: Callable, message: Dict[str, Any]):
+        self._mirror_to_logs("in", topic, message)
         try:
             callback(message)
         except Exception as e:
@@ -158,6 +180,7 @@ class MQTTSystemBus(SystemBus):
         try:
             result = self._client.publish(mqtt_topic, payload, qos=self.qos)
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                self._mirror_to_logs("out", topic, message)
                 return True
             else:
                 print(f"Failed to publish to {mqtt_topic}, rc={result.rc}")
