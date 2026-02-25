@@ -1,0 +1,4 @@
+[submodule "fabric-network"]
+	path = fabric-network
+	url = https://gitflic.ru/project/losssaw3/smart-contracts-hlf.git
+	branch = dev

@@ -7,11 +7,12 @@
 ```
 broker/              Шина, create_system_bus
 sdk/                 BaseComponent, BaseSystem
-components/          Standalone-компоненты
+components/          Отдельные компоненты
 systems/             Системы (dummy_system)
-docker/              Брокер (kafka, mosquitto)
+docker/              Брокер (kafka, mosquitto), Fabric proxy, Ledger gateway
 scripts/             prepare_system.py
 config/              Pipfile, pyproject.toml
+fabric-network/      Hyperledger Fabric сеть (submodule)
 ```
 
 ## Команды
@@ -55,7 +56,15 @@ make docker-up
 | ADMIN_USER, ADMIN_PASSWORD | Админ брокера |
 | COMPONENT_USER_A/B | Опционально, для компонентов |
 
+## Fabric Ledger (смарт-контракты)
+
+При `ENABLE_FABRIC=true` поднимаются `fabric-proxy` и `ledger-gateway`.
+Компоненты вызывают контракты через `bus.request("components.ledger", ...)`.
+
+Подробнее: [docs/fabric_integration.md](fabric_integration.md)
+
 ## Troubleshooting
 
 - Брокер недоступен: проверьте profile (kafka/mqtt) в docker-up
 - Внутри Docker: имена контейнеров (kafka, mosquitto), не localhost
+- Fabric: сеть должна быть запущена до `make docker-up`

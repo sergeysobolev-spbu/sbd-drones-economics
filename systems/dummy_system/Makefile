@@ -19,11 +19,13 @@ prepare:
 
 docker-up: prepare
 	@set -a && . $(GENERATED)/.env && set +a && \
-		$(DOCKER_COMPOSE) --profile $${BROKER_TYPE:-kafka} up -d --build
+		profiles="--profile $${BROKER_TYPE:-kafka}"; \
+		[ "$${ENABLE_FABRIC:-false}" = "true" ] && profiles="$$profiles --profile fabric"; \
+		$(DOCKER_COMPOSE) $$profiles up -d --build
 
 docker-down:
-	-$(DOCKER_COMPOSE) --profile kafka down 2>/dev/null
-	-$(DOCKER_COMPOSE) --profile mqtt down 2>/dev/null
+	-$(DOCKER_COMPOSE) --profile kafka --profile fabric down 2>/dev/null
+	-$(DOCKER_COMPOSE) --profile mqtt --profile fabric down 2>/dev/null
 
 docker-logs:
 	@set -a && . $(GENERATED)/.env && set +a && \

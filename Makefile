@@ -29,13 +29,14 @@ tests: unit-test
 
 docker-up:
 	@test -f docker/.env || cp docker/example.env docker/.env
-	@profile=$${BROKER_TYPE:-$$(grep '^BROKER_TYPE=' docker/.env 2>/dev/null | cut -d= -f2)}; \
-	profile=$${profile:-kafka}; \
-	$(DOCKER_COMPOSE) --profile $$profile up -d
+	@set -a && . docker/.env && set +a && \
+		profiles="--profile $${BROKER_TYPE:-kafka}"; \
+		[ "$${ENABLE_FABRIC:-false}" = "true" ] && profiles="$$profiles --profile fabric"; \
+		$(DOCKER_COMPOSE) $$profiles up -d --build
 
 docker-down:
-	-$(DOCKER_COMPOSE) --profile kafka down 2>/dev/null
-	-$(DOCKER_COMPOSE) --profile mqtt down 2>/dev/null
+	-$(DOCKER_COMPOSE) --profile kafka --profile fabric down 2>/dev/null
+	-$(DOCKER_COMPOSE) --profile mqtt --profile fabric down 2>/dev/null
 
 docker-logs:
 	$(DOCKER_COMPOSE) --profile $$(grep BROKER_TYPE docker/.env | cut -d= -f2) logs -f
@@ -44,5 +45,5 @@ docker-ps:
 	@docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 docker-clean:
-	-$(DOCKER_COMPOSE) --profile kafka down -v --rmi local 2>/dev/null
-	-$(DOCKER_COMPOSE) --profile mqtt down -v --rmi local 2>/dev/null
+	-$(DOCKER_COMPOSE) --profile kafka --profile fabric down -v --rmi local 2>/dev/null
+	-$(DOCKER_COMPOSE) --profile mqtt --profile fabric down -v --rmi local 2>/dev/null

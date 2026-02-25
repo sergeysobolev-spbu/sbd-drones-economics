@@ -98,12 +98,18 @@ def prepare_system(system_dir: str):
         merged_env[f"COMPONENT_USER_{suffix}"] = env.get("BROKER_USER", "")
         merged_env[f"COMPONENT_PASSWORD_{suffix}"] = env.get("BROKER_PASSWORD", "")
 
-    # --- Rewrite broker volume paths ---
+    # --- Rewrite broker volume paths and build contexts ---
     broker_dir = broker_compose_path.parent
     broker_services = deepcopy(broker_compose.get("services", {}))
     for svc_name, svc in broker_services.items():
         if "volumes" in svc:
             svc["volumes"] = rewrite_volumes(svc["volumes"], broker_dir, output_dir)
+        if "build" in svc:
+            build = svc["build"]
+            if isinstance(build, dict) and "context" in build:
+                build["context"] = rewrite_path(build["context"], broker_dir, output_dir)
+            elif isinstance(build, str):
+                svc["build"] = rewrite_path(build, broker_dir, output_dir)
 
         # Update broker env: replace hardcoded COMPONENT_USER_* with discovered ones
         env_block = svc.get("environment", {})
@@ -144,15 +150,20 @@ def prepare_system(system_dir: str):
         }
 
     # --- Merge into single compose ---
+    merged_networks = {
+        "drones_net": {
+            "driver": "bridge",
+            "name": "${DOCKER_NETWORK:-drones_net}",
+        }
+    }
+    # Copy external networks from broker (e.g. fabric_drone) so fabric-proxy can attach
+    for net_name, net_cfg in (broker_compose.get("networks") or {}).items():
+        if net_name != "drones_net":
+            merged_networks[net_name] = deepcopy(net_cfg)
     merged = {
         "name": "drones",
         "services": {},
-        "networks": {
-            "drones_net": {
-                "driver": "bridge",
-                "name": "${DOCKER_NETWORK:-drones_net}",
-            }
-        },
+        "networks": merged_networks,
     }
 
     for svc_name, svc in broker_services.items():
