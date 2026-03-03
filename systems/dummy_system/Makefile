@@ -11,8 +11,7 @@ help:
 	@echo "make docker-down       - Остановить систему"
 	@echo "make docker-logs       - Логи"
 	@echo "make unit-test         - Unit тесты компонентов"
-	@echo "make integration-test  - Интеграционные тесты (docker required)"
-	@echo "make tests             - Все тесты"
+	@echo "make test-all-docker  - Интеграционные тесты c использованием docker (docker required)"
 
 prepare:
 	@cd ../.. && PIPENV_PIPFILE=config/Pipfile pipenv run python scripts/prepare_system.py systems/dummy_system
@@ -41,11 +40,11 @@ docker-logs:
 unit-test:
 	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/test_dummy_unit.py -v
 
-integration-test: docker-up
+test-all-docker: docker-up
 	@echo "Waiting for broker and components..."
 	@sleep 45
 	@set -a && . $(GENERATED)/.env && set +a && \
 		PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/test_integration.py -v
 	-$(MAKE) docker-down
 
-tests: unit-test integration-test
+

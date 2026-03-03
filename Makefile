@@ -22,7 +22,7 @@ prepare:
 	sudo apt-get update
 	sudo apt-get install -y python3 python3-pip python3-venv docker.io docker-compose-v2 pipenv
 	@echo "Готово. Следующий шаг: make init"
-	
+
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
 	PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv install --dev
@@ -33,7 +33,7 @@ unit-test:
 		components/dummy_component/tests/ \
 		-v
 
-tests: unit-test
+test-all: unit-test
 
 docker-up:
 	@test -f docker/.env || cp docker/example.env docker/.env
