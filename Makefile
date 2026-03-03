@@ -20,9 +20,12 @@ prepare:
 	@echo "Установка системных пакетов через apt..."
 	@command -v apt-get >/dev/null 2>&1 || { echo "Ошибка: apt-get не найден. make prepare поддерживает только Debian/Ubuntu (apt)."; exit 1; }
 	sudo apt-get update
-	sudo apt-get install -y python3 python3-pip python3-venv docker.io docker-compose-v2
-	pip3 install --user pipenv
-	@echo "Готово. Следующий шаг: make init"
+	sudo apt-get install -y python3 python3-pip python3-venv docker.io docker-compose-v2 pipx
+	# Добавляем ~/.local/bin в PATH для текущей сессии
+	export PATH="$$HOME/.local/bin:$$PATH"; \
+	pipx ensurepath; \
+	pipx install pipenv
+	@echo "Готово. Если команда 'pipenv' не находится, открой новый терминал или выполните: export PATH=\"$$HOME/.local/bin:$$PATH\". Следующий шаг: make init"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
