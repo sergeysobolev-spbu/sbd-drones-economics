@@ -12,6 +12,10 @@ from systems.dummy_system.src.dummy_component_a.topics import (
     ComponentTopics,
     DummyComponentActions,
 )
+from systems.dummy_system.src.gateway.topics import (
+    SystemTopics,
+    GatewayActions,
+)
 
 
 def _broker_available(retries=5, delay=2):
@@ -158,3 +162,53 @@ def test_component_a_asks_b(system_bus):
     assert response["payload"]["b_response"]["data"] == "response_for_hello"
     assert response["payload"]["b_response"]["source"] == "dummy_component_b"
     assert response["payload"]["relayed_by"] == "dummy_component_a"
+
+
+# --- Gateway integration tests ---
+
+
+def test_gateway_echo(system_bus):
+    """Отправляем echo через gateway (systems.dummy_system) — не напрямую в компонент."""
+    response = system_bus.request(
+        SystemTopics.DUMMY_SYSTEM,
+        {
+            "action": GatewayActions.ECHO,
+            "sender": "test_client",
+            "payload": {"message": "hello_via_gateway"},
+        },
+        timeout=15.0,
+    )
+    if response is None:
+        pytest.skip(
+            "No response from gateway (timeout). "
+            "Run: make docker-up"
+        )
+    assert response.get("success") is True
+    assert response["payload"]["echo"] == {"message": "hello_via_gateway"}
+    assert "from" in response["payload"]
+
+
+def test_gateway_get_data(system_bus):
+    """Отправляем get_data через gateway — он проксирует в компонент B."""
+    response = None
+    for attempt in range(3):
+        response = system_bus.request(
+            SystemTopics.DUMMY_SYSTEM,
+            {
+                "action": GatewayActions.GET_DATA,
+                "sender": "test_client",
+                "payload": {"query": "gw_test"},
+            },
+            timeout=15.0,
+        )
+        if response is not None:
+            break
+        time.sleep(5)
+    if response is None:
+        pytest.skip(
+            "No response from gateway (timeout). "
+            "Run: make docker-up"
+        )
+    assert response.get("success") is True
+    assert response["payload"]["data"] == "response_for_gw_test"
+    assert response["payload"]["source"] == "dummy_component_b"

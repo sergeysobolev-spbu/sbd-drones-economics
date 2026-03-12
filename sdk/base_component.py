@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Callable, Optional
 
 from broker.system_bus import SystemBus
-from sdk.messages import create_response
+from sdk.messages import create_response, create_dead_letter, DEAD_LETTER_TOPIC
 
 
 class BaseComponent(ABC):
@@ -69,6 +69,12 @@ class BaseComponent(ABC):
             print(f"[{self.component_id}] Unknown action: {action}")
             if message.get("reply_to"):
                 self.bus.respond(message, {"error": f"Unknown action: {action}"}, action="error")
+            else:
+                self.bus.publish(DEAD_LETTER_TOPIC, create_dead_letter(
+                    original_message=message,
+                    sender=self.component_id,
+                    error=f"Unknown action: {action}",
+                ))
             return
 
         try:
@@ -92,6 +98,12 @@ class BaseComponent(ABC):
                     error=str(e),
                 )
                 self.bus.publish(message["reply_to"], response)
+            else:
+                self.bus.publish(DEAD_LETTER_TOPIC, create_dead_letter(
+                    original_message=message,
+                    sender=self.component_id,
+                    error=str(e),
+                ))
 
     def _handle_ping(self, message: Dict[str, Any]) -> Dict[str, Any]:
         return {"pong": True, "component_id": self.component_id}

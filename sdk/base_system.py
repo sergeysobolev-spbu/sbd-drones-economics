@@ -16,7 +16,7 @@ import sys
 from flask import Flask, jsonify
 
 from broker.system_bus import SystemBus
-from sdk.messages import create_response
+from sdk.messages import create_response, create_dead_letter, DEAD_LETTER_TOPIC
 
 
 class BaseSystem(ABC):
@@ -88,6 +88,12 @@ class BaseSystem(ABC):
                     {"error": f"Unknown action: {action}"},
                     action="error"
                 )
+            else:
+                self.bus.publish(DEAD_LETTER_TOPIC, create_dead_letter(
+                    original_message=message,
+                    sender=self.system_id,
+                    error=f"Unknown action: {action}",
+                ))
             return
 
         try:
@@ -112,6 +118,12 @@ class BaseSystem(ABC):
                     error=str(e)
                 )
                 self.bus.publish(message["reply_to"], response)
+            else:
+                self.bus.publish(DEAD_LETTER_TOPIC, create_dead_letter(
+                    original_message=message,
+                    sender=self.system_id,
+                    error=str(e),
+                ))
 
     def _handle_ping(self, message: Dict[str, Any]) -> Dict[str, Any]:
         return {"pong": True, "system_id": self.system_id}
