@@ -17,13 +17,13 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                sh 'make unit-test'
+                sh 'make ci-unit-test'
             }
         }
 
         stage('Integration Tests') {
             steps {
-                sh 'make tests'
+                sh 'make ci-integration-test'
             }
         }
     }
@@ -31,6 +31,7 @@ pipeline {
     post {
         always {
             sh 'make docker-down || true'
+            sh 'for sys in systems/*/; do [ -f "$sys/Makefile" ] && make -C "$sys" docker-down 2>/dev/null || true; done'
         }
     }
 }

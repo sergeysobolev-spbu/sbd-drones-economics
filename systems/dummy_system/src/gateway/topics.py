@@ -1,13 +1,17 @@
 """Топики и actions для Gateway dummy_system."""
+import os
+
+_NS = os.environ.get("SYSTEM_NAMESPACE", "")
+_P = f"{_NS}." if _NS else ""
 
 
 class SystemTopics:
-    DUMMY_SYSTEM = "systems.dummy_system"
+    DUMMY_SYSTEM = f"{_P}systems.dummy_system"
 
 
 class ComponentTopics:
-    DUMMY_COMPONENT_A = "components.dummy_component_a"
-    DUMMY_COMPONENT_B = "components.dummy_component_b"
+    DUMMY_COMPONENT_A = f"{_P}components.dummy_component_a"
+    DUMMY_COMPONENT_B = f"{_P}components.dummy_component_b"
 
     @classmethod
     def all(cls) -> list:
