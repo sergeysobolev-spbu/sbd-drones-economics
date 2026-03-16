@@ -1,0 +1,161 @@
+version: '3.8'
+
+services:
+  # Монитор безопасности (D0_CRITICAL)
+  security-monitor:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: operator-security-monitor
+    environment:
+      - COMPONENT_TYPE=security_monitor
+      - COMPONENT_ID=security-01
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+    networks:
+      - operator-network
+    restart: unless-stopped
+
+  # Менеджер парка (D1_TRUSTED)
+  fleet-manager:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: operator-fleet-manager
+    environment:
+      - COMPONENT_TYPE=fleet_manager
+      - COMPONENT_ID=fleet-01
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+
+  # Планировщик миссий (D1_TRUSTED)
+  mission-planner:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: operator-mission-planner
+    environment:
+      - COMPONENT_TYPE=mission_planner
+      - COMPONENT_ID=planner-01
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+
+  # Бизнес-логика (D2_OPERATIONAL)
+  business-logic:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: operator-business-logic
+    environment:
+      - COMPONENT_TYPE=business_logic
+      - COMPONENT_ID=business-01
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+
+  # Главный компонент системы (D3_EXTERNAL)
+  operator-system:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: operator-system
+    environment:
+      - COMPONENT_TYPE=operator_system
+      - COMPONENT_ID=operator-01
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - security-monitor
+      - fleet-manager
+      - mission-planner
+      - business-logic
+    ports:
+      - "8080:8080"  # API порт
+    networks:
+      - operator-network
+    restart: unless-stopped
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: operator-kafka
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    depends_on:
+      - zookeeper
+    networks:
+      - operator-network
+    restart: unless-stopped
+
+  # Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: operator-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - operator-network
+    restart: unless-stopped
+
+  # Prometheus для мониторинга
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: operator-prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - operator-network
+    restart: unless-stopped
+
+  # Grafana для визуализации
+  grafana:
+    image: grafana/grafana:latest
+    container_name: operator-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - operator-network
+    restart: unless-stopped
+
+networks:
+  operator-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
