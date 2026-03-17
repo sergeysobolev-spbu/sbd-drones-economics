@@ -55,6 +55,24 @@ fleet_manager/
 - SecurityMonitorService (D2) - аудит, метрики, уведомления
 - Полная изоляция критической логики от операционной
 
+#### Mission Planner (полностью переработан)
+```
+mission_planner/
+├── src/
+│   ├── mission_planner.py         # Основной компонент
+│   ├── mission_planner_core.py    # D0_CRITICAL - валидация и безопасность
+│   └── mission_planner_service.py # D2_OPERATIONAL - управление миссиями
+├── tests/
+│   └── unit/                      # Unit тесты
+├── docker/
+│   └── Dockerfile                 # Контейнеризация
+└── docs/
+    └── README.md                  # Документация API и использования
+```
+- MissionPlannerCore (D0) - валидация планов полета, проверка ограничений
+- MissionPlannerService (D2) - жизненный цикл миссий, шаблоны, оптимизация
+- Интеграция с Fleet Manager для резервирования БАС
+
 ### 4. Инфраструктурные улучшения
 
 #### pytest.ini
@@ -160,6 +178,7 @@ fleet_manager/
 - `/systems/operator/src/topics.py` - новая система топиков
 - `/systems/operator/src/fleet_manager/` - полностью переработан
 - `/systems/operator/src/security_monitor/` - новый компонент
+- `/systems/operator/src/mission_planner/` - полностью переработан
 - `/systems/operator/pytest.ini` - настройка тестирования
 
 ### B. Примеры использования
