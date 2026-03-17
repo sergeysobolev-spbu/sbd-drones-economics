@@ -11,18 +11,18 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Копирование файла зависимостей
-COPY requirements.txt .
+COPY systems/operator/requirements.txt ./requirements.txt
 
 # Установка Python зависимостей
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Копирование исходного кода
-COPY src/ ./src/
-COPY __init__.py .
+COPY systems/operator/src/ ./src/
+COPY systems/operator/__init__.py ./__init__.py
 
-# Копирование SDK и broker (предполагается, что они в корне проекта)
-COPY ../../sdk/ ./sdk/
-COPY ../../broker/ ./broker/
+# Копирование SDK и broker (из корня репозитория)
+COPY sdk/ ./sdk/
+COPY broker/ ./broker/
 
 # Установка переменных окружения по умолчанию
 ENV PYTHONPATH=/app:$PYTHONPATH
@@ -31,8 +31,10 @@ ENV COMPONENT_ID=operator-01
 ENV KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 ENV LOG_LEVEL=INFO
 
-# Создание пользователя для безопасности
-RUN useradd -m -u 1000 operator && chown -R operator:operator /app
+# Создание пользователя для безопасности (идемпотентно)
+RUN if ! id -u operator >/dev/null 2>&1; then \
+      useradd -m -u 1000 -g operator operator 2>/dev/null || useradd -m -u 1000 operator; \
+    fi && chown -R operator:operator /app
 USER operator
 
 # Точка входа - запуск компонента в зависимости от COMPONENT_TYPE

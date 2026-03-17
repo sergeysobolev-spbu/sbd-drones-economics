@@ -36,6 +36,9 @@ class SystemTopics:
     """Топики систем в экосистеме"""
     # Регулятор не имеет уникального идентификатора
     REGULATOR = "systems.regulator"
+
+    # Обратная совместимость: ранее в коде встречается обращение к константе
+    # `SystemTopics.OPERATOR` (без вызова метода). Делаем её динамической через метакласс ниже.
     
     # Остальные системы получают топики динамически
     @staticmethod
@@ -119,6 +122,51 @@ class ComponentTopics:
     def get_regulator_client() -> str:
         """Топик компонента Regulator Client"""
         return TopicBuilder.build_internal_topic("regulator_client")
+
+
+class _TopicsMeta(type):
+    """
+    Метакласс для ленивых "констант" топиков.
+
+    Нужен для обратной совместимости: старый код обращается к `ComponentTopics.SECURITY_MONITOR`
+    и `SystemTopics.OPERATOR` как к строковым константам. Значения должны зависеть от `SYSTEM_ID`,
+    поэтому вычисляем их при обращении к атрибуту.
+    """
+
+    _system_aliases = {
+        "OPERATOR": "get_operator",
+        "AGGREGATOR": "get_aggregator",
+        "UTM": "get_utm",
+        "INSURER": "get_insurer",
+        "GCS": "get_gcs",
+    }
+
+    _component_aliases = {
+        "SECURITY_MONITOR": "get_security_monitor",
+        "FLEET_MANAGER": "get_fleet_manager",
+        "MISSION_PLANNER": "get_mission_planner",
+        "BUSINESS_LOGIC": "get_business_logic",
+        "DEVELOPER_CLIENT": "get_developer_client",
+        "REGULATOR_CLIENT": "get_regulator_client",
+    }
+
+    def __getattr__(cls, name: str):  # noqa: N805 (metaclass API)
+        if cls.__name__ == "SystemTopics":
+            method_name = _TopicsMeta._system_aliases.get(name)
+            if method_name and hasattr(cls, method_name):
+                return getattr(cls, method_name)()
+
+        if cls.__name__ == "ComponentTopics":
+            method_name = _TopicsMeta._component_aliases.get(name)
+            if method_name and hasattr(cls, method_name):
+                return getattr(cls, method_name)()
+
+        raise AttributeError(f"{cls.__name__}.{name} is not defined")
+
+
+# Подключаем метакласс для динамических алиасов
+SystemTopics = _TopicsMeta("SystemTopics", SystemTopics.__bases__, dict(SystemTopics.__dict__))
+ComponentTopics = _TopicsMeta("ComponentTopics", ComponentTopics.__bases__, dict(ComponentTopics.__dict__))
 
 
 class OperatorActions:
@@ -246,3 +294,8 @@ def get_external_system_topics() -> Dict[str, str]:
         'insurer': SystemTopics.get_insurer(),
         'gcs': SystemTopics.get_gcs(),
     }
+
+
+# --- Алиасы экшенов для обратной совместимости ---
+# В коде/ноутбуке встречается `OperatorSystemActions`, но актуальный класс называется `OperatorActions`.
+OperatorSystemActions = OperatorActions

@@ -10,6 +10,7 @@ from datetime import datetime
 from enum import Enum
 
 from broker.system_bus import SystemBus
+from systems.operator.src.topics import SystemTopics
 
 
 class UASCategory(str, Enum):
@@ -63,7 +64,10 @@ class DeveloperClient:
         
         # В тестовых целях используем YAML файл
         self.use_yaml_catalog = os.getenv("USE_YAML_CATALOG", "true").lower() == "true"
-        self.yaml_catalog_path = os.getenv("DEVELOPERS_CATALOG_PATH", "data/developers_catalog.yaml")
+        self.yaml_catalog_path = os.getenv(
+            "DEVELOPERS_CATALOG_PATH",
+            "operator_clients/resources/developers_catalog.yaml",
+        )
         
         # Кеш каталогов разработчиков
         self.catalogs_cache: Dict[str, DeveloperCatalog] = {}
@@ -95,7 +99,7 @@ class DeveloperClient:
                 developer_topic,
                 {
                     "action": "get_catalog",
-                    "sender": "operator.system",
+                    "sender": SystemTopics.get_operator(),
                     "payload": {
                         "operator_id": os.getenv("OPERATOR_ID", "operator-001"),
                         "request_full_catalog": True
@@ -395,7 +399,7 @@ class DeveloperClient:
                 developer_topic,
                 {
                     "action": "purchase_uas",
-                    "sender": "operator.system",
+                    "sender": SystemTopics.get_operator(),
                     "payload": {
                         "operator_id": os.getenv("OPERATOR_ID", "operator-001"),
                         "model_id": model_id,

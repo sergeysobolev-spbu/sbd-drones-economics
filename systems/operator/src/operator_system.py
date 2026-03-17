@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from sdk.base_component import BaseComponent
+from sdk.base_component import BaseComponent, TraceContext
 from broker.system_bus import SystemBus
 from systems.operator.src.topics import (
     ComponentTopics,
@@ -66,6 +66,7 @@ class OperatorSystem(BaseComponent):
         """Регистрация в Регуляторе"""
         try:
             import asyncio
+            from concurrent.futures import ThreadPoolExecutor
             import os
             
             operator_info = {
@@ -80,18 +81,21 @@ class OperatorSystem(BaseComponent):
                 "fleet_size": 0  # Будет обновлено после инициализации Fleet Manager
             }
             
-            loop = asyncio.get_event_loop()
-            registered = loop.run_until_complete(
-                self.regulator_client.register_with_regulator(operator_info)
-            )
+            def _run_async(coro):
+                try:
+                    asyncio.get_running_loop()
+                except RuntimeError:
+                    return asyncio.run(coro)
+                with ThreadPoolExecutor(max_workers=1) as ex:
+                    return ex.submit(asyncio.run, coro).result()
+
+            registered = _run_async(self.regulator_client.register_with_regulator(operator_info))
             
             if registered:
                 self.logger.info("Successfully registered with Regulator")
                 
                 # Получаем топики систем
-                topics = loop.run_until_complete(
-                    self.regulator_client.get_system_topics()
-                )
+                topics = _run_async(self.regulator_client.get_system_topics())
                 self.logger.info(f"Received {len(topics)} system topics from Regulator")
             else:
                 self.logger.warning("Failed to register with Regulator, using local config")
@@ -122,6 +126,7 @@ class OperatorSystem(BaseComponent):
     
     def _handle_receive_order(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Получение нового заказа от Агрегатора"""
+        trace_context = TraceContext.from_message(message)
         self.stats["orders_received"] += 1
         
         payload = message.get("payload", {})
@@ -139,7 +144,7 @@ class OperatorSystem(BaseComponent):
             "order_id": order_id
         }, {
             "order": order
-        })
+        }, trace_context=trace_context)
         
         if not security_check.get("allowed", True):
             self.logger.warning(f"Order {order_id} rejected by security monitor")
@@ -158,7 +163,7 @@ class OperatorSystem(BaseComponent):
         self.logger.info(f"Received order {order_id}")
         
         # Автоматически начинаем расчёт предложения
-        proposal_result = self._calculate_proposal_internal(order)
+        proposal_result = self._calculate_proposal_internal(order, trace_context=trace_context)
         
         return {
             "order_id": order_id,
@@ -168,6 +173,7 @@ class OperatorSystem(BaseComponent):
     
     def _handle_calculate_proposal(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Расчёт коммерческого предложения"""
+        trace_context = TraceContext.from_message(message)
         payload = message.get("payload", {})
         order_id = payload.get("order_id")
         
@@ -180,15 +186,20 @@ class OperatorSystem(BaseComponent):
         
         order = order_data["order"]
         
-        return self._calculate_proposal_internal(order)
+        return self._calculate_proposal_internal(order, trace_context=trace_context)
     
-    def _calculate_proposal_internal(self, order: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_proposal_internal(
+        self,
+        order: Dict[str, Any],
+        trace_context: Optional[TraceContext] = None,
+    ) -> Dict[str, Any]:
         """Внутренний метод расчёта предложения"""
         # 1. Создаём миссию через Mission Planner
         mission_result = self._request_component(
             ComponentTopics.MISSION_PLANNER,
             MissionPlannerActions.CREATE_MISSION,
-            {"order": order}
+            {"order": order},
+            trace_context=trace_context,
         )
         
         if "error" in mission_result:
@@ -200,7 +211,8 @@ class OperatorSystem(BaseComponent):
         validation_result = self._request_component(
             ComponentTopics.MISSION_PLANNER,
             MissionPlannerActions.VALIDATE_MISSION,
-            {"mission_id": mission_id}
+            {"mission_id": mission_id},
+            trace_context=trace_context,
         )
         
         if not validation_result.get("valid", False):
@@ -213,7 +225,8 @@ class OperatorSystem(BaseComponent):
         mission_details = self._request_component(
             ComponentTopics.MISSION_PLANNER,
             MissionPlannerActions.GET_MISSION_DETAILS,
-            {"mission_id": mission_id}
+            {"mission_id": mission_id},
+            trace_context=trace_context,
         )
         
         # 4. Находим подходящий БАС
@@ -226,7 +239,8 @@ class OperatorSystem(BaseComponent):
         available_uas = self._request_component(
             ComponentTopics.FLEET_MANAGER,
             FleetManagerActions.FIND_AVAILABLE_UAS,
-            {"requirements": uas_requirements}
+            {"requirements": uas_requirements},
+            trace_context=trace_context,
         )
         
         if available_uas.get("count", 0) == 0:
@@ -248,7 +262,8 @@ class OperatorSystem(BaseComponent):
                     "uas_type": selected_uas.get("type"),
                     "payload_value": order.get("payload_value", 0)
                 }
-            }
+            },
+            trace_context=trace_context,
         )
         
         # 6. Создаём коммерческое предложение
@@ -263,7 +278,8 @@ class OperatorSystem(BaseComponent):
                     "uas_id": selected_uas.get("id"),
                     "insurance_premium": insurance_quote.get("premium", 0)
                 }
-            }
+            },
+            trace_context=trace_context,
         )
         
         if "error" in proposal_result:
@@ -317,6 +333,7 @@ class OperatorSystem(BaseComponent):
     
     def _handle_accept_order(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Принятие заказа к исполнению"""
+        trace_context = TraceContext.from_message(message)
         self.stats["orders_accepted"] += 1
         
         payload = message.get("payload", {})
@@ -343,7 +360,8 @@ class OperatorSystem(BaseComponent):
                 "uas_id": uas_id,
                 "mission_id": mission_id,
                 "duration": 7200  # 2 часа
-            }
+            },
+            trace_context=trace_context,
         )
         
         if not reserve_result.get("reserved", False):
@@ -356,7 +374,8 @@ class OperatorSystem(BaseComponent):
         utm_result = self._request_component(
             ComponentTopics.MISSION_PLANNER,
             MissionPlannerActions.REQUEST_UTM_APPROVAL,
-            {"mission_id": mission_id}
+            {"mission_id": mission_id},
+            trace_context=trace_context,
         )
         
         if not utm_result.get("approved", False):
@@ -364,7 +383,8 @@ class OperatorSystem(BaseComponent):
             self._request_component(
                 ComponentTopics.FLEET_MANAGER,
                 FleetManagerActions.RELEASE_UAS,
-                {"uas_id": uas_id}
+                {"uas_id": uas_id},
+                trace_context=trace_context,
             )
             
             return {
@@ -387,6 +407,7 @@ class OperatorSystem(BaseComponent):
     
     def _handle_reject_order(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Отклонение заказа"""
+        trace_context = TraceContext.from_message(message)
         self.stats["orders_rejected"] += 1
         
         payload = message.get("payload", {})
@@ -405,7 +426,8 @@ class OperatorSystem(BaseComponent):
             self._request_component(
                 ComponentTopics.FLEET_MANAGER,
                 FleetManagerActions.RELEASE_UAS,
-                {"uas_id": order_data["uas_id"]}
+                {"uas_id": order_data["uas_id"]},
+                trace_context=trace_context,
             )
         
         order_data["status"] = "rejected"
@@ -421,16 +443,19 @@ class OperatorSystem(BaseComponent):
     
     def _handle_get_fleet_status(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Получение статуса парка БАС"""
+        trace_context = TraceContext.from_message(message)
         fleet_status = self._request_component(
             ComponentTopics.FLEET_MANAGER,
             FleetManagerActions.GET_UAS_LIST,
-            {}
+            {},
+            trace_context=trace_context,
         )
         
         return fleet_status
     
     def _handle_plan_mission(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Планирование миссии"""
+        trace_context = TraceContext.from_message(message)
         payload = message.get("payload", {})
         order_id = payload.get("order_id")
         
@@ -448,10 +473,11 @@ class OperatorSystem(BaseComponent):
             }
         
         # Планируем миссию
-        return self._calculate_proposal_internal(order_data["order"])
+        return self._calculate_proposal_internal(order_data["order"], trace_context=trace_context)
     
     def _handle_start_mission(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Запуск миссии"""
+        trace_context = TraceContext.from_message(message)
         payload = message.get("payload", {})
         mission_id = payload.get("mission_id")
         
@@ -465,7 +491,8 @@ class OperatorSystem(BaseComponent):
             {
                 "mission_id": mission_id,
                 "status": "in_progress"
-            }
+            },
+            trace_context=trace_context,
         )
         
         if "error" in status_result:
@@ -481,6 +508,7 @@ class OperatorSystem(BaseComponent):
     
     def _handle_complete_mission(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Завершение миссии"""
+        trace_context = TraceContext.from_message(message)
         payload = message.get("payload", {})
         mission_id = payload.get("mission_id")
         success = payload.get("success", True)
@@ -498,7 +526,8 @@ class OperatorSystem(BaseComponent):
                 "mission_id": mission_id,
                 "status": new_status,
                 "reason": payload.get("reason", "")
-            }
+            },
+            trace_context=trace_context,
         )
         
         if "error" in status_result:
@@ -520,6 +549,7 @@ class OperatorSystem(BaseComponent):
     
     def _handle_get_mission_status(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Получение статуса миссии"""
+        trace_context = TraceContext.from_message(message)
         payload = message.get("payload", {})
         mission_id = payload.get("mission_id")
         
@@ -529,13 +559,15 @@ class OperatorSystem(BaseComponent):
         mission_details = self._request_component(
             ComponentTopics.MISSION_PLANNER,
             MissionPlannerActions.GET_MISSION_DETAILS,
-            {"mission_id": mission_id}
+            {"mission_id": mission_id},
+            trace_context=trace_context,
         )
         
         return mission_details
     
     def _handle_report_incident(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Сообщение об инциденте"""
+        trace_context = TraceContext.from_message(message)
         payload = message.get("payload", {})
         incident = payload.get("incident", {})
         
@@ -553,7 +585,8 @@ class OperatorSystem(BaseComponent):
                 "action": incident.get("type", "unknown"),
                 "reason": incident.get("description", ""),
                 "severity": incident.get("severity", "medium")
-            }
+            },
+            trace_context=trace_context,
         )
         
         # В реальной системе здесь была бы отправка в Регулятор
@@ -564,16 +597,19 @@ class OperatorSystem(BaseComponent):
             "incident_id": log_result.get("violation_id", "unknown")
         }
     
-    def _request_component(self, topic: str, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _request_component(
+        self,
+        topic: str,
+        action: str,
+        payload: Dict[str, Any],
+        trace_context: Optional[TraceContext] = None,
+    ) -> Dict[str, Any]:
         """Запрос к внутреннему компоненту"""
         try:
+            message = self.create_message(action=action, payload=payload, trace_context=trace_context)
             response = self.bus.request(
                 topic,
-                {
-                    "action": action,
-                    "sender": self.component_id,
-                    "payload": payload
-                },
+                message,
                 timeout=10.0
             )
             
@@ -586,7 +622,12 @@ class OperatorSystem(BaseComponent):
             self.logger.error(f"Component request error: {e}")
             return {"error": str(e)}
     
-    def _validate_with_security_monitor(self, request: Dict[str, Any], context: Dict[str, Any] = None) -> Dict[str, Any]:
+    def _validate_with_security_monitor(
+        self,
+        request: Dict[str, Any],
+        context: Dict[str, Any] = None,
+        trace_context: Optional[TraceContext] = None,
+    ) -> Dict[str, Any]:
         """Валидация через монитор безопасности"""
         return self._request_component(
             ComponentTopics.SECURITY_MONITOR,
@@ -594,7 +635,8 @@ class OperatorSystem(BaseComponent):
             {
                 "request": request,
                 "context": context or {}
-            }
+            },
+            trace_context=trace_context,
         )
     
     def get_system_statistics(self) -> Dict[str, Any]:

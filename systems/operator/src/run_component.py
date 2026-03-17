@@ -12,7 +12,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from broker.kafka.kafka_system_bus import KafkaSystemBus
-from broker.config import BrokerConfig
 
 from src.security_monitor import SecurityMonitor
 from src.fleet_manager import FleetManager
@@ -31,15 +30,12 @@ logger = logging.getLogger(__name__)
 
 async def create_system_bus() -> KafkaSystemBus:
     """Создание системной шины"""
-    config = BrokerConfig(
-        broker_type="kafka",
-        kafka_config={
-            "bootstrap_servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
-            "group_id": f"operator-{os.getenv('COMPONENT_TYPE', 'system')}"
-        }
-    )
-    
-    bus = KafkaSystemBus(config.kafka_config)
+    kafka_config = {
+        "bootstrap_servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
+        "group_id": f"{os.getenv('SYSTEM_ID', 'operator-001')}-{os.getenv('COMPONENT_TYPE', 'system')}",
+    }
+
+    bus = KafkaSystemBus(kafka_config)
     await bus.start()
     return bus
 

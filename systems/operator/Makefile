@@ -1,6 +1,10 @@
 # Makefile для системы Эксплуатант
 
-.PHONY: help test test-unit test-integration lint format clean docker-build docker-run
+.PHONY: help test test-unit test-integration test-integration-local lint format clean docker-build docker-run
+
+# Нужен bash для `pipefail` и `set -u`
+SHELL := /usr/bin/env bash
+.SHELLFLAGS := -euo pipefail -c
 
 # Переменные
 PYTHON := pipenv run python3
@@ -15,12 +19,14 @@ SRC_DIR := src
 TEST_DIR := tests
 DOCKER_IMAGE := operator-system
 DOCKER_TAG := latest
+COMPOSE := docker compose -f docker-compose.yml
 
 help: ## Показать справку
 	@echo "Доступные команды:"
 	@echo "  make test           - Запустить все тесты"
 	@echo "  make test-unit      - Запустить юнит-тесты"
-	@echo "  make test-integration - Запустить интеграционные тесты"
+	@echo "  make test-integration-local - Запустить интеграционные тесты (локально, без docker)"
+	@echo "  make test-integration - Запустить интеграционные тесты (docker-compose + healthcheck)"
 	@echo "  make test-security  - Запустить тесты безопасности"
 	@echo "  make lint           - Проверить код линтерами"
 	@echo "  make format         - Отформатировать код"
@@ -35,18 +41,40 @@ install-deps: ## Установить зависимости
 	$(PIP) install black flake8 mypy
 
 test: ## Запустить все тесты
-	$(PYTEST) $(TEST_DIR) -v --cov=$(SRC_DIR) --cov-report=html --cov-report=term
+	$(PYTEST) $(TEST_DIR) $(SRC_DIR) -v --cov=$(SRC_DIR) --cov-report=html --cov-report=term
 
 test-unit: ## Запустить юнит-тесты
-	$(PYTEST) $(TEST_DIR)/unit/test_security_monitor.py -v
-	$(PYTEST) $(TEST_DIR)/unit/test_fleet_manager.py -v
+	$(PYTEST) \
+		$(SRC_DIR)/security_monitor/tests/unit \
+		$(SRC_DIR)/fleet_manager/tests/unit \
+		$(SRC_DIR)/mission_planner/tests/unit \
+		$(SRC_DIR)/business_logic/tests/unit \
+		$(SRC_DIR)/operator_clients/tests/unit \
+		-v
 
-test-integration: ## Запустить интеграционные тесты
-	$(PYTEST) $(TEST_DIR)/integration/test_integration.py -v
-	$(PYTEST) $(TEST_DIR)/integration/test_uas_purchase_integration.py -v
+test-integration-local: ## Запустить интеграционные тесты (локально)
+	$(PYTEST) $(TEST_DIR)/integration/test_integration.py -v --no-cov
+	$(PYTEST) $(TEST_DIR)/integration/test_uas_purchase_integration.py -v --no-cov
+
+test-integration: ## Запустить интеграционные тесты (docker-compose + healthcheck)
+	@trap '$(COMPOSE) down -v --remove-orphans' EXIT; \
+	$(COMPOSE) up -d --build; \
+	echo "Ожидание healthcheck контейнеров..."; \
+	for s in operator-kafka operator-security-monitor operator-fleet-manager operator-mission-planner operator-business-logic operator-system; do \
+		printf "  - %s: " "$$s"; \
+		for i in $$(seq 1 60); do \
+			health="$$(docker inspect -f '{{.State.Health.Status}}' $$s 2>/dev/null || true)"; \
+			state="$$(docker inspect -f '{{.State.Status}}' $$s 2>/dev/null || true)"; \
+			status="$${health:-$$state}"; \
+			if [ "$$health" = "healthy" ] || [ "$$state" = "running" ]; then echo "$$status"; break; fi; \
+			sleep 2; \
+			if [ "$$i" -eq 60 ]; then echo "timeout (health=$$health state=$$state)"; $(COMPOSE) ps; exit 1; fi; \
+		done; \
+	done; \
+	$(PYTEST) $(TEST_DIR)/integration -v --no-cov
 
 test-security: ## Запустить тесты безопасности
-	$(PYTEST) $(TEST_DIR)/unit/test_security_monitor.py -v -k "security"
+	$(PYTEST) $(SRC_DIR)/security_monitor/tests/unit -v -k "security"
 
 test-coverage: ## Запустить тесты с отчётом о покрытии
 	$(PYTEST) $(TEST_DIR) -v --cov=$(SRC_DIR) --cov-report=html --cov-report=term-missing
@@ -72,13 +100,13 @@ docker-build: ## Собрать Docker образ
 	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f docker/Dockerfile .
 
 docker-run: ## Запустить систему в Docker
-	docker-compose -f docker-compose.yml up -d
+	$(COMPOSE) up -d
 
 docker-stop: ## Остановить систему в Docker
-	docker-compose -f docker-compose.yml down
+	$(COMPOSE) down
 
 docker-logs: ## Показать логи Docker контейнеров
-	docker-compose -f docker-compose.yml logs -f
+	$(COMPOSE) logs -f
 
 # Специальные цели для демонстрации
 

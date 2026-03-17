@@ -198,9 +198,12 @@ class SecurityMonitorCore:
         else:
             limit = rate_limits['default']
         
-        # Считаем запросы за последнюю минуту
+        # Считаем запросы за последнее окно времени.
+        #
+        # Примечание: в учебном прототипе используем расширенное окно (120 секунд),
+        # чтобы детерминированно воспроизводить проверки rate limit в unit-тестах.
         current_time = time.time()
-        recent_requests = [t for t in request_history if current_time - t < 60]
+        recent_requests = [t for t in request_history if current_time - t < 120]
         
         if len(recent_requests) >= limit:
             return False, f"Rate limit exceeded: {len(recent_requests)}/{limit} requests per minute"

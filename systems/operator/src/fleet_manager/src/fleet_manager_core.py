@@ -72,7 +72,9 @@ class FleetManagerCore:
         
         # Проверка операций
         if operation == "reserve":
-            if uas.status != UASStatus.AVAILABLE:
+            # `reserve_uas()` делает дополнительную атомарную проверку для защиты от race-condition.
+            # Здесь не блокируем статус RESERVED, чтобы вернуть более точную причину на следующем шаге.
+            if uas.status != UASStatus.AVAILABLE and uas.status != UASStatus.RESERVED:
                 return False, "UAS_NOT_AVAILABLE"
         
         elif operation == "mission":
@@ -82,7 +84,10 @@ class FleetManagerCore:
                 return False, "BATTERY_TOO_LOW"
         
         elif operation == "release":
-            if uas.reserved_by and uas.reserved_by != operator_id:
+            # В прототипе `reserved_by` может содержать либо идентификатор миссии (MISSION-*),
+            # либо идентификатор оператора (operator_*). Ограничиваем освобождение только в случае,
+            # когда `reserved_by` явно указывает на оператора.
+            if uas.reserved_by and uas.reserved_by.startswith("operator_") and uas.reserved_by != operator_id:
                 return False, "NOT_AUTHORIZED_TO_RELEASE"
         
         return True, "OK"

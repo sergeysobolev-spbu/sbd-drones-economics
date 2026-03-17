@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from broker.system_bus import SystemBus
+from systems.operator.src.topics import SystemTopics
 
 
 @dataclass
@@ -49,10 +50,10 @@ class RegulatorClient:
         try:
             # В реальной системе здесь был бы запрос к Регулятору
             response = await self.bus.request(
-                "regulator.system",
+                SystemTopics.REGULATOR,
                 {
                     "action": "get_system_topics",
-                    "sender": "operator.system",
+                    "sender": SystemTopics.get_operator(),
                     "payload": {}
                 },
                 timeout=10.0
@@ -78,7 +79,7 @@ class RegulatorClient:
         topics["aggregator"] = SystemTopicInfo(
             system_id=aggregator_id,
             system_type="aggregator",
-            topic=f"aggregator.{aggregator_id}",
+            topic=SystemTopics.get_aggregator(aggregator_id),
             active=True,
             registered_at=datetime.utcnow().isoformat()
         )
@@ -86,10 +87,11 @@ class RegulatorClient:
         # Разработчики БАС
         developers_ids = os.getenv("DEVELOPERS_IDS", "dev-001,dev-002").split(",")
         for dev_id in developers_ids:
+            dev_id = dev_id.strip()
             topics[f"developer_{dev_id}"] = SystemTopicInfo(
-                system_id=dev_id.strip(),
+                system_id=dev_id,
                 system_type="developer",
-                topic=f"developer.{dev_id.strip()}",
+                topic=SystemTopics.get_developer(dev_id),
                 active=True,
                 registered_at=datetime.utcnow().isoformat()
             )
@@ -97,10 +99,11 @@ class RegulatorClient:
         # Страховые компании
         insurance_ids = os.getenv("INSURANCE_IDS", "ins-001,ins-002").split(",")
         for ins_id in insurance_ids:
+            ins_id = ins_id.strip()
             topics[f"insurance_{ins_id}"] = SystemTopicInfo(
-                system_id=ins_id.strip(),
-                system_type="insurance",
-                topic=f"insurance.{ins_id.strip()}",
+                system_id=ins_id,
+                system_type="insurer",
+                topic=SystemTopics.get_insurer(ins_id),
                 active=True,
                 registered_at=datetime.utcnow().isoformat()
             )
@@ -110,7 +113,7 @@ class RegulatorClient:
         topics["utm"] = SystemTopicInfo(
             system_id=utm_id,
             system_type="utm",
-            topic=f"utm.{utm_id}",
+            topic=SystemTopics.get_utm(utm_id),
             active=True,
             registered_at=datetime.utcnow().isoformat()
         )
@@ -156,10 +159,10 @@ class RegulatorClient:
         
         try:
             response = await self.bus.request(
-                "regulator.system",
+                SystemTopics.REGULATOR,
                 {
                     "action": "register_operator",
-                    "sender": "operator.system",
+                    "sender": SystemTopics.get_operator(),
                     "payload": operator_info
                 },
                 timeout=10.0

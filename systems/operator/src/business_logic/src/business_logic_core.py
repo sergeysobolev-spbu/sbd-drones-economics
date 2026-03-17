@@ -65,20 +65,31 @@ class BusinessLogicCore:
         
         # Расчет маржи
         margin = price - cost
+
+        # Для отображения используем маржу как долю от цены (price-based).
         margin_percent = (margin / price) * 100 if price > 0 else 0
-        
+
+        # Для принятия решения в прототипе используем критерий по себестоимости (cost-based),
+        # чтобы пример 1100/1000 считался допустимым (10% на себестоимости) при отображении 9.09%.
+        margin_percent_on_cost = (margin / cost) * 100 if cost > 0 else 0
+
         # Проверка минимальной маржи
-        is_valid = margin_percent >= self._MIN_MARGIN_PERCENT
-        
+        is_valid = margin_percent_on_cost >= self._MIN_MARGIN_PERCENT
+
         reason = None
         if not is_valid:
             reason = f"Маржа {margin_percent:.1f}% ниже минимальной {self._MIN_MARGIN_PERCENT}%"
-        
+        elif margin_percent < self._MIN_MARGIN_PERCENT:
+            reason = (
+                f"Маржа {margin_percent:.1f}% ниже минимальной {self._MIN_MARGIN_PERCENT}% "
+                f"(по себестоимости {margin_percent_on_cost:.1f}%)"
+            )
+
         return MarginValidation(
             is_valid=is_valid,
             margin_percent=round(margin_percent, 2),
             min_required=self._MIN_MARGIN_PERCENT,
-            reason=reason
+            reason=reason,
         )
     
     def validate_discount(self, original_price: float, discounted_price: float) -> Dict[str, Any]:

@@ -2,14 +2,16 @@
 Fleet Manager Component - интеграция доверенного и недоверенного доменов
 """
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import asyncio
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 
 from sdk.base_component import BaseComponent
 from broker.system_bus import SystemBus
 
 from .fleet_manager_core import FleetManagerCore
-from .fleet_manager_service import FleetManagerService
+from .fleet_manager_service import FleetManagerService, UASExtended
 
 
 class FleetManager(BaseComponent):
@@ -60,11 +62,26 @@ class FleetManager(BaseComponent):
     def _initialize_fleet(self):
         """Инициализация парка БАС"""
         try:
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(self.service.initialize_fleet())
+            result = self._run_async(self.service.initialize_fleet())
             self.logger.info(f"Fleet initialized: {result}")
         except Exception as e:
             self.logger.error(f"Failed to initialize fleet: {e}")
+
+    def _run_async(self, coro):
+        """
+        Запустить coroutine из синхронного кода.
+
+        В Python 3.11+ `asyncio.get_event_loop()` больше не создаёт loop по умолчанию,
+        поэтому в синхронных обработчиках используем `asyncio.run(...)`.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
+        # Если loop уже запущен (например, вызов из async-теста), запускаем coroutine
+        # в отдельном потоке с собственным event loop.
+        with ThreadPoolExecutor(max_workers=1) as ex:
+            return ex.submit(asyncio.run, coro).result()
     
     def _register_handlers(self):
         """Регистрация обработчиков сообщений"""
@@ -98,6 +115,7 @@ class FleetManager(BaseComponent):
                     uas_info = {
                         "id": uas_id,
                         "type": uas_ext.type.value,
+                        "model_id": uas_ext.model_id,
                         "status": core_state["status"],
                         "battery_level": core_state["battery_level"],
                         "location": uas_ext.location,
@@ -105,13 +123,15 @@ class FleetManager(BaseComponent):
                         "max_range": uas_ext.max_range,
                         "certificate_valid": core_state["certificate_valid"],
                         "certificate_expiry": core_state["certificate_expiry"],
-                        "reserved_by": core_state["reserved_by"]
+                        "reserved_by": core_state["reserved_by"],
+                        "mission_id": core_state["reserved_by"],
                     }
                     uas_list.append(uas_info)
             
             return {
                 "uas_list": uas_list,
                 "total": len(uas_list),
+                "total_count": len(uas_list),
                 "statistics": stats
             }
         except Exception as e:
@@ -161,10 +181,7 @@ class FleetManager(BaseComponent):
         
         try:
             # Используем сервис для поиска с оптимизацией
-            loop = asyncio.get_event_loop()
-            suitable_uas = loop.run_until_complete(
-                self.service.find_suitable_uas(requirements)
-            )
+            suitable_uas = self._run_async(self.service.find_suitable_uas(requirements))
             
             return {
                 "suitable_uas": suitable_uas,
@@ -186,16 +203,22 @@ class FleetManager(BaseComponent):
         
         try:
             # Используем сервис для резервирования с валидацией
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(
+            result = self._run_async(
                 self.service.reserve_uas_with_validation(
                     uas_id=uas_id,
                     mission_id=mission_id,
                     operator_id=message.get("sender", "system"),
-                    duration=duration
+                    duration=duration,
                 )
             )
             
+            if result.get("success") is True:
+                return {
+                    "reserved": True,
+                    "uas_id": result.get("uas_id", uas_id),
+                    "mission_id": mission_id,
+                    "expires_at": result.get("expires_at"),
+                }
             return result
         except Exception as e:
             self.logger.error(f"Error reserving UAS: {e}")
@@ -211,11 +234,9 @@ class FleetManager(BaseComponent):
         
         try:
             # Используем сервис для освобождения с очисткой
-            loop = asyncio.get_event_loop()
-            result = loop.run_until_complete(
+            result = self._run_async(
                 self.service.release_uas_with_cleanup(
-                    uas_id=uas_id,
-                    operator_id=message.get("sender", "system")
+                    uas_id=uas_id, operator_id=message.get("sender", "system")
                 )
             )
             
@@ -277,10 +298,7 @@ class FleetManager(BaseComponent):
             if not self.service.developer_client:
                 return {"error": "Developer client not configured"}
             
-            loop = asyncio.get_event_loop()
-            catalogs = loop.run_until_complete(
-                self.service.developer_client.get_all_catalogs()
-            )
+            catalogs = self._run_async(self.service.developer_client.get_all_catalogs())
             
             # Преобразуем в сериализуемый формат
             result = {}
@@ -326,22 +344,94 @@ class FleetManager(BaseComponent):
                 return {"error": "Developer client not configured"}
             
             # Выполняем покупку через клиент разработчика
-            loop = asyncio.get_event_loop()
-            purchase_result = loop.run_until_complete(
-                self.service.developer_client.purchase_uas(
-                    developer_id, model_id, quantity
-                )
+            purchase_result = self._run_async(
+                self.service.developer_client.purchase_uas(developer_id, model_id, quantity)
             )
             
             if purchase_result.get("success"):
-                # Добавляем БАС в парк
-                # Здесь должна быть логика добавления купленных БАС
+                self._add_purchased_uas_to_fleet(
+                    developer_id=developer_id, model_id=model_id, quantity=quantity
+                )
                 self.logger.info(f"Successfully purchased {quantity} UAS from {developer_id}")
             
+            # Нормализуем ключи ответа клиента под контракт тестов/сценариев
+            if purchase_result.get("success") is True and "delivery_time_days" not in purchase_result:
+                if "delivery_days" in purchase_result:
+                    purchase_result["delivery_time_days"] = purchase_result["delivery_days"]
+
             return purchase_result
         except Exception as e:
             self.logger.error(f"Error purchasing UAS: {e}")
             return {"error": str(e)}
+
+    def _next_uas_id(self) -> str:
+        """Сгенерировать следующий уникальный UAS id."""
+        idx = 1
+        while True:
+            uas_id = f"UAS-{idx:03d}"
+            if self.core.get_uas_state(uas_id) is None and uas_id not in self.service._fleet_extended:
+                return uas_id
+            idx += 1
+
+    def _add_purchased_uas_to_fleet(self, developer_id: str, model_id: str, quantity: int) -> List[str]:
+        """Материализовать купленные БАС в парке (core + extended)."""
+        added: List[str] = []
+
+        catalogs_cache = getattr(self.service.developer_client, "catalogs_cache", {}) or {}
+        catalog = catalogs_cache.get(developer_id)
+        model = None
+        if catalog:
+            for m in catalog.models:
+                if m.model_id == model_id:
+                    model = m
+                    break
+        if model is None:
+            return added
+
+        for _ in range(int(quantity)):
+            uas_id = self._next_uas_id()
+
+            success, _reason = self.core.add_uas(
+                uas_id,
+                {
+                    "certificate_valid": bool(model.certification),
+                    "certificate_expiry": (
+                        model.certification.get("valid_until", "2027-01-01")
+                        if model.certification
+                        else "2027-01-01"
+                    ),
+                    "battery_level": 1.0,
+                },
+            )
+            if not success:
+                continue
+
+            self.service._fleet_extended[uas_id] = UASExtended(
+                id=uas_id,
+                type=self.service._map_category_to_type(model.category),
+                location={"lat": 55.7558, "lon": 37.6173, "alt": 0},
+                max_payload=model.specifications.get("max_payload_kg", 5.0),
+                max_range=model.specifications.get("max_range_km", 50.0),
+                last_maintenance=datetime.utcnow().isoformat(),
+                flight_hours=0.0,
+                model_id=model.model_id,
+                developer_id=developer_id,
+            )
+
+            self.service._purchase_history.append(
+                {
+                    "uas_id": uas_id,
+                    "model_id": model.model_id,
+                    "developer_id": developer_id,
+                    "purchase_date": datetime.utcnow().isoformat(),
+                    "price": model.price,
+                    "model_name": model.name,
+                }
+            )
+
+            added.append(uas_id)
+
+        return added
     
     def _handle_get_purchase_history(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Получение истории покупок БАС"""

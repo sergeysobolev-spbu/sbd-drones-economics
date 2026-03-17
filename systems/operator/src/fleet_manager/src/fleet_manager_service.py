@@ -88,54 +88,10 @@ class FleetManagerService:
                 self.logger.warning("No developer catalogs available, using default fleet")
                 self._init_default_fleet()
                 return {"initialized": True, "source": "default", "count": len(self._fleet_extended)}
-            
-            # Формируем парк БАС на основе каталогов
-            uas_counter = 1
-            
-            for dev_id, catalog in catalogs.items():
-                for model in catalog.models[:2]:  # Берём первые 2 модели от каждого разработчика
-                    uas_id = f"UAS-{uas_counter:03d}"
-                    
-                    # Добавляем в ядро
-                    success, reason = self.core.add_uas(uas_id, {
-                        "certificate_valid": bool(model.certification),
-                        "certificate_expiry": model.certification.get("valid_until", "2027-01-01") if model.certification else "2027-01-01",
-                        "battery_level": 1.0
-                    })
-                    
-                    if success:
-                        # Добавляем расширенную информацию
-                        self._fleet_extended[uas_id] = UASExtended(
-                            id=uas_id,
-                            type=self._map_category_to_type(model.category),
-                            location={"lat": 55.7558, "lon": 37.6173, "alt": 0},
-                            max_payload=model.specifications.get("max_payload_kg", 5.0),
-                            max_range=model.specifications.get("max_range_km", 50.0),
-                            last_maintenance=datetime.utcnow().isoformat(),
-                            flight_hours=0.0,
-                            model_id=model.model_id,
-                            developer_id=dev_id
-                        )
-                        
-                        # Записываем покупку
-                        self._purchase_history.append({
-                            "uas_id": uas_id,
-                            "model_id": model.model_id,
-                            "developer_id": dev_id,
-                            "purchase_date": datetime.utcnow().isoformat(),
-                            "price": model.price,
-                            "model_name": model.name
-                        })
-                        
-                        uas_counter += 1
-                        self.logger.info(f"Added UAS {uas_id} ({model.name}) to fleet")
-            
-            return {
-                "initialized": True, 
-                "source": "catalogs", 
-                "count": len(self._fleet_extended),
-                "developers": len(catalogs)
-            }
+
+            # Каталоги есть, но парк не наполняем автоматически:
+            # добавление БАС происходит через явную операцию PURCHASE_UAS.
+            return {"initialized": True, "source": "catalogs", "count": len(self._fleet_extended), "developers": len(catalogs)}
             
         except Exception as e:
             self.logger.error(f"Failed to init fleet from catalogs: {e}")
@@ -223,6 +179,7 @@ class FleetManagerService:
             suitable_uas.append({
                 "id": uas_id,
                 "type": uas_ext.type.value,
+                "model_id": uas_ext.model_id,
                 "battery_level": core_state["battery_level"],
                 "max_payload": uas_ext.max_payload,
                 "max_range": uas_ext.max_range,

@@ -75,7 +75,7 @@ class TestUASPurchaseIntegration:
         }
     
     @pytest.fixture
-    async def setup_components(self, mock_bus, sample_catalog_data):
+    def setup_components(self, mock_bus, sample_catalog_data):
         """Настройка компонентов для тестов"""
         # Создаём временный YAML файл с каталогом
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
@@ -88,34 +88,42 @@ class TestUASPurchaseIntegration:
         developer_client.yaml_catalog_path = catalog_path
         
         # Создаём Fleet Manager
-        fleet_manager = FleetManager("fleet-test", mock_bus)
-        fleet_manager.developer_client = developer_client
+        fleet_manager = FleetManager(
+            "fleet-test",
+            mock_bus,
+            config={
+                "developer_client": developer_client,
+                "regulator_client": regulator_client,
+            },
+        )
         
         # Настраиваем mock для регулятора
-        with patch.dict(os.environ, {
-            'AGGREGATOR_ID': 'agg-001',
-            'DEVELOPERS_IDS': 'aeronext-001',
-            'INSURANCE_IDS': 'ins-001',
-            'UTM_ID': 'utm-001'
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "AGGREGATOR_ID": "agg-001",
+                "DEVELOPERS_IDS": "aeronext-001",
+                "INSURANCE_IDS": "ins-001",
+                "UTM_ID": "utm-001",
+            },
+        ):
             yield {
-                'fleet_manager': fleet_manager,
-                'developer_client': developer_client,
-                'regulator_client': regulator_client,
-                'catalog_path': catalog_path
+                "fleet_manager": fleet_manager,
+                "developer_client": developer_client,
+                "regulator_client": regulator_client,
+                "catalog_path": catalog_path,
             }
-        
+
         # Удаляем временный файл
         os.unlink(catalog_path)
     
-    @pytest.mark.asyncio
-    async def test_purchase_uas_full_flow(self, setup_components):
+    def test_purchase_uas_full_flow(self, setup_components):
         """Тест полного процесса покупки БАС"""
         fleet_manager = setup_components['fleet_manager']
         developer_client = setup_components['developer_client']
         
         # 1. Получаем каталоги разработчиков
-        catalogs = await developer_client.get_all_catalogs()
+        catalogs = asyncio.run(developer_client.get_all_catalogs())
         assert len(catalogs) == 1
         assert 'aeronext-001' in catalogs
         
@@ -159,8 +167,7 @@ class TestUASPurchaseIntegration:
         assert uas_list[0]['status'] == 'available'
         assert uas_list[0]['battery_level'] == 1.0
     
-    @pytest.mark.asyncio
-    async def test_purchase_with_insufficient_quantity(self, setup_components):
+    def test_purchase_with_insufficient_quantity(self, setup_components):
         """Тест покупки при недостаточном количестве"""
         fleet_manager = setup_components['fleet_manager']
         
@@ -180,8 +187,7 @@ class TestUASPurchaseIntegration:
         assert result['error'] == 'Insufficient quantity available'
         assert result['available'] == 10
     
-    @pytest.mark.asyncio
-    async def test_purchase_nonexistent_model(self, setup_components):
+    def test_purchase_nonexistent_model(self, setup_components):
         """Тест покупки несуществующей модели"""
         fleet_manager = setup_components['fleet_manager']
         
@@ -199,8 +205,7 @@ class TestUASPurchaseIntegration:
         assert result['success'] is False
         assert result['error'] == 'Model not found'
     
-    @pytest.mark.asyncio
-    async def test_find_available_uas_after_purchase(self, setup_components):
+    def test_find_available_uas_after_purchase(self, setup_components):
         """Тест поиска доступных БАС после покупки"""
         fleet_manager = setup_components['fleet_manager']
         
@@ -239,8 +244,7 @@ class TestUASPurchaseIntegration:
             assert uas['max_range'] == 50.0
             assert uas['battery_level'] >= 0.8
     
-    @pytest.mark.asyncio
-    async def test_reserve_purchased_uas(self, setup_components):
+    def test_reserve_purchased_uas(self, setup_components):
         """Тест резервирования купленного БАС"""
         fleet_manager = setup_components['fleet_manager']
         
@@ -283,8 +287,7 @@ class TestUASPurchaseIntegration:
         assert reserved_uas['status'] == 'reserved'
         assert reserved_uas['mission_id'] == 'MISSION-001'
     
-    @pytest.mark.asyncio
-    async def test_integration_with_multiple_developers(self, mock_bus):
+    def test_integration_with_multiple_developers(self, mock_bus):
         """Тест интеграции с несколькими разработчиками"""
         # Создаём каталог с несколькими разработчиками
         multi_catalog = {
@@ -297,9 +300,12 @@ class TestUASPurchaseIntegration:
                             "model_id": "M1",
                             "name": "Model 1",
                             "category": "light_cargo",
+                            "manufacturer": "Developer 1",
                             "specifications": {"max_payload_kg": 5.0},
                             "price": 100000.0,
-                            "available_quantity": 5
+                            "certification": {"valid_until": "2029-01-01"},
+                            "available_quantity": 5,
+                            "delivery_time_days": 7,
                         }
                     ]
                 },
@@ -311,9 +317,12 @@ class TestUASPurchaseIntegration:
                             "model_id": "M2",
                             "name": "Model 2",
                             "category": "heavy_cargo",
+                            "manufacturer": "Developer 2",
                             "specifications": {"max_payload_kg": 20.0},
                             "price": 200000.0,
-                            "available_quantity": 3
+                            "certification": {"valid_until": "2029-01-01"},
+                            "available_quantity": 3,
+                            "delivery_time_days": 14,
                         }
                     ]
                 }
@@ -330,20 +339,16 @@ class TestUASPurchaseIntegration:
             developer_client.yaml_catalog_path = catalog_path
             
             # Получаем все каталоги
-            catalogs = await developer_client.get_all_catalogs()
+            catalogs = asyncio.run(developer_client.get_all_catalogs())
             assert len(catalogs) == 2
             
             # Ищем тяжёлые БАС
-            heavy_models = developer_client.find_best_uas_for_requirements({
-                'category': 'heavy_cargo'
-            })
+            heavy_models = developer_client.find_best_uas_for_requirements({"category": "heavy_cargo"})
             assert len(heavy_models) == 1
             assert heavy_models[0].model_id == 'M2'
             
             # Ищем лёгкие БАС
-            light_models = developer_client.find_best_uas_for_requirements({
-                'category': 'light_cargo'
-            })
+            light_models = developer_client.find_best_uas_for_requirements({"category": "light_cargo"})
             assert len(light_models) == 1
             assert light_models[0].model_id == 'M1'
             
