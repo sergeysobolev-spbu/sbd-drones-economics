@@ -1,0 +1,24 @@
+FROM python:3.12.3-slim
+
+WORKDIR /app
+
+# Системные зависимости (общие для большинства компонентов)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python зависимости (единый слой для всех компонентов Эксплуатанта)
+COPY systems/operator/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Базовые переменные окружения
+ENV PYTHONPATH=/app
+ENV LOG_LEVEL=INFO
+
+# Базовый пользователь (идемпотентно)
+RUN groupadd -f operator && \
+    if ! id -u operator >/dev/null 2>&1; then useradd -m -u 1000 -g operator operator; fi
+
+USER operator

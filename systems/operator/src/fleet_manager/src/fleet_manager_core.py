@@ -5,7 +5,7 @@ Fleet Manager Core - критичные функции управления па
 from typing import Dict, Any, Tuple, Optional
 from dataclasses import dataclass
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class UASStatus(Enum):
@@ -242,6 +242,7 @@ class FleetManagerCore:
         """Проверка срока действия сертификата - чистая функция"""
         try:
             expiry = datetime.fromisoformat(expiry_str.replace('Z', '+00:00'))
-            return expiry > datetime.utcnow()
-        except:
+            now = datetime.now(timezone.utc) if expiry.tzinfo is not None else datetime.utcnow()
+            return expiry > now
+        except Exception:
             return False

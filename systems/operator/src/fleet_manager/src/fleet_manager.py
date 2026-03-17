@@ -214,6 +214,7 @@ class FleetManager(BaseComponent):
             
             if result.get("success") is True:
                 return {
+                    "success": True,
                     "reserved": True,
                     "uas_id": result.get("uas_id", uas_id),
                     "mission_id": mission_id,

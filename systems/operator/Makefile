@@ -58,6 +58,7 @@ test-integration-local: ## Запустить интеграционные те�
 
 test-integration: ## Запустить интеграционные тесты (docker-compose + healthcheck)
 	@trap '$(COMPOSE) down -v --remove-orphans' EXIT; \
+	docker build -t operator-base:latest -f ../../systems/operator/docker/Dockerfile.base ../..; \
 	$(COMPOSE) up -d --build; \
 	echo "Ожидание healthcheck контейнеров..."; \
 	for s in operator-kafka operator-security-monitor operator-fleet-manager operator-mission-planner operator-business-logic operator-system; do \

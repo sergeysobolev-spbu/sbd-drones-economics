@@ -13,8 +13,7 @@ sys.path.insert(0, str(root_dir))
 
 from broker.bus_factory import BusFactory
 from systems.operator.src.fleet_manager.src.fleet_manager import FleetManager
-from systems.operator.src.developer_client import DeveloperClient
-from systems.operator.src.regulator_client import RegulatorClient
+from systems.operator.src.operator_clients import DeveloperClient, RegulatorClient
 
 
 def setup_logging():

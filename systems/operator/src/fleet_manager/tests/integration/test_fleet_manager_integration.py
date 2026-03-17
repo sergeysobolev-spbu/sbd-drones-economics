@@ -6,7 +6,6 @@ import asyncio
 from unittest.mock import Mock, AsyncMock, MagicMock
 from datetime import datetime, timedelta
 
-from broker.bus_factory import BusFactory
 from systems.operator.src.fleet_manager.src.fleet_manager import FleetManager
 from systems.operator.src.fleet_manager.src.fleet_manager_core import UASStatus
 

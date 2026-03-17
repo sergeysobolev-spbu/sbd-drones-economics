@@ -11,8 +11,7 @@ from datetime import datetime
 
 from broker.system_bus import SystemBus
 from systems.operator.src.fleet_manager import FleetManager
-from systems.operator.src.regulator_client import RegulatorClient
-from systems.operator.src.developer_client import DeveloperClient
+from systems.operator.src.operator_clients import RegulatorClient, DeveloperClient
 from systems.operator.src.topics import ComponentTopics, FleetManagerActions
 
 

@@ -9,7 +9,7 @@ import os
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
-from systems.operator.src.regulator_client import RegulatorClient, SystemTopicInfo
+from systems.operator.src.operator_clients import RegulatorClient, SystemTopicInfo
 from systems.operator.src.topics import SystemTopics
 
 

@@ -11,7 +11,7 @@ import tempfile
 import yaml
 from unittest.mock import Mock, AsyncMock
 
-from systems.operator.src.developer_client import DeveloperClient, UASModel, UASCategory, DeveloperCatalog
+from systems.operator.src.operator_clients import DeveloperClient, UASModel, UASCategory, DeveloperCatalog
 
 
 class TestDeveloperClient:
