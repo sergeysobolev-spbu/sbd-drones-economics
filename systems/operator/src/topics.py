@@ -1,25 +1,124 @@
 """
-Топики и действия для системы Эксплуатант
+Топики и действия для системы Эксплуатант с поддержкой версионирования
 """
+import os
+from typing import Dict, Optional
+
+
+class TopicBuilder:
+    """Построитель топиков с учетом версионирования и уникальных идентификаторов"""
+    
+    @staticmethod
+    def get_system_id() -> str:
+        """Получить уникальный идентификатор системы из переменной окружения"""
+        return os.environ.get('SYSTEM_ID', 'operator-default')
+    
+    @staticmethod
+    def get_version() -> str:
+        """Получить версию API из переменной окружения"""
+        return os.environ.get('API_VERSION', 'v1')
+    
+    @staticmethod
+    def build_internal_topic(component: str) -> str:
+        """Построить топик для внутреннего компонента системы"""
+        system_id = TopicBuilder.get_system_id()
+        return f"{system_id}.{component}"
+    
+    @staticmethod
+    def build_external_topic(system_type: str) -> str:
+        """Построить топик для внешней системы с версионированием"""
+        system_id = TopicBuilder.get_system_id()
+        version = TopicBuilder.get_version()
+        return f"{system_id}.{version}.{system_type}"
+
 
 class SystemTopics:
     """Топики систем в экосистеме"""
-    OPERATOR = "systems.operator"
+    # Регулятор не имеет уникального идентификатора
     REGULATOR = "systems.regulator"
-    AGGREGATOR = "systems.aggregator"
-    UTM = "systems.utm"
-    INSURER = "systems.insurer"
-    GCS = "systems.gcs"
-    UAS = "systems.uas"
+    
+    # Остальные системы получают топики динамически
+    @staticmethod
+    def get_operator() -> str:
+        """Топик системы Эксплуатант"""
+        return TopicBuilder.build_external_topic("operator")
+    
+    @staticmethod
+    def get_aggregator(aggregator_id: Optional[str] = None) -> str:
+        """Топик системы Агрегатор"""
+        if aggregator_id:
+            return f"systems.aggregator.{aggregator_id}"
+        # Получаем из переменной окружения
+        aggregator_id = os.environ.get('AGGREGATOR_ID', 'aggregator-default')
+        return f"systems.aggregator.{aggregator_id}"
+    
+    @staticmethod
+    def get_utm(utm_id: Optional[str] = None) -> str:
+        """Топик системы ОрВД"""
+        if utm_id:
+            return f"systems.utm.{utm_id}"
+        utm_id = os.environ.get('UTM_ID', 'utm-default')
+        return f"systems.utm.{utm_id}"
+    
+    @staticmethod
+    def get_insurer(insurer_id: Optional[str] = None) -> str:
+        """Топик системы Страховая"""
+        if insurer_id:
+            return f"systems.insurer.{insurer_id}"
+        insurer_id = os.environ.get('INSURER_ID', 'insurer-default')
+        return f"systems.insurer.{insurer_id}"
+    
+    @staticmethod
+    def get_gcs(gcs_id: Optional[str] = None) -> str:
+        """Топик системы НУС"""
+        if gcs_id:
+            return f"systems.gcs.{gcs_id}"
+        gcs_id = os.environ.get('GCS_ID', 'gcs-default')
+        return f"systems.gcs.{gcs_id}"
+    
+    @staticmethod
+    def get_uas(uas_id: str) -> str:
+        """Топик конкретного БАС"""
+        return f"systems.uas.{uas_id}"
+    
+    @staticmethod
+    def get_developer(developer_id: str) -> str:
+        """Топик системы Разработчик"""
+        return f"systems.developer.{developer_id}"
 
 
 class ComponentTopics:
     """Топики компонентов системы Эксплуатант"""
-    SECURITY_MONITOR = "operator.security_monitor"
-    FLEET_MANAGER = "operator.fleet_manager"
-    MISSION_PLANNER = "operator.mission_planner"
-    BUSINESS_LOGIC = "operator.business_logic"
-    ORDER_MANAGER = "operator.order_manager"
+    
+    @staticmethod
+    def get_security_monitor() -> str:
+        """Топик компонента Security Monitor"""
+        return TopicBuilder.build_internal_topic("security_monitor")
+    
+    @staticmethod
+    def get_fleet_manager() -> str:
+        """Топик компонента Fleet Manager"""
+        return TopicBuilder.build_internal_topic("fleet_manager")
+    
+    @staticmethod
+    def get_mission_planner() -> str:
+        """Топик компонента Mission Planner"""
+        return TopicBuilder.build_internal_topic("mission_planner")
+    
+    @staticmethod
+    def get_business_logic() -> str:
+        """Топик компонента Business Logic"""
+        return TopicBuilder.build_internal_topic("business_logic")
+    
+    @staticmethod
+    def get_developer_client() -> str:
+        """Топик компонента Developer Client"""
+        return TopicBuilder.build_internal_topic("developer_client")
+    
+    @staticmethod
+    def get_regulator_client() -> str:
+        """Топик компонента Regulator Client"""
+        return TopicBuilder.build_internal_topic("regulator_client")
 
 
 class OperatorActions:
@@ -62,6 +161,7 @@ class SecurityMonitorActions:
     LOG_VIOLATION = "log_violation"
     BLOCK_ACTION = "block_action"
     GET_SECURITY_STATUS = "get_security_status"
+    AUDIT_OPERATION = "audit_operation"
 
 
 class FleetManagerActions:
@@ -72,6 +172,9 @@ class FleetManagerActions:
     RESERVE_UAS = "reserve_uas"
     RELEASE_UAS = "release_uas"
     UPDATE_UAS_STATUS = "update_uas_status"
+    PURCHASE_UAS = "purchase_uas"
+    GET_FLEET_STATISTICS = "get_fleet_statistics"
+    GET_PURCHASE_HISTORY = "get_purchase_history"
 
 
 class MissionPlannerActions:
@@ -81,6 +184,8 @@ class MissionPlannerActions:
     REQUEST_UTM_APPROVAL = "request_utm_approval"
     UPDATE_MISSION_STATUS = "update_mission_status"
     GET_MISSION_DETAILS = "get_mission_details"
+    CALCULATE_ROUTE = "calculate_route"
+    CHECK_AIRSPACE = "check_airspace"
 
 
 class BusinessLogicActions:
@@ -90,3 +195,54 @@ class BusinessLogicActions:
     REQUEST_INSURANCE_QUOTE = "request_insurance_quote"
     CREATE_PROPOSAL = "create_proposal"
     VALIDATE_ECONOMICS = "validate_economics"
+    OPTIMIZE_PRICING = "optimize_pricing"
+
+
+class DeveloperClientActions:
+    """Действия клиента разработчика"""
+    GET_CATALOG = "get_catalog"
+    GET_ALL_CATALOGS = "get_all_catalogs"
+    PURCHASE_UAS = "purchase_uas"
+    CHECK_AVAILABILITY = "check_availability"
+    GET_SPECIFICATIONS = "get_specifications"
+
+
+class RegulatorClientActions:
+    """Действия клиента регулятора"""
+    GET_SYSTEM_TOPICS = "get_system_topics"
+    CHECK_CERTIFICATE = "check_certificate"
+    GET_REGULATIONS = "get_regulations"
+    REPORT_INCIDENT = "report_incident"
+    GET_SECURITY_GOALS = "get_security_goals"
+
+
+# Вспомогательные функции для обратной совместимости
+def get_component_topic(component_name: str) -> str:
+    """Получить топик компонента по имени"""
+    topic_map = {
+        'security_monitor': ComponentTopics.get_security_monitor,
+        'fleet_manager': ComponentTopics.get_fleet_manager,
+        'mission_planner': ComponentTopics.get_mission_planner,
+        'business_logic': ComponentTopics.get_business_logic,
+        'developer_client': ComponentTopics.get_developer_client,
+        'regulator_client': ComponentTopics.get_regulator_client,
+    }
+    
+    getter = topic_map.get(component_name)
+    if getter:
+        return getter()
+    
+    # Fallback для неизвестных компонентов
+    return TopicBuilder.build_internal_topic(component_name)
+
+
+def get_external_system_topics() -> Dict[str, str]:
+    """Получить словарь топиков внешних систем"""
+    return {
+        'regulator': SystemTopics.REGULATOR,
+        'operator': SystemTopics.get_operator(),
+        'aggregator': SystemTopics.get_aggregator(),
+        'utm': SystemTopics.get_utm(),
+        'insurer': SystemTopics.get_insurer(),
+        'gcs': SystemTopics.get_gcs(),
+    }
