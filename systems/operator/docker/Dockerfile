@@ -14,7 +14,9 @@ COPY broker/ ./broker/
 # Установка переменных окружения по умолчанию
 ENV COMPONENT_TYPE=operator_system
 ENV COMPONENT_ID=operator-01
-ENV KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+ENV BROKER_TYPE=mqtt
+ENV MQTT_BROKER=localhost
+ENV MQTT_PORT=1883
 ENV LOG_LEVEL=INFO
 
 # Точка входа - запуск компонента в зависимости от COMPONENT_TYPE

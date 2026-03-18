@@ -1,6 +1,7 @@
 """
 Клиент для взаимодействия с Регулятором
 """
+
 import os
 import logging
 from typing import Dict, List, Optional, Any
@@ -177,4 +178,3 @@ class RegulatorClient:
             self.logger.error(f"Failed to register with Regulator: {e}")
 
         return False
-

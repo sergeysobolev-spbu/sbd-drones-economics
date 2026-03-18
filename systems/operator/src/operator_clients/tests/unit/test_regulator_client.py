@@ -116,4 +116,3 @@ class TestRegulatorClient:
 
         topic = client.get_topic_for_system("unknown")
         assert topic is None
-

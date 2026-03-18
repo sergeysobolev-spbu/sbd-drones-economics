@@ -165,4 +165,3 @@ class TestDeveloperClient:
         assert "order_id" in result
         assert result["quantity"] == 2
         assert result["total_price"] == 200000.0
-

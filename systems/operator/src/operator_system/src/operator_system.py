@@ -515,7 +515,10 @@ class OperatorSystem(BaseComponent):
             return {"error": str(e)}
 
     def _validate_with_security_monitor(
-        self, request: Dict[str, Any], context: Optional[Dict[str, Any]] = None, trace_context: Optional[TraceContext] = None
+        self,
+        request: Dict[str, Any],
+        context: Optional[Dict[str, Any]] = None,
+        trace_context: Optional[TraceContext] = None,
     ) -> Dict[str, Any]:
         """Валидация через монитор безопасности"""
         return self._request_component(
@@ -540,4 +543,3 @@ class OperatorSystem(BaseComponent):
             status = order_data.get("status", "unknown")
             status_count[status] = status_count.get(status, 0) + 1
         return status_count
-

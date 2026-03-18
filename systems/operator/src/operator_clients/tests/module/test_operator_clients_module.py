@@ -10,4 +10,3 @@ def test_operator_clients_can_be_instantiated():
 
     assert regulator is not None
     assert developer is not None
-

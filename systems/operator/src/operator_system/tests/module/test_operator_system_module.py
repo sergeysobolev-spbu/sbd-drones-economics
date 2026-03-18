@@ -9,4 +9,3 @@ def test_receive_order_requires_order_payload():
 
     result = op._handle_receive_order({"payload": {}})
     assert "error" in result
-

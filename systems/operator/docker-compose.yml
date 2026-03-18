@@ -21,10 +21,12 @@ services:
       - GCS_ID=${GCS_ID:-gcs-default}
       - COMPONENT_TYPE=security_monitor
       - COMPONENT_ID=security-01
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
       - LOG_LEVEL=INFO
     depends_on:
-      - kafka
+      - mosquitto
     networks:
       - operator-network
     restart: unless-stopped
@@ -52,10 +54,12 @@ services:
       - GCS_ID=${GCS_ID:-gcs-default}
       - COMPONENT_TYPE=fleet_manager
       - COMPONENT_ID=fleet-01
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
       - LOG_LEVEL=INFO
     depends_on:
-      - kafka
+      - mosquitto
       - security-monitor
     networks:
       - operator-network
@@ -84,10 +88,12 @@ services:
       - GCS_ID=${GCS_ID:-gcs-default}
       - COMPONENT_TYPE=mission_planner
       - COMPONENT_ID=planner-01
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
       - LOG_LEVEL=INFO
     depends_on:
-      - kafka
+      - mosquitto
       - security-monitor
     networks:
       - operator-network
@@ -116,10 +122,12 @@ services:
       - GCS_ID=${GCS_ID:-gcs-default}
       - COMPONENT_TYPE=business_logic
       - COMPONENT_ID=business-01
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
       - LOG_LEVEL=INFO
     depends_on:
-      - kafka
+      - mosquitto
       - security-monitor
     networks:
       - operator-network
@@ -148,10 +156,12 @@ services:
       - GCS_ID=${GCS_ID:-gcs-default}
       - COMPONENT_TYPE=operator_system
       - COMPONENT_ID=operator-01
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
       - LOG_LEVEL=INFO
     depends_on:
-      - kafka
+      - mosquitto
       - security-monitor
       - fleet-manager
       - mission-planner
@@ -168,38 +178,21 @@ services:
       retries: 20
       start_period: 10s
 
-  # Kafka
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: operator-kafka
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    depends_on:
-      - zookeeper
+  # Mosquitto (MQTT)
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: operator-mosquitto
+    ports:
+      - "1883:1883"
     networks:
       - operator-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1"]
-      interval: 10s
-      timeout: 5s
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/#' -C 1 -W 2 >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
       retries: 20
-      start_period: 20s
-
-  # Zookeeper
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    container_name: operator-zookeeper
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    networks:
-      - operator-network
-    restart: unless-stopped
+      start_period: 5s
 
   # Monitoring stack (Prometheus/Grafana) intentionally omitted from
   # integration-test compose to keep it portable in constrained environments.

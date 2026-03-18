@@ -1,6 +1,7 @@
 """
 Клиент для взаимодействия с Разработчиками БАС
 """
+
 import os
 import yaml
 import logging
@@ -251,9 +252,7 @@ class DeveloperClient:
         candidates.sort(key=lambda m: m.price)
         return candidates
 
-    async def purchase_uas(
-        self, developer_id: str, model_id: str, quantity: int = 1
-    ) -> Dict[str, Any]:
+    async def purchase_uas(self, developer_id: str, model_id: str, quantity: int = 1) -> Dict[str, Any]:
         """Запросить покупку БАС у разработчика"""
         if developer_id not in self.catalogs_cache:
             await self.get_all_catalogs()
@@ -284,4 +283,3 @@ class DeveloperClient:
             "estimated_delivery": datetime.utcnow().isoformat(),
             "delivery_days": model.delivery_time_days,
         }
-
