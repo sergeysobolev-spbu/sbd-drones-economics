@@ -9,6 +9,8 @@ from typing import Dict, Any, Callable, Optional
 import uuid
 import time
 import logging
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from broker.system_bus import SystemBus
 from sdk.messages import create_response
@@ -166,6 +168,16 @@ class BaseComponent(ABC):
             
             start_time = time.time()
             result = handler(message)
+            if asyncio.iscoroutine(result):
+                try:
+                    asyncio.get_running_loop()
+                except RuntimeError:
+                    result = asyncio.run(result)
+                else:
+                    # Callback might be invoked from a thread that already has a running loop.
+                    # Run the coroutine in a separate thread to preserve sync handler contract.
+                    with ThreadPoolExecutor(max_workers=1) as ex:
+                        result = ex.submit(asyncio.run, result).result()
             duration = time.time() - start_time
             
             # Логируем успешное завершение

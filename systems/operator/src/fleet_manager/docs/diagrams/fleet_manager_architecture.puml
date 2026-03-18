@@ -19,87 +19,86 @@ skinparam package {
 
 ' Домены безопасности
 package "D1_TRUSTED Domain" <<domain>> {
-    component "FleetManagerCore" <<trusted>> {
-        note right
-            Минимальный код (~250 строк)
-            - authorize_uas_operation()
-            - reserve_uas()
-            - release_uas()
-            - update_uas_state()
-            - add_uas()
-            - get_uas_state()
-        end note
-    }
-    
-    database "Critical State" <<trusted>> {
-        note bottom
-            - UAS ID
-            - Status
-            - Certificate Valid
-            - Certificate Expiry
-            - Battery Level
-            - Reserved By
-        end note
-    }
+    component "FleetManagerCore" <<trusted>> as FMC
+    database "Critical State" <<trusted>> as CS
 }
 
 package "D2_OPERATIONAL Domain" <<domain>> {
-    component "FleetManagerService" <<operational>> {
-        note right
-            Бизнес-логика (~800 строк)
-            - find_suitable_uas()
-            - calculate_suitability_score()
-            - initialize_fleet()
-            - get_fleet_statistics()
-            - get_purchase_history()
-        end note
-    }
-    
-    database "Extended State" <<operational>> {
-        note bottom
-            - UAS Type
-            - Location
-            - Max Payload
-            - Max Range
-            - Flight Hours
-            - Maintenance Info
-        end note
-    }
-    
-    component "Metrics & Logging" <<operational>>
+    component "FleetManagerService" <<operational>> as FMS
+    database "Extended State" <<operational>> as ES
+    component "Metrics & Logging" <<operational>> as MLOG
 }
 
 ' Внешние компоненты
 component "FleetManager\n(Main Component)" as FM
+component "System Bus\n(MQTT/Kafka)" <<external>> as BUS
+component "Regulator Client" <<external>> as REG
+component "Developer Client" <<external>> as DEV
 
-component "System Bus\n(MQTT/Kafka)" <<external>>
-component "Regulator Client" <<external>>
-component "Developer Client" <<external>>
+' Заметки для FleetManagerCore
+note right of FMC
+  Минимальный код (~250 строк)<br/>
+  - authorize_uas_operation()<br/>
+  - reserve_uas()<br/>
+  - release_uas()<br/>
+  - update_uas_state()<br/>
+  - add_uas()<br/>
+  - get_uas_state()
+end note
+
+note top of FMC
+  <b>Security Goals:</b><br/>
+  - SG-FM-001: Access Control<br/>
+  - SG-FM-002: State Integrity<br/>
+  - SG-FM-003: Certificate Control
+end note
+
+' Заметки для Critical State
+note bottom of CS
+  - UAS ID<br/>
+  - Status<br/>
+  - Certificate Valid<br/>
+  - Certificate Expiry<br/>
+  - Battery Level<br/>
+  - Reserved By
+end note
+
+' Заметки для FleetManagerService
+note right of FMS
+  Бизнес-логика (~800 строк)<br/>
+  - find_suitable_uas()<br/>
+  - calculate_suitability_score()<br/>
+  - initialize_fleet()<br/>
+  - get_fleet_statistics()<br/>
+  - get_purchase_history()
+end note
+
+note top of FMS
+  <b>Security Goals:</b><br/>
+  - SG-FM-004: Audit<br/>
+  - SG-FM-005: Availability
+end note
+
+' Заметки для Extended State
+note bottom of ES
+  - UAS Type<br/>
+  - Location<br/>
+  - Max Payload<br/>
+  - Max Range<br/>
+  - Flight Hours<br/>
+  - Maintenance Info
+end note
 
 ' Связи
-FM --> FleetManagerCore : uses
-FM --> FleetManagerService : uses
-FleetManagerCore --> "Critical State" : manages
-FleetManagerService --> "Extended State" : manages
-FleetManagerService --> FleetManagerCore : calls critical\nfunctions
-FleetManagerService --> "Metrics & Logging" : logs
+FM --> FMC : uses
+FM --> FMS : uses
+FMC --> CS : manages
+FMS --> ES : manages
+FMS --> FMC : calls critical\nfunctions
+FMS --> MLOG : logs
 
-FM <--> "System Bus\n(MQTT/Kafka)" : messages
-FleetManagerService --> "Regulator Client" : get topics\ncheck certificates
-FleetManagerService --> "Developer Client" : get catalogs\npurchase UAS
-
-' Аннотации безопасности
-note top of FleetManagerCore
-    **Security Goals:**
-    - SG-FM-001: Access Control
-    - SG-FM-002: State Integrity
-    - SG-FM-003: Certificate Control
-end note
-
-note top of FleetManagerService
-    **Security Goals:**
-    - SG-FM-004: Audit
-    - SG-FM-005: Availability
-end note
+FM <--> BUS : messages
+FMS --> REG : get topics\ncheck certificates
+FMS --> DEV : get catalogs\npurchase UAS
 
 @enduml

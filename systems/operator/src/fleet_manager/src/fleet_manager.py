@@ -11,6 +11,9 @@ from concurrent.futures import ThreadPoolExecutor
 from sdk.base_component import BaseComponent
 from broker.system_bus import SystemBus
 
+from systems.operator.src.operator_clients import DeveloperClient, RegulatorClient
+from systems.operator.src.topics import ComponentTopics, FleetManagerActions
+
 from .fleet_manager_core import FleetManagerCore
 from .fleet_manager_service import FleetManagerService, UASExtended
 
@@ -39,6 +42,10 @@ class FleetManager(BaseComponent):
         # Получаем клиенты из конфигурации или создаём заглушки
         developer_client = self.config.get("developer_client")
         regulator_client = self.config.get("regulator_client")
+        if regulator_client is None:
+            regulator_client = RegulatorClient(bus)
+        if developer_client is None:
+            developer_client = DeveloperClient(bus, regulator_client)
 
         # Инициализация сервиса (недоверенный домен)
         self.service = FleetManagerService(
@@ -49,7 +56,7 @@ class FleetManager(BaseComponent):
         super().__init__(
             component_id=component_id,
             component_type="fleet_manager",
-            topic=self.config.get("topic", "fleet_manager"),
+            topic=self.config.get("topic") or ComponentTopics.get_fleet_manager(),
             bus=bus,
         )
 
@@ -86,19 +93,29 @@ class FleetManager(BaseComponent):
         """Регистрация обработчиков сообщений"""
         # Основные операции
         self.register_handler("GET_UAS_LIST", self._handle_get_uas_list)
+        self.register_handler(FleetManagerActions.GET_UAS_LIST, self._handle_get_uas_list)
         self.register_handler("GET_UAS_STATUS", self._handle_get_uas_status)
+        self.register_handler(FleetManagerActions.GET_UAS_STATUS, self._handle_get_uas_status)
         self.register_handler("FIND_AVAILABLE_UAS", self._handle_find_available_uas)
+        self.register_handler(FleetManagerActions.FIND_AVAILABLE_UAS, self._handle_find_available_uas)
         self.register_handler("RESERVE_UAS", self._handle_reserve_uas)
+        self.register_handler(FleetManagerActions.RESERVE_UAS, self._handle_reserve_uas)
         self.register_handler("RELEASE_UAS", self._handle_release_uas)
+        self.register_handler(FleetManagerActions.RELEASE_UAS, self._handle_release_uas)
         self.register_handler("UPDATE_UAS_STATUS", self._handle_update_uas_status)
+        self.register_handler(FleetManagerActions.UPDATE_UAS_STATUS, self._handle_update_uas_status)
 
         # Статистика и аналитика
         self.register_handler("GET_FLEET_STATISTICS", self._handle_get_fleet_statistics)
+        self.register_handler(FleetManagerActions.GET_FLEET_STATISTICS, self._handle_get_fleet_statistics)
 
         # Работа с разработчиками
         self.register_handler("GET_DEVELOPER_CATALOGS", self._handle_get_developer_catalogs)
+        self.register_handler("get_developer_catalogs", self._handle_get_developer_catalogs)
         self.register_handler("PURCHASE_UAS", self._handle_purchase_uas)
+        self.register_handler(FleetManagerActions.PURCHASE_UAS, self._handle_purchase_uas)
         self.register_handler("GET_PURCHASE_HISTORY", self._handle_get_purchase_history)
+        self.register_handler(FleetManagerActions.GET_PURCHASE_HISTORY, self._handle_get_purchase_history)
 
     def _handle_get_uas_list(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Получение списка всех БАС"""

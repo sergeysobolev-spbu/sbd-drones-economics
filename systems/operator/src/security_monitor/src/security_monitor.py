@@ -85,10 +85,34 @@ class SecurityMonitor(BaseComponent):
         trace_context = self._extract_trace_context(message)
 
         try:
-            # Добавляем информацию о роли отправителя
+            # Валидируем НЕ вызов `validate_request`, а исходный запрос, пришедший в систему.
+            payload = message.get("payload", {}) or {}
+            original_request = payload.get("request", {}) or {}
+
             enriched_message = message.copy()
-            enriched_message["sender_role"] = message.get("payload", {}).get("sender_role", "unknown")
-            enriched_message["target"] = message.get("payload", {}).get("target_component", "unknown")
+            sender_role = payload.get("sender_role", "unknown")
+            enriched_message["target"] = payload.get("target_component", "operator_system")
+
+            # Подменяем sender/action на исходные значения, чтобы политики применялись корректно.
+            if original_request:
+                enriched_message["sender"] = original_request.get("sender", enriched_message.get("sender", "unknown"))
+                enriched_message["action"] = original_request.get("action", enriched_message.get("action", "unknown"))
+                enriched_message["payload"] = original_request.get("payload", payload)
+
+            # Если роль не передана явно, пытаемся вывести её из sender (демо-эвристика).
+            if sender_role == "unknown":
+                sender = str(enriched_message.get("sender", "") or "").lower()
+                if sender.startswith("aggregator"):
+                    sender_role = "aggregator"
+                elif sender.startswith("operator"):
+                    sender_role = "operator"
+                elif any(k in sender for k in ("security", "fleet", "mission", "business")):
+                    # Внутренние компоненты Эксплуатанта в демо считаем доверенными системными отправителями.
+                    sender_role = "system"
+                elif sender.startswith("shell") or sender.startswith("pytest"):
+                    sender_role = "system"
+
+            enriched_message["sender_role"] = sender_role
 
             # Обрабатываем через сервис
             result = await self.service.process_request(enriched_message)

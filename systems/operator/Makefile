@@ -201,6 +201,9 @@ docs: ## Сгенерировать документацию
 	cd docs && make html
 	@echo "Документация сгенерирована в docs/_build/html/"
 
+build-diagrams:
+	$(foreach puml,$(wildcard docs/diagrams/*.puml),plantuml -tpng $(puml);)
+
 # Метрики
 
 metrics: ## Собрать метрики кода

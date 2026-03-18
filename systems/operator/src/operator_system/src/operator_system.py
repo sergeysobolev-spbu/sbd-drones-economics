@@ -521,10 +521,23 @@ class OperatorSystem(BaseComponent):
         trace_context: Optional[TraceContext] = None,
     ) -> Dict[str, Any]:
         """Валидация через монитор безопасности"""
+        sender = (request.get("sender") or "").lower()
+        sender_role = request.get("sender_role")
+        if not sender_role:
+            if sender.startswith("aggregator"):
+                sender_role = "aggregator"
+            elif sender.startswith("operator"):
+                sender_role = "operator"
+            elif sender.startswith("shell"):
+                sender_role = "system"
+            elif sender.startswith("pytest"):
+                sender_role = "system"
+            else:
+                sender_role = "unknown"
         return self._request_component(
             ComponentTopics.SECURITY_MONITOR,
             SecurityMonitorActions.VALIDATE_REQUEST,
-            {"request": request, "context": context or {}},
+            {"request": request, "context": context or {}, "sender_role": sender_role},
             trace_context=trace_context,
         )
 

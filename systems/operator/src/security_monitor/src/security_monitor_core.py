@@ -167,7 +167,7 @@ class SecurityMonitorCore:
     def _check_sender_authorization(self, context: SecurityContext) -> bool:
         """Проверка авторизации отправителя"""
         # Упрощенная проверка для демонстрации
-        allowed_roles = {"operator", "admin", "system"}
+        allowed_roles = {"operator", "admin", "system", "aggregator"}
         return context.sender_role in allowed_roles
 
     def _is_critical_action(self, action: str) -> bool:
