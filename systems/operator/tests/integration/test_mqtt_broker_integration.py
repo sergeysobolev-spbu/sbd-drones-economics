@@ -45,7 +45,9 @@ def test_mqtt_receive_order_request_response():
                         "dropoff": {"lat": 55.75, "lon": 37.61},
                         "payload_weight": 3.5,
                         "distance_km": 10.0,
-                    }
+                    },
+                    # Явно указываем роль отправителя для SecurityMonitor
+                    "sender_role": "aggregator",
                 },
             },
             timeout=20.0,
@@ -62,6 +64,7 @@ def test_mqtt_receive_order_request_response():
 def test_mqtt_fleet_manager_get_uas_list():
     host = os.getenv("MQTT_BROKER", "localhost")
     port = int(os.getenv("MQTT_PORT", "1883"))
+    system_id = os.getenv("SYSTEM_ID", "operator-001")
 
     _wait_mqtt(host, port)
 
@@ -69,8 +72,12 @@ def test_mqtt_fleet_manager_get_uas_list():
     bus.start()
     try:
         resp = bus.request(
-            "fleet_manager",
-            {"action": "GET_UAS_LIST", "sender": "pytest-mqtt", "payload": {}},
+            f"{system_id}.fleet_manager",
+            {
+                "action": "get_uas_list",
+                "sender": "pytest-mqtt-fleet",
+                "payload": {},
+            },
             timeout=20.0,
         )
         assert resp is not None

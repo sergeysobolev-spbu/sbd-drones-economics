@@ -137,8 +137,16 @@ class OperatorSystem(BaseComponent):
 
         order_id = order.get("id", f"ORDER-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
 
+        security_request = {
+            "action": "receive_order",
+            "sender": message.get("sender", "aggregator"),
+            "order_id": order_id,
+            # роль должен задавать вызывающий код (Агрегатор)
+            "sender_role": payload.get("sender_role"),
+        }
+
         security_check = self._validate_with_security_monitor(
-            {"action": "receive_order", "sender": message.get("sender", "aggregator"), "order_id": order_id},
+            security_request,
             {"order": order},
             trace_context=trace_context,
         )
@@ -521,23 +529,15 @@ class OperatorSystem(BaseComponent):
         trace_context: Optional[TraceContext] = None,
     ) -> Dict[str, Any]:
         """Валидация через монитор безопасности"""
-        sender = (request.get("sender") or "").lower()
-        sender_role = request.get("sender_role")
-        if not sender_role:
-            if sender.startswith("aggregator"):
-                sender_role = "aggregator"
-            elif sender.startswith("operator"):
-                sender_role = "operator"
-            elif sender.startswith("shell"):
-                sender_role = "system"
-            elif sender.startswith("pytest"):
-                sender_role = "system"
-            else:
-                sender_role = "unknown"
         return self._request_component(
             ComponentTopics.SECURITY_MONITOR,
             SecurityMonitorActions.VALIDATE_REQUEST,
-            {"request": request, "context": context or {}, "sender_role": sender_role},
+            {
+                "request": request,
+                "context": context or {},
+                "sender_role": request.get("sender_role"),
+                "target_component": "operator_system",
+            },
             trace_context=trace_context,
         )
 

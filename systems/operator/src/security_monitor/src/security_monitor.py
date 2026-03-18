@@ -90,7 +90,10 @@ class SecurityMonitor(BaseComponent):
             original_request = payload.get("request", {}) or {}
 
             enriched_message = message.copy()
-            sender_role = payload.get("sender_role", "unknown")
+            # В прод-режиме роль и целевой компонент должны передаваться явно.
+            sender_role = payload.get("sender_role")
+            if not sender_role:
+                raise ValueError("sender_role is required for security validation")
             enriched_message["target"] = payload.get("target_component", "operator_system")
 
             # Подменяем sender/action на исходные значения, чтобы политики применялись корректно.
@@ -98,19 +101,6 @@ class SecurityMonitor(BaseComponent):
                 enriched_message["sender"] = original_request.get("sender", enriched_message.get("sender", "unknown"))
                 enriched_message["action"] = original_request.get("action", enriched_message.get("action", "unknown"))
                 enriched_message["payload"] = original_request.get("payload", payload)
-
-            # Если роль не передана явно, пытаемся вывести её из sender (демо-эвристика).
-            if sender_role == "unknown":
-                sender = str(enriched_message.get("sender", "") or "").lower()
-                if sender.startswith("aggregator"):
-                    sender_role = "aggregator"
-                elif sender.startswith("operator"):
-                    sender_role = "operator"
-                elif any(k in sender for k in ("security", "fleet", "mission", "business")):
-                    # Внутренние компоненты Эксплуатанта в демо считаем доверенными системными отправителями.
-                    sender_role = "system"
-                elif sender.startswith("shell") or sender.startswith("pytest"):
-                    sender_role = "system"
 
             enriched_message["sender_role"] = sender_role
 

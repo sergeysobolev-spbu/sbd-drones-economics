@@ -225,6 +225,7 @@ class FleetManagerActions:
     RESERVE_UAS = "reserve_uas"
     RELEASE_UAS = "release_uas"
     UPDATE_UAS_STATUS = "update_uas_status"
+    GET_DEVELOPER_CATALOGS = "get_developer_catalogs"
     PURCHASE_UAS = "purchase_uas"
     GET_FLEET_STATISTICS = "get_fleet_statistics"
     GET_PURCHASE_HISTORY = "get_purchase_history"

@@ -92,29 +92,19 @@ class FleetManager(BaseComponent):
     def _register_handlers(self):
         """Регистрация обработчиков сообщений"""
         # Основные операции
-        self.register_handler("GET_UAS_LIST", self._handle_get_uas_list)
         self.register_handler(FleetManagerActions.GET_UAS_LIST, self._handle_get_uas_list)
-        self.register_handler("GET_UAS_STATUS", self._handle_get_uas_status)
         self.register_handler(FleetManagerActions.GET_UAS_STATUS, self._handle_get_uas_status)
-        self.register_handler("FIND_AVAILABLE_UAS", self._handle_find_available_uas)
         self.register_handler(FleetManagerActions.FIND_AVAILABLE_UAS, self._handle_find_available_uas)
-        self.register_handler("RESERVE_UAS", self._handle_reserve_uas)
         self.register_handler(FleetManagerActions.RESERVE_UAS, self._handle_reserve_uas)
-        self.register_handler("RELEASE_UAS", self._handle_release_uas)
         self.register_handler(FleetManagerActions.RELEASE_UAS, self._handle_release_uas)
-        self.register_handler("UPDATE_UAS_STATUS", self._handle_update_uas_status)
         self.register_handler(FleetManagerActions.UPDATE_UAS_STATUS, self._handle_update_uas_status)
 
         # Статистика и аналитика
-        self.register_handler("GET_FLEET_STATISTICS", self._handle_get_fleet_statistics)
         self.register_handler(FleetManagerActions.GET_FLEET_STATISTICS, self._handle_get_fleet_statistics)
 
         # Работа с разработчиками
-        self.register_handler("GET_DEVELOPER_CATALOGS", self._handle_get_developer_catalogs)
-        self.register_handler("get_developer_catalogs", self._handle_get_developer_catalogs)
-        self.register_handler("PURCHASE_UAS", self._handle_purchase_uas)
+        self.register_handler(FleetManagerActions.GET_DEVELOPER_CATALOGS, self._handle_get_developer_catalogs)
         self.register_handler(FleetManagerActions.PURCHASE_UAS, self._handle_purchase_uas)
-        self.register_handler("GET_PURCHASE_HISTORY", self._handle_get_purchase_history)
         self.register_handler(FleetManagerActions.GET_PURCHASE_HISTORY, self._handle_get_purchase_history)
 
     def _handle_get_uas_list(self, message: Dict[str, Any]) -> Dict[str, Any]:

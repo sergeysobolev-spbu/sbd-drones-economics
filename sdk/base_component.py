@@ -79,6 +79,7 @@ class BaseComponent(ABC):
         self.bus = bus
         self.enable_tracing = enable_tracing
 
+        # Ключи всегда храним в нижнем регистре, чтобы не зависеть от регистра action.
         self._handlers: Dict[str, Callable[[Dict[str, Any]], Optional[Dict[str, Any]]]] = {}
         self._running = False
         
@@ -105,7 +106,8 @@ class BaseComponent(ABC):
         handler: Callable[[Dict[str, Any]], Optional[Dict[str, Any]]],
     ):
         """Регистрирует обработчик для action."""
-        self._handlers[action] = handler
+        key = (action or "").lower()
+        self._handlers[key] = handler
 
     def _extract_trace_context(self, message: Dict[str, Any]) -> TraceContext:
         """Извлечь или создать контекст трассировки из сообщения"""
@@ -144,7 +146,8 @@ class BaseComponent(ABC):
         # Извлекаем контекст трассировки
         trace_context = self._extract_trace_context(message)
         
-        action = message.get("action")
+        raw_action = message.get("action")
+        action = (raw_action or "").lower()
         if not action:
             self._log_with_trace('warning', f"Message without action: {message}", trace_context)
             return
