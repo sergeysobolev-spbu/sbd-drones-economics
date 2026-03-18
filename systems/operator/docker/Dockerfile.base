@@ -2,16 +2,9 @@ FROM python:3.12.3-slim
 
 WORKDIR /app
 
-# Системные зависимости (общие для большинства компонентов)
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    make \
-    && rm -rf /var/lib/apt/lists/*
-
 # Python зависимости (единый слой для всех компонентов Эксплуатанта)
-COPY systems/operator/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY systems/operator/requirements.runtime.txt ./requirements.runtime.txt
+RUN pip install --no-cache-dir -r requirements.runtime.txt
 
 # Базовые переменные окружения
 ENV PYTHONPATH=/app

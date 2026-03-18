@@ -36,9 +36,8 @@ help: ## Показать справку
 	@echo "  make install-deps   - Установить зависимости"
 
 install-deps: ## Установить зависимости
-	$(PIP) install -r requirements.txt
-	$(PIP) install pytest pytest-asyncio pytest-cov pytest-mock
-	$(PIP) install black flake8 mypy
+	$(PIP) install -r requirements.runtime.txt
+	$(PIP) install -r requirements.dev.txt
 
 test: ## Запустить все тесты
 	$(PYTEST) $(TEST_DIR) $(SRC_DIR) -v --cov=$(SRC_DIR) --cov-report=html --cov-report=term
@@ -98,7 +97,7 @@ clean: ## Очистить временные файлы
 	rm -rf .mypy_cache/
 
 docker-build: ## Собрать Docker образ
-	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f docker/Dockerfile .
+	cd ../.. && docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f systems/operator/docker/Dockerfile .
 
 docker-run: ## Запустить систему в Docker
 	$(COMPOSE) up -d
@@ -108,6 +107,9 @@ docker-stop: ## Остановить систему в Docker
 
 docker-logs: ## Показать логи Docker контейнеров
 	$(COMPOSE) logs -f
+
+logs:
+	$(COMPOSE) logs > docker-runtime-errors.log
 
 # Специальные цели для демонстрации
 

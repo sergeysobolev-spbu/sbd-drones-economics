@@ -242,6 +242,8 @@ class BusinessLogicActions:
     CHECK_PROFITABILITY = "check_profitability"
     REQUEST_INSURANCE_QUOTE = "request_insurance_quote"
     CREATE_PROPOSAL = "create_proposal"
+    PROCESS_ORDER = "process_order"
+    GET_STATISTICS = "get_statistics"
     VALIDATE_ECONOMICS = "validate_economics"
     OPTIMIZE_PRICING = "optimize_pricing"
 

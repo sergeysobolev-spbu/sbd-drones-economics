@@ -4,8 +4,8 @@ FROM ${BASE_IMAGE}
 WORKDIR /app
 
 # Копирование исходного кода
-COPY systems/operator/src/ ./src/
-COPY systems/operator/__init__.py ./__init__.py
+COPY systems/operator/src/ ./systems/operator/src/
+COPY systems/operator/__init__.py ./systems/operator/__init__.py
 
 # Копирование SDK и broker (из корня репозитория)
 COPY sdk/ ./sdk/
@@ -18,4 +18,4 @@ ENV KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 ENV LOG_LEVEL=INFO
 
 # Точка входа - запуск компонента в зависимости от COMPONENT_TYPE
-CMD ["python", "-m", "src.run_component"]
+CMD ["python", "-m", "systems.operator.src.run_component"]

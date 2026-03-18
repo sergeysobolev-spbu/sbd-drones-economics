@@ -10,7 +10,7 @@ from concurrent.futures import Future
 
 try:
     from kafka import KafkaProducer, KafkaConsumer
-    from kafka.errors import KafkaError
+    from kafka.errors import KafkaError, NoBrokersAvailable, KafkaConnectionError
     KAFKA_AVAILABLE = True
 except ImportError:
     KAFKA_AVAILABLE = False
@@ -20,6 +20,34 @@ from broker.config import get_kafka_bootstrap
 
 
 class KafkaSystemBus(SystemBus):
+    def _get_connect_deadline_s(self) -> float:
+        """
+        Максимальное время ожидания доступности брокера при старте.
+
+        Нужен из-за типичной гонки старта docker-compose: приложения поднимаются
+        быстрее Kafka и первое подключение может дать ECONNREFUSED/NoBrokersAvailable.
+        """
+        try:
+            return float(os.getenv("KAFKA_CONNECT_TIMEOUT_S", "30"))
+        except ValueError:
+            return 30.0
+
+    def _wait_for_broker(self, op_name: str, fn) -> Any:
+        deadline = time.time() + self._get_connect_deadline_s()
+        delay_s = 0.2
+        last_exc: Optional[BaseException] = None
+
+        while time.time() < deadline:
+            try:
+                return fn()
+            except (NoBrokersAvailable, KafkaConnectionError) as e:
+                last_exc = e
+                time.sleep(delay_s)
+                delay_s = min(delay_s * 1.7, 2.0)
+
+        if last_exc is not None:
+            raise last_exc
+        raise TimeoutError(f"Kafka broker not available during {op_name}")
 
     def __init__(
         self, 
@@ -63,23 +91,33 @@ class KafkaSystemBus(SystemBus):
     def _init_producer(self):
         """Создаёт Kafka producer при первой отправке."""
         if self._producer is None:
-            config = {
-                'bootstrap_servers': self.bootstrap_servers,
-                'client_id': self.client_id,
-                'value_serializer': lambda v: json.dumps(v).encode('utf-8'),
-                'acks': 'all',
-                **self._get_sasl_config()
-            }
-            self._producer = KafkaProducer(**config)
+            def _create():
+                config = {
+                    'bootstrap_servers': self.bootstrap_servers,
+                    'client_id': self.client_id,
+                    'value_serializer': lambda v: json.dumps(v).encode('utf-8'),
+                    'acks': 'all',
+                    **self._get_sasl_config()
+                }
+                return KafkaProducer(**config)
+
+            self._producer = self._wait_for_broker("producer_init", _create)
 
     def start(self) -> None:
         """Запускает bus, создаёт reply-топик и подписывается на ответы."""
         if self._started:
             return
         self._init_producer()
-        try:
+        # Дождаться Kafka на старте: даже если producer создан, первый send может упасть.
+        def _ensure_send():
             self._producer.send(self._reply_topic, {"_init": True}).get(timeout=10)
+            return True
+
+        try:
+            self._wait_for_broker("initial_send", _ensure_send)
         except Exception:
+            # Не фейлим старт, если топик не удалось "прогреть" с первого раза:
+            # подписка на reply topic ниже создаст consumer и будет повторять подключение.
             pass
         self._producer.flush()
         time.sleep(1.0)
@@ -172,7 +210,10 @@ class KafkaSystemBus(SystemBus):
                 'enable_auto_commit': True,
                 **self._get_sasl_config()
             }
-            consumer = KafkaConsumer(topic, **config)
+            def _create_consumer():
+                return KafkaConsumer(topic, **config)
+
+            consumer = self._wait_for_broker(f"consumer_init:{topic}", _create_consumer)
             self._consumers[topic] = consumer
             self._running[topic] = True
             thread = threading.Thread(

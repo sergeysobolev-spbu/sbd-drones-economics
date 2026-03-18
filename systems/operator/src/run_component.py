@@ -28,15 +28,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def create_system_bus() -> KafkaSystemBus:
+def create_system_bus() -> KafkaSystemBus:
     """Создание системной шины"""
-    kafka_config = {
-        "bootstrap_servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
-        "group_id": f"{os.getenv('SYSTEM_ID', 'operator-001')}-{os.getenv('COMPONENT_TYPE', 'system')}",
-    }
+    system_id = os.getenv("SYSTEM_ID", "operator-001")
+    component_type = os.getenv("COMPONENT_TYPE", "operator_system")
+    bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
-    bus = KafkaSystemBus(kafka_config)
-    await bus.start()
+    bus = KafkaSystemBus(
+        bootstrap_servers=bootstrap_servers,
+        client_id=f"{system_id}.{component_type}",
+        group_id=f"{system_id}-{component_type}",
+    )
+    bus.start()
     return bus
 
 
@@ -48,7 +51,7 @@ async def run_component():
     logger.info(f"Starting component: {component_type} with ID: {component_id}")
     
     # Создаём системную шину
-    bus = await create_system_bus()
+    bus = create_system_bus()
     
     # Создаём компонент
     component = None
@@ -69,8 +72,10 @@ async def run_component():
         
         logger.info(f"Component {component_id} created successfully")
         
-        # Запускаем компонент
-        await component.start()
+        # Запускаем компонент (sync API BaseComponent/SecurityMonitor)
+        start_result = component.start()
+        if asyncio.iscoroutine(start_result):
+            await start_result
         logger.info(f"Component {component_id} started successfully")
         
         # Ждём завершения
@@ -86,11 +91,13 @@ async def run_component():
     finally:
         # Останавливаем компонент
         if component:
-            await component.stop()
+            stop_result = component.stop()
+            if asyncio.iscoroutine(stop_result):
+                await stop_result
             logger.info(f"Component {component_id} stopped")
         
         # Останавливаем шину
-        await bus.stop()
+        bus.stop()
         logger.info("System bus stopped")
 
 

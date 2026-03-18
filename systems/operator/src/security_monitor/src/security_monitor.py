@@ -337,7 +337,7 @@ class SecurityMonitor(BaseComponent):
             'type': 'component_startup',
             'component_id': self.component_id,
             'component_type': self.component_type,
-            'timestamp': self.bus.get_timestamp()
+            'timestamp': asyncio.get_event_loop().time()
         }
         
         self.publish_event(
@@ -352,7 +352,7 @@ class SecurityMonitor(BaseComponent):
             'type': 'component_shutdown',
             'component_id': self.component_id,
             'component_type': self.component_type,
-            'timestamp': self.bus.get_timestamp()
+            'timestamp': asyncio.get_event_loop().time()
         }
         
         self.publish_event(
