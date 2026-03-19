@@ -1,0 +1,127 @@
+@startuml operator_components_updated
+!theme plain
+title Обновлённая архитектура системы Эксплуатант
+
+package "Система Эксплуатант" {
+    component "Operator System" as OS <<Main>> {
+        port "External API" as OS_API
+        port "Internal Bus" as OS_BUS
+    }
+    
+    component "Security Monitor" as SM <<D0_CRITICAL>> {
+        port "Policy Engine" as SM_PE
+    }
+    
+    component "Fleet Manager" as FM <<D1_TRUSTED>> {
+        port "UAS Management" as FM_UM
+        port "Purchase API" as FM_PA
+    }
+    
+    component "Mission Planner" as MP <<D1_TRUSTED>> {
+        port "Route Planning" as MP_RP
+    }
+    
+    component "Business Logic" as BL <<D2_OPERATIONAL>> {
+        port "Pricing Engine" as BL_PE
+    }
+    
+    package "Клиенты внешних систем" <<New>> {
+        component "Regulator Client" as RC <<Client>> {
+            port "Registry API" as RC_API
+        }
+        
+        component "Developer Client" as DC <<Client>> {
+            port "Catalog API" as DC_API
+            port "Purchase API" as DC_PA
+        }
+    }
+    
+    database "YAML Catalog" as YC <<Test Data>> {
+        file "developers_catalog.yaml"
+    }
+}
+
+cloud "Внешние системы" {
+    component "Регулятор" as REG <<External>> {
+        port "System Registry" as REG_SR
+        port "Topics Provider" as REG_TP
+    }
+    
+    component "Разработчик БАС 1" as DEV1 <<External>> {
+        port "Catalog API" as DEV1_API
+    }
+    
+    component "Разработчик БАС 2" as DEV2 <<External>> {
+        port "Catalog API" as DEV2_API
+    }
+    
+    component "Агрегатор" as AGG <<External>> {
+        port "Orders API" as AGG_API
+    }
+    
+    component "ОрВД (UTM)" as UTM <<External>> {
+        port "Approval API" as UTM_API
+    }
+    
+    component "Страховая" as INS <<External>> {
+        port "Quote API" as INS_API
+    }
+}
+
+' Внутренние связи
+OS_BUS --> SM_PE : validate
+OS_BUS --> FM_UM : manage fleet
+OS_BUS --> MP_RP : plan mission
+OS_BUS --> BL_PE : calculate price
+
+FM_PA --> DC_API : get catalogs
+FM_PA --> DC_PA : purchase UAS
+
+' Связи клиентов
+OS --> RC_API : initialize
+RC_API --> REG_SR : register operator
+RC_API --> REG_TP : get system topics
+
+DC_API --> REG_TP : get developer topics
+DC_PA --> DEV1_API : request catalog
+DC_PA --> DEV2_API : request catalog
+
+' Тестовый режим
+DC_API ..> YC : load test data
+
+' Внешние взаимодействия
+OS_API <-- AGG_API : orders
+MP_RP --> UTM_API : flight approval
+BL_PE --> INS_API : insurance quote
+
+' Примечания
+note right of RC
+    Управляет регистрацией
+    и получением топиков
+    от Регулятора
+end note
+
+note right of DC
+    Получает каталоги БАС
+    и обрабатывает покупки
+    Поддерживает YAML режим
+    для тестирования
+end note
+
+note bottom of FM
+    Расширен функциями:
+    - Покупка БАС
+    - Автоматическое добавление в парк
+    - Интеграция с разработчиками
+end note
+
+' Легенда
+legend right
+    |= Цвет |= Описание |
+    |<#LightBlue> | Основные компоненты |
+    |<#LightGreen> | Новые клиенты (CR#1) |
+    |<#LightGray> | Внешние системы |
+    |<#Yellow> | Тестовые данные |
+endlegend
+
+@enduml

@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # MQTT брокер для тестирования
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: fleet_manager_test_broker
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./docker/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - fleet_manager_test_net
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Fleet Manager компонент
+  fleet-manager:
+    build:
+      context: ../..
+      dockerfile: src/fleet_manager/docker/Dockerfile
+    container_name: fleet_manager_test
+    environment:
+      - COMPONENT_ID=fleet_manager_test_01
+      - BROKER_TYPE=mqtt
+      - BROKER_HOST=mqtt-broker
+      - BROKER_PORT=1883
+      - FLEET_MANAGER_TOPIC=test.fleet_manager
+      - LOG_LEVEL=DEBUG
+      - PYTHONPATH=/app
+    depends_on:
+      mqtt-broker:
+        condition: service_healthy
+    networks:
+      - fleet_manager_test_net
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; r = requests.get('http://localhost:8080/health'); exit(0 if r.status_code == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Тестовый раннер
+  test-runner:
+    build:
+      context: ../..
+      dockerfile: src/fleet_manager/docker/Dockerfile.test
+    container_name: fleet_manager_test_runner
+    environment:
+      - BROKER_HOST=mqtt-broker
+      - BROKER_PORT=1883
+      - FLEET_MANAGER_HOST=fleet-manager
+      - PYTHONPATH=/app
+    depends_on:
+      fleet-manager:
+        condition: service_healthy
+    networks:
+      - fleet_manager_test_net
+    volumes:
+      - ./tests:/app/tests
+      - ./test-results:/app/test-results
+    command: >
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 10 &&
+        echo 'Running integration tests...' &&
+        pytest tests/integration -v --junit-xml=/app/test-results/junit.xml --cov=src --cov-report=xml:/app/test-results/coverage.xml &&
+        echo 'Tests completed!'
+      "
+
+  # Mock сервис Регулятора для тестов
+  mock-regulator:
+    image: python:3.12.3-slim
+    container_name: mock_regulator_test
+    environment:
+      - BROKER_HOST=mqtt-broker
+      - BROKER_PORT=1883
+      - COMPONENT_ID=mock_regulator
+    networks:
+      - fleet_manager_test_net
+    volumes:
+      - ./tests/mocks:/app
+    working_dir: /app
+    command: python mock_regulator.py
+
+  # Mock сервис Разработчика для тестов
+  mock-developer:
+    image: python:3.12.3-slim
+    container_name: mock_developer_test
+    environment:
+      - BROKER_HOST=mqtt-broker
+      - BROKER_PORT=1883
+      - COMPONENT_ID=mock_developer
+    networks:
+      - fleet_manager_test_net
+    volumes:
+      - ./tests/mocks:/app
+    working_dir: /app
+    command: python mock_developer.py
+
+networks:
+  fleet_manager_test_net:
+    driver: bridge
+
+volumes:
+  test-results:

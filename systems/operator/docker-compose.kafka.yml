@@ -1,0 +1,245 @@
+#
+# Kafka-based stack (optional). Use when BROKER_TYPE=kafka.
+#
+services:
+  security-monitor:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base-kafka:latest
+    container_name: operator-security-monitor
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=security_monitor
+      - COMPONENT_ID=security-01
+      - BROKER_TYPE=kafka
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  event-journal:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base-kafka:latest
+    container_name: operator-event-journal
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=event_journal
+      - COMPONENT_ID=events-01
+      - BROKER_TYPE=kafka
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  fleet-manager:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base-kafka:latest
+    container_name: operator-fleet-manager
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=fleet_manager
+      - COMPONENT_ID=fleet-01
+      - BROKER_TYPE=kafka
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  mission-planner:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base-kafka:latest
+    container_name: operator-mission-planner
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=mission_planner
+      - COMPONENT_ID=planner-01
+      - BROKER_TYPE=kafka
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  business-logic:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base-kafka:latest
+    container_name: operator-business-logic
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=business_logic
+      - COMPONENT_ID=business-01
+      - BROKER_TYPE=kafka
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  operator-system:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base-kafka:latest
+    container_name: operator-system
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=operator_system
+      - COMPONENT_ID=operator-01
+      - BROKER_TYPE=kafka
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - security-monitor
+      - fleet-manager
+      - mission-planner
+      - business-logic
+    ports:
+      - "8080:8080"
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: operator-kafka
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Dual listeners:
+      # - INTERNAL: for containers inside docker network
+      # - EXTERNAL: for host tools / notebooks (localhost)
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "19092:19092"
+    depends_on:
+      - zookeeper
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: operator-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - operator-network
+    restart: unless-stopped
+
+networks:
+  operator-network:
+    driver: bridge
+
+volumes: {}
+

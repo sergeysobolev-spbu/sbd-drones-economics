@@ -1,0 +1,20 @@
+FROM python:3.12.3-slim
+
+WORKDIR /app
+
+# Python зависимости (единый слой для всех компонентов Эксплуатанта)
+COPY systems/operator/requirements.runtime.txt ./requirements.runtime.txt
+COPY systems/operator/requirements.kafka.txt ./requirements.kafka.txt
+RUN pip install --no-cache-dir -r requirements.runtime.txt
+ARG INSTALL_KAFKA=0
+RUN if [ "$INSTALL_KAFKA" = "1" ]; then pip install --no-cache-dir -r requirements.kafka.txt; fi
+
+# Базовые переменные окружения
+ENV PYTHONPATH=/app
+ENV LOG_LEVEL=INFO
+
+# Базовый пользователь (идемпотентно)
+RUN groupadd -f operator && \
+    if ! id -u operator >/dev/null 2>&1; then useradd -m -u 1000 -g operator operator; fi
+
+USER operator

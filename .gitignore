@@ -7,3 +7,4 @@ __pychache__
 *.vscode
 *.pytest_cache
 *.pyc
+Pipfile

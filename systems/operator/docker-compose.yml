@@ -1,0 +1,238 @@
+#
+# Важно: в тестовом окружении все системы/компоненты используют один общий брокер,
+# поэтому внутренние топики компонентов должны быть уникальны по `SYSTEM_ID`.
+#
+
+services:
+  # Монитор безопасности (D0_CRITICAL)
+  security-monitor:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base:latest
+    container_name: operator-security-monitor
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=security_monitor
+      - COMPONENT_ID=security-01
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+    depends_on:
+      - mosquitto
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # Журнал событий (D0_CRITICAL, технический компонент)
+  event-journal:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base:latest
+    container_name: operator-event-journal
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=event_journal
+      - COMPONENT_ID=events-01
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+    depends_on:
+      - mosquitto
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # Менеджер парка (D1_TRUSTED)
+  fleet-manager:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base:latest
+    container_name: operator-fleet-manager
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=fleet_manager
+      - COMPONENT_ID=fleet-01
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+    depends_on:
+      - mosquitto
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # Планировщик миссий (D1_TRUSTED)
+  mission-planner:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base:latest
+    container_name: operator-mission-planner
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=mission_planner
+      - COMPONENT_ID=planner-01
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+    depends_on:
+      - mosquitto
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # Бизнес-логика (D2_OPERATIONAL)
+  business-logic:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base:latest
+    container_name: operator-business-logic
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=business_logic
+      - COMPONENT_ID=business-01
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+    depends_on:
+      - mosquitto
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # Главный компонент системы (D3_EXTERNAL)
+  operator-system:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base:latest
+    container_name: operator-system
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=operator_system
+      - COMPONENT_ID=operator-01
+      - BROKER_TYPE=mqtt
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - LOG_LEVEL=INFO
+    depends_on:
+      - mosquitto
+      - security-monitor
+      - fleet-manager
+      - mission-planner
+      - business-logic
+    ports:
+      - "8080:8080"  # API порт
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  # Mosquitto (MQTT)
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: operator-mosquitto
+    ports:
+      - "1883:1883"
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/#' -C 1 -W 2 >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  # Monitoring stack (Prometheus/Grafana) intentionally omitted from
+  # integration-test compose to keep it portable in constrained environments.
+
+networks:
+  operator-network:
+    driver: bridge
+
+volumes: {}

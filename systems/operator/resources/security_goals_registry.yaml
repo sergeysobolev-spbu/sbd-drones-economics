@@ -1,0 +1,199 @@
+# Реестр типовых целей безопасности системы Эксплуатант
+# Этот файл содержит стандартизированные цели безопасности с идентификаторами
+# для использования компонентами системы
+
+version: "1.0"
+last_updated: "2024-01-15"
+
+# Типовые цели безопасности системы
+system_security_goals:
+  - id: "ЦБ-OPS-1"
+    name: "Авторизация команд управления"
+    description: "При любых обстоятельствах команды управления БАС отправляются только авторизованными операторами"
+    gost_72118_category: "Идентификация и аутентификация"
+    mechanisms:
+      - "Двухфакторная аутентификация"
+      - "Ролевая модель доступа"
+      - "Цифровая подпись команд"
+    
+  - id: "ЦБ-OPS-2"
+    name: "Соблюдение плана полёта"
+    description: "При любых обстоятельствах миссия выполняется в границах согласованного с ОрВД плана полёта"
+    gost_72118_category: "Управление доступом"
+    mechanisms:
+      - "Контроль траектории в реальном времени"
+      - "Автоматическая блокировка отклонений"
+      - "Геофенсинг"
+    
+  - id: "ЦБ-OPS-3"
+    name: "Конфиденциальность данных"
+    description: "При любых обстоятельствах данные о заказах доступны только авторизованным сотрудникам"
+    gost_72118_category: "Защита данных пользователя"
+    mechanisms:
+      - "Шифрование данных в покое и при передаче"
+      - "Контроль доступа на основе ролей"
+      - "Аудит доступа к данным"
+    
+  - id: "ЦБ-OPS-4"
+    name: "Экономическая эффективность"
+    description: "При любых обстоятельствах маржинальность миссии составляет не менее 10%"
+    gost_72118_category: "Защита функций безопасности"
+    mechanisms:
+      - "Автоматический расчёт перед принятием заказа"
+      - "Блокировка убыточных миссий"
+      - "Мониторинг финансовых показателей"
+    
+  - id: "ЦБ-OPS-5"
+    name: "Сертификация БАС"
+    description: "При любых обстоятельствах используются только БАС с действующими сертификатами"
+    gost_72118_category: "Защита функций безопасности"
+    mechanisms:
+      - "Проверка статуса сертификата перед каждым полётом"
+      - "Автоматическое обновление реестра сертификатов"
+      - "Блокировка несертифицированных БАС"
+
+# Типовые цели безопасности для компонентов
+component_security_goals:
+  # Fleet Manager
+  - id: "SG-FM-001"
+    name: "Контроль доступа к БАС"
+    description: "При любых обстоятельствах доступ к управлению БАС имеют только авторизованные операторы"
+    component: "fleet_manager"
+    maps_to: ["ЦБ-OPS-1"]
+    domain: "D1_TRUSTED"
+    
+  - id: "SG-FM-002"
+    name: "Валидация состояния БАС"
+    description: "При любых обстоятельствах используются только исправные и сертифицированные БАС"
+    component: "fleet_manager"
+    maps_to: ["ЦБ-OPS-5"]
+    domain: "D1_TRUSTED"
+    
+  # Security Monitor
+  - id: "SG-SM-001"
+    name: "Применение политик безопасности"
+    description: "При любых обстоятельствах все операции проверяются на соответствие политикам безопасности"
+    component: "security_monitor"
+    maps_to: ["ЦБ-OPS-1", "ЦБ-OPS-2", "ЦБ-OPS-3"]
+    domain: "D0_CRITICAL"
+    
+  - id: "SG-SM-002"
+    name: "Целостность журнала безопасности"
+    description: "При любых обстоятельствах события безопасности регистрируются и не могут быть изменены"
+    component: "security_monitor"
+    maps_to: ["ЦБ-OPS-3"]
+    domain: "D0_CRITICAL"
+    
+  # Mission Planner
+  - id: "SG-MP-001"
+    name: "Соответствие плану полёта"
+    description: "При любых обстоятельствах миссия планируется в рамках разрешённых зон и времени"
+    component: "mission_planner"
+    maps_to: ["ЦБ-OPS-2"]
+    domain: "D1_TRUSTED"
+    
+  - id: "SG-MP-002"
+    name: "Оптимизация маршрута"
+    description: "При любых обстоятельствах выбирается экономически эффективный маршрут"
+    component: "mission_planner"
+    maps_to: ["ЦБ-OPS-4"]
+    domain: "D2_OPERATIONAL"
+    
+  # Business Logic
+  - id: "SG-BL-001"
+    name: "Контроль маржинальности"
+    description: "При любых обстоятельствах принимаются только прибыльные заказы"
+    component: "business_logic"
+    maps_to: ["ЦБ-OPS-4"]
+    domain: "D2_OPERATIONAL"
+    
+  - id: "SG-BL-002"
+    name: "Защита коммерческих данных"
+    description: "При любых обстоятельствах коммерческие данные защищены от несанкционированного доступа"
+    component: "business_logic"
+    maps_to: ["ЦБ-OPS-3"]
+    domain: "D2_OPERATIONAL"
+
+# Матрица покрытия целей безопасности
+coverage_matrix:
+  ЦБ-OPS-1:
+    components: ["fleet_manager", "security_monitor"]
+    coverage: "full"
+    
+  ЦБ-OPS-2:
+    components: ["mission_planner", "security_monitor"]
+    coverage: "full"
+    
+  ЦБ-OPS-3:
+    components: ["security_monitor", "business_logic"]
+    coverage: "full"
+    
+  ЦБ-OPS-4:
+    components: ["business_logic", "mission_planner"]
+    coverage: "full"
+    
+  ЦБ-OPS-5:
+    components: ["fleet_manager"]
+    coverage: "full"
+
+# Метрики проверки целей безопасности
+verification_metrics:
+  - goal_id: "ЦБ-OPS-1"
+    metrics:
+      - name: "auth_success_rate"
+        description: "Процент успешных аутентификаций"
+        target: ">= 95%"
+        measurement: "Логи аутентификации"
+        
+      - name: "unauthorized_commands_blocked"
+        description: "Процент заблокированных неавторизованных команд"
+        target: "100%"
+        measurement: "Логи security_monitor"
+        
+  - goal_id: "ЦБ-OPS-2"
+    metrics:
+      - name: "flight_plan_compliance"
+        description: "Процент полётов в рамках плана"
+        target: "100%"
+        measurement: "Телеметрия БАС"
+        
+      - name: "geofence_violations"
+        description: "Количество нарушений геозон"
+        target: "0"
+        measurement: "Логи mission_planner"
+        
+  - goal_id: "ЦБ-OPS-3"
+    metrics:
+      - name: "data_access_authorized"
+        description: "Процент авторизованных доступов к данным"
+        target: "100%"
+        measurement: "Аудит логи"
+        
+      - name: "encryption_coverage"
+        description: "Процент зашифрованных данных"
+        target: "100%"
+        measurement: "Конфигурация системы"
+        
+  - goal_id: "ЦБ-OPS-4"
+    metrics:
+      - name: "mission_margin"
+        description: "Средняя маржинальность миссий"
+        target: ">= 10%"
+        measurement: "Финансовые отчёты"
+        
+      - name: "unprofitable_missions_blocked"
+        description: "Процент заблокированных убыточных миссий"
+        target: "100%"
+        measurement: "Логи business_logic"
+        
+  - goal_id: "ЦБ-OPS-5"
+    metrics:
+      - name: "certified_uas_usage"
+        description: "Процент использования сертифицированных БАС"
+        target: "100%"
+        measurement: "Логи fleet_manager"
+        
+      - name: "certificate_validation_time"
+        description: "Время проверки сертификата"
+        target: "< 2 сек"
+        measurement: "Метрики производительности"

@@ -1,0 +1,104 @@
+@startuml fleet_manager_architecture
+!theme plain
+title Fleet Manager Component Architecture
+
+' Определение стилей
+skinparam component {
+    BackgroundColor<<trusted>> LightGreen
+    BorderColor<<trusted>> DarkGreen
+    BackgroundColor<<operational>> LightBlue
+    BorderColor<<operational>> DarkBlue
+    BackgroundColor<<external>> LightGray
+    BorderColor<<external>> DarkGray
+}
+
+skinparam package {
+    BackgroundColor<<domain>> Wheat
+    BorderColor<<domain>> Brown
+}
+
+' Домены безопасности
+package "D1_TRUSTED Domain" <<domain>> {
+    component "FleetManagerCore" <<trusted>> as FMC
+    database "Critical State" <<trusted>> as CS
+}
+
+package "D2_OPERATIONAL Domain" <<domain>> {
+    component "FleetManagerService" <<operational>> as FMS
+    database "Extended State" <<operational>> as ES
+    component "Metrics & Logging" <<operational>> as MLOG
+}
+
+' Внешние компоненты
+component "FleetManager\n(Main Component)" as FM
+component "System Bus\n(MQTT/Kafka)" <<external>> as BUS
+component "Regulator Client" <<external>> as REG
+component "Developer Client" <<external>> as DEV
+
+' Заметки для FleetManagerCore
+note right of FMC
+  Минимальный код (~250 строк)<br/>
+  - authorize_uas_operation()<br/>
+  - reserve_uas()<br/>
+  - release_uas()<br/>
+  - update_uas_state()<br/>
+  - add_uas()<br/>
+  - get_uas_state()
+end note
+
+note top of FMC
+  <b>Security Goals:</b><br/>
+  - SG-FM-001: Access Control<br/>
+  - SG-FM-002: State Integrity<br/>
+  - SG-FM-003: Certificate Control
+end note
+
+' Заметки для Critical State
+note bottom of CS
+  - UAS ID<br/>
+  - Status<br/>
+  - Certificate Valid<br/>
+  - Certificate Expiry<br/>
+  - Battery Level<br/>
+  - Reserved By
+end note
+
+' Заметки для FleetManagerService
+note right of FMS
+  Бизнес-логика (~800 строк)<br/>
+  - find_suitable_uas()<br/>
+  - calculate_suitability_score()<br/>
+  - initialize_fleet()<br/>
+  - get_fleet_statistics()<br/>
+  - get_purchase_history()
+end note
+
+note top of FMS
+  <b>Security Goals:</b><br/>
+  - SG-FM-004: Audit<br/>
+  - SG-FM-005: Availability
+end note
+
+' Заметки для Extended State
+note bottom of ES
+  - UAS Type<br/>
+  - Location<br/>
+  - Max Payload<br/>
+  - Max Range<br/>
+  - Flight Hours<br/>
+  - Maintenance Info
+end note
+
+' Связи
+FM --> FMC : uses
+FM --> FMS : uses
+FMC --> CS : manages
+FMS --> ES : manages
+FMS --> FMC : calls critical\nfunctions
+FMS --> MLOG : logs
+
+FM <--> BUS : messages
+FMS --> REG : get topics\ncheck certificates
+FMS --> DEV : get catalogs\npurchase UAS
+
+@enduml
