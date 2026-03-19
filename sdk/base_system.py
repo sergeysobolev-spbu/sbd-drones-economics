@@ -13,7 +13,33 @@ import threading
 import signal
 import sys
 
-from flask import Flask, jsonify
+try:
+    # Используем реальный Flask, если он установлен в окружении
+    from flask import Flask, jsonify
+except ModuleNotFoundError:  # pragma: no cover - fallback только для сред без Flask
+    class Flask:  # type: ignore[override]
+        def __init__(self, name: str):
+            self.name = name
+
+        def route(self, *_, **__):  # упрощённый декоратор
+            def decorator(fn):
+                return fn
+
+            return decorator
+
+        def run(self, *_, **__):
+            # В тестовой среде health-check сервер можно не поднимать.
+            return None
+
+    def jsonify(*args, **kwargs):  # type: ignore[override]
+        # Простейший JSON-эквивалент для тестовой среды.
+        if args and isinstance(args[0], dict) and not kwargs:
+            return args[0]
+        data: Dict[str, Any] = {}
+        if args:
+            data["args"] = list(args)
+        data.update(kwargs)
+        return data
 
 from broker.system_bus import SystemBus
 from sdk.messages import create_response

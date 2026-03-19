@@ -17,8 +17,8 @@ operator_topic() {
 }
 
 fleet_manager_topic() {
-  # FleetManager default topic is "fleet_manager"
-  echo "fleet_manager"
+  # FleetManager internal topic учитывает SYSTEM_ID
+  echo "${SYSTEM_ID}.fleet_manager"
 }
 
 require_container_running() {

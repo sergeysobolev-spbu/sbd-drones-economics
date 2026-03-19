@@ -7,6 +7,11 @@ from typing import Dict, Optional
 
 from .system_bus import SystemBus
 
+# Явно экспортируем классы конкретных шин, чтобы их можно было патчить в тестах
+# через broker.src.bus_factory.KafkaSystemBus / MQTTSystemBus.
+from broker.kafka.kafka_system_bus import KafkaSystemBus  # noqa: F401
+from broker.mqtt.mqtt_system_bus import MQTTSystemBus  # noqa: F401
+
 
 def create_system_bus(
     bus_type: Optional[str] = None,

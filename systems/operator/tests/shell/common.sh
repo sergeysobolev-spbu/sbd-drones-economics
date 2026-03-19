@@ -13,8 +13,8 @@ operator_topic() {
 }
 
 fleet_manager_topic() {
-  # FleetManager в текущей реализации подписывается на топик из config, по умолчанию "fleet_manager".
-  echo "fleet_manager"
+  # FleetManager теперь использует internal topic с SYSTEM_ID.
+  echo "${SYSTEM_ID}.fleet_manager"
 }
 
 require_container_running() {

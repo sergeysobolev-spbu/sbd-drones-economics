@@ -30,7 +30,8 @@ msg={
       "dropoff":{"lat":55.75,"lon":37.61},
       "payload_weight":3.5,
       "distance_km":10.0
-    }
+    },
+    "sender_role":"system"
   }
 }
 print(json.dumps(msg, ensure_ascii=False))
