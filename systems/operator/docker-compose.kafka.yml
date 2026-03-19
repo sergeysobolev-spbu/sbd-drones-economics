@@ -33,6 +33,38 @@ services:
       retries: 20
       start_period: 10s
 
+  event-journal:
+    build:
+      context: ../..
+      dockerfile: systems/operator/docker/Dockerfile
+      args:
+        BASE_IMAGE: operator-base-kafka:latest
+    container_name: operator-event-journal
+    environment:
+      - SYSTEM_ID=${SYSTEM_ID:-operator-001}
+      - API_VERSION=${API_VERSION:-v1}
+      - AGGREGATOR_ID=${AGGREGATOR_ID:-aggregator-default}
+      - UTM_ID=${UTM_ID:-utm-default}
+      - INSURER_ID=${INSURER_ID:-insurer-default}
+      - GCS_ID=${GCS_ID:-gcs-default}
+      - COMPONENT_TYPE=event_journal
+      - COMPONENT_ID=events-01
+      - BROKER_TYPE=kafka
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOG_LEVEL=INFO
+    depends_on:
+      - kafka
+      - security-monitor
+    networks:
+      - operator-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
   fleet-manager:
     build:
       context: ../..

@@ -11,6 +11,7 @@ from typing import Any, Dict
 
 from sdk.base_component import BaseComponent
 from broker.system_bus import SystemBus
+from sdk.event_emitter import emit_event
 from systems.operator.src.topics import (
     ComponentTopics,
     BusinessLogicActions,
@@ -72,6 +73,16 @@ class BusinessLogic(BaseComponent):
             # Расчет стоимости
             cost_breakdown = self.service.calculate_mission_cost(mission_data)
 
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="cost_calculated",
+                severity="info",
+                source_component=self.component_type,
+                payload={"mission_data": mission_data, "total_cost": cost_breakdown.total},
+                trace_context=None,
+            )
+
             return {
                 "cost_breakdown": {
                     "uas_cost": cost_breakdown.uas_cost,
@@ -84,6 +95,15 @@ class BusinessLogic(BaseComponent):
 
         except Exception as e:
             self.logger.error(f"Error calculating cost: {e}")
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="cost_calculation_failed",
+                severity="error",
+                source_component=self.component_type,
+                payload={"error": str(e)},
+                trace_context=None,
+            )
             return {"error": str(e)}
 
     async def _handle_check_profitability(self, message: Dict[str, Any]) -> Dict[str, Any]:
@@ -120,10 +140,29 @@ class BusinessLogic(BaseComponent):
                 result["reason"] = margin_check.reason
                 result["suggested_price"] = self.core.calculate_min_price(cost)
 
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="profitability_checked",
+                severity="info",
+                source_component=self.component_type,
+                payload=result,
+                trace_context=None,
+            )
+
             return result
 
         except Exception as e:
             self.logger.error(f"Error checking profitability: {e}")
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="profitability_check_failed",
+                severity="error",
+                source_component=self.component_type,
+                payload={"error": str(e)},
+                trace_context=None,
+            )
             return {"error": str(e)}
 
     async def _handle_create_proposal(self, message: Dict[str, Any]) -> Dict[str, Any]:
@@ -153,10 +192,29 @@ class BusinessLogic(BaseComponent):
                 f"Created proposal {result['proposal']['id']} " f"with margin {result['proposal']['margin_percent']}%"
             )
 
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="proposal_created",
+                severity="info",
+                source_component=self.component_type,
+                payload={"proposal": result.get("proposal", {}), "order_data": order_data},
+                trace_context=None,
+            )
+
             return result
 
         except Exception as e:
             self.logger.error(f"Error creating proposal: {e}")
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="proposal_creation_failed",
+                severity="error",
+                source_component=self.component_type,
+                payload={"error": str(e)},
+                trace_context=None,
+            )
             return {"error": str(e)}
 
     async def _handle_process_order(self, message: Dict[str, Any]) -> Dict[str, Any]:
@@ -181,10 +239,29 @@ class BusinessLogic(BaseComponent):
                 # Уведомляем Fleet Manager о необходимости резервирования БАС
                 await self._notify_fleet_manager(payload)
 
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="order_processed",
+                severity="info",
+                source_component=self.component_type,
+                payload={"order": payload, "result": result},
+                trace_context=None,
+            )
+
             return result
 
         except Exception as e:
             self.logger.error(f"Error processing order: {e}")
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="order_processing_failed",
+                severity="error",
+                source_component=self.component_type,
+                payload={"error": str(e)},
+                trace_context=None,
+            )
             return {"error": str(e)}
 
     async def _handle_get_statistics(self, message: Dict[str, Any]) -> Dict[str, Any]:

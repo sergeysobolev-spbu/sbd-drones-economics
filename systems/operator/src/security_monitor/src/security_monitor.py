@@ -11,6 +11,7 @@ import logging
 
 from sdk.base_component import BaseComponent
 from broker.system_bus import SystemBus
+from sdk.event_emitter import emit_event
 from systems.operator.src.topics import ComponentTopics, SecurityMonitorActions, SystemTopics
 
 from .security_monitor_core import SecurityMonitorCore
@@ -117,10 +118,35 @@ class SecurityMonitor(BaseComponent):
                 policy=result.get("policy"),
             )
 
+            if not result.get("allowed", False):
+                emit_event(
+                    self.bus,
+                    ComponentTopics.get_event_journal(),
+                    event_type="security_violation",
+                    severity="security",
+                    source_component=self.component_type,
+                    payload={
+                        "sender_id": enriched_message.get("sender"),
+                        "sender_role": sender_role,
+                        "action": enriched_message.get("action"),
+                        "violations": result.get("violations", []),
+                    },
+                    trace_context=trace_context,
+                )
+
             return result
 
         except Exception as e:
             self._log_with_trace("error", f"Error validating request: {e}", trace_context)
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="security_violation",
+                severity="error",
+                source_component=self.component_type,
+                payload={"error": str(e)},
+                trace_context=trace_context,
+            )
             return {"allowed": False, "error": str(e)}
 
     async def _handle_check_policy(self, message: Dict[str, Any]) -> Dict[str, Any]:
@@ -149,6 +175,16 @@ class SecurityMonitor(BaseComponent):
             violation_type=payload.get("violation_type"),
             severity=payload.get("severity", "medium"),
             details=payload.get("details"),
+        )
+
+        emit_event(
+            self.bus,
+            ComponentTopics.get_event_journal(),
+            event_type="security_violation",
+            severity=payload.get("severity", "security"),
+            source_component=self.component_type,
+            payload=payload,
+            trace_context=trace_context,
         )
 
         return {"logged": True}

@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from sdk.base_component import BaseComponent
 from broker.system_bus import SystemBus
+from sdk.event_emitter import emit_event
 
 from systems.operator.src.operator_clients import DeveloperClient, RegulatorClient
 from systems.operator.src.topics import ComponentTopics, FleetManagerActions
@@ -70,6 +71,15 @@ class FleetManager(BaseComponent):
         try:
             result = self._run_async(self.service.initialize_fleet())
             self.logger.info(f"Fleet initialized: {result}")
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="fleet_initialized",
+                severity="info",
+                source_component=self.component_type,
+                payload={"result": result},
+                trace_context=None,
+            )
         except Exception as e:
             self.logger.error(f"Failed to initialize fleet: {e}")
 
@@ -184,6 +194,16 @@ class FleetManager(BaseComponent):
             # Используем сервис для поиска с оптимизацией
             suitable_uas = self._run_async(self.service.find_suitable_uas(requirements))
 
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="fleet_search_performed",
+                severity="info",
+                source_component=self.component_type,
+                payload={"requirements": requirements, "count": len(suitable_uas)},
+                trace_context=None,
+            )
+
             return {"suitable_uas": suitable_uas, "count": len(suitable_uas)}
         except Exception as e:
             self.logger.error(f"Error finding available UAS: {e}")
@@ -211,6 +231,15 @@ class FleetManager(BaseComponent):
             )
 
             if result.get("success") is True:
+                emit_event(
+                    self.bus,
+                    ComponentTopics.get_event_journal(),
+                    event_type="fleet_uas_reserved",
+                    severity="info",
+                    source_component=self.component_type,
+                    payload={"uas_id": uas_id, "mission_id": mission_id},
+                    trace_context=None,
+                )
                 return {
                     "success": True,
                     "reserved": True,
@@ -236,6 +265,17 @@ class FleetManager(BaseComponent):
             result = self._run_async(
                 self.service.release_uas_with_cleanup(uas_id=uas_id, operator_id=message.get("sender", "system"))
             )
+
+            if result.get("success"):
+                emit_event(
+                    self.bus,
+                    ComponentTopics.get_event_journal(),
+                    event_type="fleet_uas_released",
+                    severity="info",
+                    source_component=self.component_type,
+                    payload={"uas_id": uas_id},
+                    trace_context=None,
+                )
 
             return result
         except Exception as e:

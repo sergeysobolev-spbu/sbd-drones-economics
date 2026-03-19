@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 
 from broker.system_bus import SystemBus
 from sdk.base_component import BaseComponent, TraceContext
+from sdk.event_emitter import emit_event
 from systems.operator.src.operator_clients import RegulatorClient
 from systems.operator.src.topics import (
     BusinessLogicActions,
@@ -133,6 +134,15 @@ class OperatorSystem(BaseComponent):
         order = payload.get("order", {})
 
         if not order:
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="order_rejected",
+                severity="warning",
+                source_component=self.component_type,
+                payload={"reason": "Order details required"},
+                trace_context=trace_context,
+            )
             return {"error": "Order details required"}
 
         order_id = order.get("id", f"ORDER-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
@@ -153,6 +163,15 @@ class OperatorSystem(BaseComponent):
 
         if not security_check.get("allowed", True):
             self.logger.warning(f"Order {order_id} rejected by security monitor")
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="security_request_denied",
+                severity="security",
+                source_component=self.component_type,
+                payload={"order_id": order_id, "reason": "Security check failed", "violations": security_check.get("violations", [])},
+                trace_context=trace_context,
+            )
             return {"error": "Security check failed", "violations": security_check.get("violations", [])}
 
         self.active_orders[order_id] = {
@@ -162,6 +181,15 @@ class OperatorSystem(BaseComponent):
         }
 
         self.logger.info(f"Received order {order_id}")
+        emit_event(
+            self.bus,
+            ComponentTopics.get_event_journal(),
+            event_type="order_received",
+            severity="info",
+            source_component=self.component_type,
+            payload={"order_id": order_id},
+            trace_context=trace_context,
+        )
 
         proposal_result = self._calculate_proposal_internal(order, trace_context=trace_context)
 
@@ -226,6 +254,15 @@ class OperatorSystem(BaseComponent):
             trace_context=trace_context,
         )
         if available_uas.get("count", 0) == 0:
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="fleet_uas_not_found",
+                severity="warning",
+                source_component=self.component_type,
+                payload={"order": order, "requirements": uas_requirements},
+                trace_context=trace_context,
+            )
             return {"error": "No suitable UAS available", "requirements": uas_requirements}
 
         selected_uas = available_uas.get("suitable_uas", [])[0]
@@ -258,6 +295,15 @@ class OperatorSystem(BaseComponent):
             trace_context=trace_context,
         )
         if "error" in proposal_result:
+            emit_event(
+                self.bus,
+                ComponentTopics.get_event_journal(),
+                event_type="proposal_failed",
+                severity="error",
+                source_component=self.component_type,
+                payload={"order": order, "error": proposal_result.get("error")},
+                trace_context=trace_context,
+            )
             return proposal_result
 
         order_id = order.get("id")
@@ -305,6 +351,15 @@ class OperatorSystem(BaseComponent):
         """Принятие заказа к исполнению"""
         trace_context = TraceContext.from_message(message)
         self.stats["orders_accepted"] += 1
+        emit_event(
+            self.bus,
+            ComponentTopics.get_event_journal(),
+            event_type="order_accepted",
+            severity="info",
+            source_component=self.component_type,
+            payload={"order_id": order_id},
+            trace_context=trace_context,
+        )
 
         payload = message.get("payload", {})
         order_id = payload.get("order_id")
@@ -362,6 +417,15 @@ class OperatorSystem(BaseComponent):
         """Отклонение заказа"""
         trace_context = TraceContext.from_message(message)
         self.stats["orders_rejected"] += 1
+        emit_event(
+            self.bus,
+            ComponentTopics.get_event_journal(),
+            event_type="order_rejected",
+            severity="info",
+            source_component=self.component_type,
+            payload={"order_id": order_id, "reason": "Rejected by aggregator"},
+            trace_context=trace_context,
+        )
 
         payload = message.get("payload", {})
         order_id = payload.get("order_id")

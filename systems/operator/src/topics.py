@@ -125,6 +125,10 @@ class ComponentTopics:
         """Топик компонента Regulator Client"""
         return TopicBuilder.build_internal_topic("regulator_client")
 
+    @staticmethod
+    def get_event_journal() -> str:
+        """Топик компонента Event Journal"""
+        return TopicBuilder.build_internal_topic("event_journal")
 
 class _TopicsMeta(type):
     """
@@ -150,6 +154,7 @@ class _TopicsMeta(type):
         "BUSINESS_LOGIC": "get_business_logic",
         "DEVELOPER_CLIENT": "get_developer_client",
         "REGULATOR_CLIENT": "get_regulator_client",
+        "EVENT_JOURNAL": "get_event_journal",
     }
 
     def __getattr__(cls, name: str):  # noqa: N805 (metaclass API)

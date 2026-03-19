@@ -13,6 +13,7 @@ from systems.operator.src.fleet_manager import FleetManager
 from systems.operator.src.mission_planner import MissionPlanner
 from systems.operator.src.operator_system import OperatorSystem
 from systems.operator.src.security_monitor import SecurityMonitor
+from systems.operator.src.event_journal.src.event_journal import EventJournal
 
 # Настройка логирования
 logging.basicConfig(
@@ -53,6 +54,8 @@ async def run_component():
             component = SecurityMonitor(component_id, bus)
         elif component_type == "fleet_manager":
             component = FleetManager(component_id, bus)
+        elif component_type == "event_journal":
+            component = EventJournal(component_id, bus)
         elif component_type == "mission_planner":
             component = MissionPlanner(component_id, bus)
         elif component_type == "business_logic":

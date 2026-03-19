@@ -16,6 +16,7 @@ from uuid import uuid4
 
 from broker.system_bus import SystemBus
 from sdk.base_component import BaseComponent
+from sdk.event_emitter import emit_event
 from systems.operator.src.topics import ComponentTopics, MissionPlannerActions
 
 
@@ -57,6 +58,16 @@ class MissionPlanner(BaseComponent):
             "updated_at": time.time(),
         }
 
+        emit_event(
+            self.bus,
+            ComponentTopics.get_event_journal(),
+            event_type="mission_created",
+            severity="info",
+            source_component=self.component_type,
+            payload={"mission_id": mission_id, "order_id": order.get("id"), "distance": distance_km},
+            trace_context=None,
+        )
+
         return {"mission_id": mission_id, "status": "draft", "distance": distance_km}
 
     async def _handle_validate_mission(self, message: Dict[str, Any]) -> Dict[str, Any]:
@@ -66,6 +77,15 @@ class MissionPlanner(BaseComponent):
             return {"valid": False, "error": "mission_id is required"}
 
         # Упрощённая валидация для интеграционного сценария.
+        emit_event(
+            self.bus,
+            ComponentTopics.get_event_journal(),
+            event_type="mission_validated",
+            severity="info",
+            source_component=self.component_type,
+            payload={"mission_id": mission_id},
+            trace_context=None,
+        )
         return {"valid": True, "validation_results": []}
 
     async def _handle_get_mission_details(self, message: Dict[str, Any]) -> Dict[str, Any]:
