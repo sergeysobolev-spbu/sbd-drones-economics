@@ -134,7 +134,7 @@ def prepare_system(system_dir: str):
 
         svc["environment"] = env_block
 
-    # --- Rewrite component build paths ---
+    # --- Rewrite component build paths and volumes ---
     system_dir_abs = system_compose_path.parent
     component_services = deepcopy(system_compose.get("services", {}))
     for svc_name, svc in component_services.items():
@@ -142,6 +142,8 @@ def prepare_system(system_dir: str):
             build = svc["build"]
             if isinstance(build, dict) and "context" in build:
                 build["context"] = rewrite_path(build["context"], system_dir_abs, output_dir)
+        if "volumes" in svc:
+            svc["volumes"] = rewrite_volumes(svc["volumes"], system_dir_abs, output_dir)
 
         # Add depends_on for broker health checks
         svc["depends_on"] = {

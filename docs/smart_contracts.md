@@ -215,3 +215,82 @@ result = self.bus.request(
 - **fabric-proxy не подключается к peer** — проверьте, что Fabric-сеть запущена и сеть `fabric_drone` существует
 - **ledger-gateway: fabric-proxy unavailable** — fabric-proxy ещё не стартовал, подождите или проверьте логи
 - **gRPC TLS ошибка** — проверьте `crypto-config` в submodule
+
+## E2E тестирование смарт-контрактов (dummy_fabric)
+
+Система `dummy_fabric` (`systems/dummy_fabric/`) позволяет выполнить сквозной тест всех смарт-контрактов через реальную Fabric-сеть. Каждая организация (Aggregator, CertCenter, Insurer, Operator, Orvd) представлена отдельным компонентом со своим `fabric-proxy`, что обеспечивает корректную проверку ролей MSP.
+
+### Архитектура
+
+```
+Компонент (Python) → HTTP → fabric-proxy-{org} (Go) → gRPC/TLS → Fabric Peer {org}
+```
+
+Каждый из 5 прокси настроен на свою организацию (`AggregatorMSP`, `CertCenterMSP`, `InsurerMSP`, `OperatorMSP`, `OrvdMSP`).
+
+### Запуск
+
+**1. Fabric-сеть должна быть запущена:**
+
+```bash
+cd fabric-network/network
+./start.sh up
+```
+
+**2. Запуск dummy_fabric:**
+
+```bash
+cd systems/dummy_fabric
+make docker-up
+```
+
+Будут подняты 5 fabric-proxy, 5 компонентов-организаций и gateway.
+
+**3. Unit тесты (без Fabric, с моками):**
+
+```bash
+cd systems/dummy_fabric
+make unit-test
+```
+
+**4. E2E тесты (требуют запущенную Fabric-сеть; `docker-up` выполняется автоматически):**
+
+```bash
+cd systems/dummy_fabric
+make test-e2e
+```
+
+### Сценарий E2E теста
+
+Полный workflow заказа (14 шагов):
+
+| Шаг | Организация | Метод контракта |
+|-----|-------------|-----------------|
+| 1 | CertCenter | `FirmwareContract:CertifyFirmware` |
+| 2 | CertCenter | `DronePropertiesContract:IssueTypeCertificate` |
+| 3 | CertCenter | `DronePropertiesContract:CreateDronePass` |
+| 4 | Insurer | `DronePropertiesContract:CreateInsuranceRecord` |
+| 5 | Aggregator | `OrderContract:CreateOrder` |
+| 6 | Aggregator | `OrderContract:AssignOrder` |
+| 7 | Insurer | `OrderContract:ApproveOrder` |
+| 8 | Operator | `OrderContract:ConfirmOrder` |
+| 9 | Aggregator | `OrderContract:RequestFlightPermission` |
+| 10 | Orvd | `OrderContract:ApproveFlightPermission` |
+| 11 | Operator | `OrderContract:StartOrder` |
+| 12 | Operator | `OrderContract:FinishOrder` |
+| 13 | Aggregator | `OrderContract:FinalizeOrder` |
+| 14 | Aggregator | `OrderContract:ReadOrder` (query — проверка финального статуса) |
+
+Каждый шаг выполняется от имени соответствующей организации через её fabric-proxy, что гарантирует проверку ролей (MSP) на стороне chaincode.
+
+### Переменные окружения для E2E тестов
+
+При запуске E2E тестов вне Docker можно указать адреса proxy:
+
+| Переменная | По умолчанию |
+|------------|--------------|
+| `FABRIC_PROXY_AGGREGATOR` | `http://localhost:3001` |
+| `FABRIC_PROXY_CERTCENTER` | `http://localhost:3002` |
+| `FABRIC_PROXY_INSURER` | `http://localhost:3003` |
+| `FABRIC_PROXY_OPERATOR` | `http://localhost:3004` |
+| `FABRIC_PROXY_ORVD` | `http://localhost:3005` |
