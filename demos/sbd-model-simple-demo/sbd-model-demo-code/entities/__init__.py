@@ -4,9 +4,9 @@ from .customer import CustomerEntity
 from .aggregator import AggregatorEntity
 from .operator import OperatorEntity
 from .insurer import InsurerEntity
-from .developers import DevelopersEntity
+from .vendor_uas import VendorUASEntity
 from .droneport import DronePortEntity
-from .nus import NUSEntity
+from .gcs import GCSEntity
 from .agro_drone import AgroDroneEntity
 from .sitl import SITLEntity
 from .atm import ATMEntity
@@ -17,12 +17,11 @@ __all__ = [
     "AggregatorEntity",
     "OperatorEntity",
     "InsurerEntity",
-    "DevelopersEntity",
+    "VendorUASEntity",
     "DronePortEntity",
-    "NUSEntity",
+    "GCSEntity",
     "AgroDroneEntity",
     "SITLEntity",
     "ATMEntity",
     "RegulatorEntity",
 ]
-

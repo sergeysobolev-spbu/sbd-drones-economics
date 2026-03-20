@@ -48,3 +48,12 @@ PURCHASE_UAS = "purchase_uas"
 AGRO_MISSION_RECEIVED = "agro_mission_received"
 ORDER_EXECUTION_COMPLETED = "order_execution_completed"
 
+# Request 9 scenarios
+REQUEST_FIRMWARE_CERTIFICATION = "request_firmware_certification"
+FIRMWARE_CERTIFICATION_RESULT = "firmware_certification_result"
+REQUEST_UAS_REGISTRATION = "request_uas_registration"
+UAS_REGISTRATION_RESULT = "uas_registration_result"
+REQUEST_UAS_PURCHASE = "request_uas_purchase"
+UAS_PURCHASE_RESULT = "uas_purchase_result"
+ASSIGN_UAS_TO_DRONEPORT = "assign_uas_to_droneport"
+

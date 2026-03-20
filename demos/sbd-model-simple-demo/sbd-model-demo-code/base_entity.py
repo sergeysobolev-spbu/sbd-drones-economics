@@ -1,25 +1,35 @@
 from __future__ import annotations
 
-import time
-from multiprocessing import Process
-from typing import Any, Dict, Optional
-
 """
 Базовый класс для сущностей в notebook-демо.
 
-Используется для единообразной обработки request-сообщений и RPC через reply_queue.
+Обработка входящих request: диспетчеризация по полю action на зарегистрированные
+обработчики (минимум шаблонного кода в наследниках).
 """
 
-from messages import STOP_ACTION, make_request, make_response, new_correlation_id
+import time
+from multiprocessing import Process
+from typing import Any, Callable, Dict, Optional
+
+from messages import (
+    STOP_ACTION,
+    make_request,
+    make_response,
+    new_correlation_id,
+    new_span_id,
+    new_trace_id,
+)
+
+Handler = Callable[[Dict[str, Any]], None]
 
 
 class BaseEntity(Process):
     """
     Базовый класс сущности.
 
-    - читает request-сообщения из `inbox_queue`
-    - обработка request реализуется в `handle_request()`
-    - RPC-взаимодействие реализовано через ожидание response в `reply_queue`
+    - читает request из inbox_queue
+    - для каждого action вызывает зарегистрированный обработчик
+    - RPC через reply_queue / send_request / rpc_send_wait
     """
 
     def __init__(
@@ -41,8 +51,23 @@ class BaseEntity(Process):
         self.reply_queue_name = reply_queue_name
         self.world = world
         self.actions = actions or {}
+        self._handlers: Dict[str, Handler] = {}
+        self._register_handlers()
 
-    # --- Process entrypoint ---
+    def _register_handlers(self) -> None:
+        """Переопределяется в наследниках: вызовы register_handler(...)."""
+
+    def register_handler(self, action: str, handler: Handler) -> None:
+        """Регистрирует обработчик для строкового action."""
+        self._handlers[action] = handler
+
+    def _default_unknown_action(self, msg: Dict[str, Any]) -> None:
+        """Ответ при неизвестном action (если не переопределено)."""
+        self.send_response(
+            request_msg=msg,
+            payload={"status": "error", "error": "unknown_action"},
+        )
+
     def run(self) -> None:
         while True:
             msg_raw = self.inbox_queue.get()
@@ -57,12 +82,14 @@ class BaseEntity(Process):
             if msg.get("message_type") != "request":
                 continue
 
+            action = msg.get("action")
+            handler = self._handlers.get(action, self._default_unknown_action)
+
             try:
-                self.handle_request(msg)
+                handler(msg)
             except Exception as e:  # noqa: BLE001
-                # В демо — отправляем ошибку как response, чтобы оркестратор мог завершить сценарий.
                 corr_id = msg.get("correlation_id") or new_correlation_id()
-                receiver = msg.get("reply_to")  # where to deliver response
+                receiver = msg.get("reply_to")
                 if receiver is not None:
                     err = {"status": "error", "error": str(e), "type": type(e).__name__}
                     response = make_response(
@@ -71,14 +98,12 @@ class BaseEntity(Process):
                         action=msg.get("action", "unknown_action"),
                         payload=err,
                         correlation_id=corr_id,
+                        trace_id=msg.get("trace_id", new_trace_id()),
+                        span_id=new_span_id(),
+                        parent_span_id=msg.get("span_id"),
                     )
                     self.broker_in_queue.put(response.to_dict())
 
-    # --- to be overridden ---
-    def handle_request(self, msg: Dict[str, Any]) -> None:
-        raise NotImplementedError
-
-    # --- RPC helpers ---
     def send_request(
         self,
         *,
@@ -86,6 +111,8 @@ class BaseEntity(Process):
         action: str,
         payload: Dict[str, Any],
         correlation_id: Optional[str] = None,
+        trace_id: Optional[str] = None,
+        parent_span_id: Optional[str] = None,
     ) -> str:
         corr_id = correlation_id or new_correlation_id()
         request = make_request(
@@ -94,6 +121,9 @@ class BaseEntity(Process):
             action=action,
             payload=payload,
             correlation_id=corr_id,
+            trace_id=trace_id or new_trace_id(),
+            span_id=new_span_id(),
+            parent_span_id=parent_span_id,
             reply_to=self.reply_queue_name,
         )
         self.broker_in_queue.put(request.to_dict())
@@ -148,6 +178,9 @@ class BaseEntity(Process):
             action=request_msg.get("action", "unknown_action"),
             payload=payload,
             correlation_id=corr_id,
+            trace_id=request_msg.get("trace_id", new_trace_id()),
+            span_id=new_span_id(),
+            parent_span_id=request_msg.get("span_id"),
         )
         self.broker_in_queue.put(response.to_dict())
 
@@ -159,11 +192,18 @@ class BaseEntity(Process):
         payload: Dict[str, Any],
         timeout_s: float = 30.0,
         expected_sender: Optional[str] = None,
+        trace_id: Optional[str] = None,
+        parent_span_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        corr_id = self.send_request(receiver=receiver, action=action, payload=payload)
+        corr_id = self.send_request(
+            receiver=receiver,
+            action=action,
+            payload=payload,
+            trace_id=trace_id,
+            parent_span_id=parent_span_id,
+        )
         return self.wait_for_response(
             correlation_id=corr_id,
             timeout_s=timeout_s,
             expected_sender=expected_sender,
         )
-

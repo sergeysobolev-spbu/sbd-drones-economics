@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 """
-ВАБС (broker rotator) — встроенный аналог брокера сообщений для notebook-демо.
+SimpleBroker — упрощённый in-process брокер для notebook-демо.
 
-Принимает входные сообщения из одной очереди и роутит их в очередь сущности
-по полю `receiver`. Параллельно журналирует каждый request/response в stdout
-и в файл `notebooks/simulation.log`.
+Маршрутизация по полю receiver, логирование request/response в stdout и simulation.log.
 """
 
 import sys
@@ -17,13 +15,10 @@ from typing import Any, Dict
 from messages import BROKER_STOP_ACTION
 
 
-class VABSBroker(Process):
+class SimpleBroker(Process):
     """
-    ВАБС: встроенный аналог брокера сообщений.
-
-    - читает сообщения из `broker_in_queue`
-    - маршрутизирует их в очереди сущностей по `receiver`
-    - журналирует каждый запрос/ответ в stdout и в `simulation.log`
+    Читает broker_in_queue, доставляет в очередь получателя,
+    ведёт журнал сообщений.
     """
 
     def __init__(
@@ -41,17 +36,15 @@ class VABSBroker(Process):
         self.poll_sleep_s = poll_sleep_s
 
     def register_queue(self, receiver_id: str, queue: Any) -> None:
-        # Важно: вызывать до start() процесса брокера (по аналогии с SecurityMonitor в учебном примере).
+        """Регистрировать до start() процесса брокера."""
         self.queues_by_receiver[receiver_id] = queue
 
     def _log_line(self, line: str, *, f) -> None:
-        # stdout (для видимости в ноутбуке) + файл (для последующего анализа)
         print(line, flush=True)
         f.write(line + "\n")
         f.flush()
 
     def run(self) -> None:
-        # Открываем лог в процессе брокера, чтобы запись не конфликтовала между сущностями.
         with open(self.log_path, "a", encoding="utf-8") as f:
             self._log_line(f"[broker] start pid={self.pid} log={self.log_path}", f=f)
 
@@ -73,27 +66,34 @@ class VABSBroker(Process):
                 receiver = msg.get("receiver")
                 message_type = msg.get("message_type")
                 corr_id = msg.get("correlation_id")
+                trace_id = msg.get("trace_id")
+                span_id = msg.get("span_id")
+                parent_span_id = msg.get("parent_span_id")
                 sender = msg.get("sender")
                 payload = msg.get("payload")
 
                 if receiver not in self.queues_by_receiver:
                     self._log_line(
-                        f"[broker] DROP receiver={receiver} type={message_type} action={action} corr={corr_id} sender={sender} payload={payload}",
+                        "[broker] DROP "
+                        f"receiver={receiver} type={message_type} action={action} "
+                        f"corr={corr_id} trace={trace_id} span={span_id} "
+                        f"parent_span={parent_span_id} sender={sender} payload={payload}",
                         f=f,
-                    )                    
+                    )
                     continue
 
                 dst_q = self.queues_by_receiver[receiver]
                 dst_q.put(msg)
 
                 self._log_line(
-                    f"[broker] |-| {sender}->{receiver} |-| action={action} |-| {message_type} |-| corr={corr_id} |---| payload={payload}",
+                    "[broker] "
+                    f"{sender}->{receiver} action={action} type={message_type} "
+                    f"corr={corr_id} trace={trace_id} span={span_id} "
+                    f"parent_span={parent_span_id} payload={payload}",
                     f=f,
                 )
 
-        # Явно завершаемся
         try:
             sys.stdout.flush()
         except Exception:
             pass
-

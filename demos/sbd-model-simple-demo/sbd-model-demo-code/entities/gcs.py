@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Сущность `NUSEntity` (НУС): планирует миссию и формирует согласованные детали."""
+"""Сущность `GCSEntity` (GCS): планирует миссию и формирует mission_details."""
 
 from typing import Any, Dict
 
@@ -8,14 +8,13 @@ from actions import MISSION_PLANNING
 from base_entity import BaseEntity
 
 
-class NUSEntity(BaseEntity):
-    """НУС: планирует миссию и подготавливает согласованные mission_details."""
+class GCSEntity(BaseEntity):
+    """GCS: планирует миссию и подготавливает согласованные mission_details."""
 
-    def handle_request(self, msg: Dict[str, Any]) -> None:
-        if msg.get("action") != MISSION_PLANNING:
-            self.send_response(request_msg=msg, payload={"status": "error", "error": "unknown_action"})
-            return
+    def _register_handlers(self) -> None:
+        self.register_handler(MISSION_PLANNING, self._on_mission_planning)
 
+    def _on_mission_planning(self, msg: Dict[str, Any]) -> None:
         order = msg["payload"]["order"]
         selected_uas = msg["payload"]["selected_uas"]
         order_security_goals = msg["payload"].get("order_security_goals", [])
@@ -23,10 +22,11 @@ class NUSEntity(BaseEntity):
         mission_id = f"mission-{msg['correlation_id'][:8]}"
         order_id = order["id"]
         start_droneport_id = selected_uas["droneport_id"]
-
-        # В демо: return_port берём из заказа либо выбираем другой из мира, если не задан.
-        return_port = order.get("return_port") or self.world.get("default_return_port") or start_droneport_id
-
+        return_port = (
+            order.get("return_port")
+            or self.world.get("default_return_port")
+            or start_droneport_id
+        )
         landing_coordinates = self.world["landing_sites"][order_id][return_port]
 
         self.send_response(
@@ -45,4 +45,3 @@ class NUSEntity(BaseEntity):
                 "mission_security_goals": list(order_security_goals),
             },
         )
-

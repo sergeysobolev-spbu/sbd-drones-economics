@@ -11,11 +11,10 @@ from base_entity import BaseEntity
 class SITLEntity(BaseEntity):
     """СИТЛ: заглушка симуляции и телеметрии."""
 
-    def handle_request(self, msg: Dict[str, Any]) -> None:
-        if msg.get("action") != SITL_SIMULATE:
-            self.send_response(request_msg=msg, payload={"status": "error", "error": "unknown_action"})
-            return
+    def _register_handlers(self) -> None:
+        self.register_handler(SITL_SIMULATE, self._on_sitl_simulate)
 
+    def _on_sitl_simulate(self, msg: Dict[str, Any]) -> None:
         mission_id = msg["payload"].get("mission_id")
         self.send_response(
             request_msg=msg,
@@ -24,4 +23,3 @@ class SITLEntity(BaseEntity):
                 "simulation_result": {"mission_id": mission_id, "telemetry": {"status": "simulated"}},
             },
         )
-

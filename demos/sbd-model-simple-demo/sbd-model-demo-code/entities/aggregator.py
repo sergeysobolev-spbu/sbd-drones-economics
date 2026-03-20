@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Сущность `AggregatorEntity`: формирует цели безопасности заказа, собирает предложения и выбирает исполнителя."""
+"""Сущность `AggregatorEntity`: цели безопасности заказа, сбор предложений, выбор оператора."""
 
 from typing import Any, Dict, List
 
@@ -9,20 +9,23 @@ from base_entity import BaseEntity
 
 
 class AggregatorEntity(BaseEntity):
-    """Агрегатор: формирует order_security_goals, собирает предложения и выбирает исполнителя."""
+    """Агрегатор: order_security_goals, предложения операторов, назначение."""
 
-    def handle_request(self, msg: Dict[str, Any]) -> None:
-        if msg.get("action") != RECEIVE_ORDER:
-            self.send_response(request_msg=msg, payload={"status": "error", "error": "unknown_action"})
-            return
+    def _register_handlers(self) -> None:
+        self.register_handler(RECEIVE_ORDER, self._on_receive_order)
 
+    def _on_receive_order(self, msg: Dict[str, Any]) -> None:
         order = msg["payload"]["order"]
         scenario_security_goals: List[str] = msg["payload"]["scenario_security_goals"]
         max_price = msg["payload"].get("max_price")
 
         scenario_type = order.get("scenario_type", "agro")
+        trace_id = msg.get("trace_id")
+        parent_span_id = msg.get("span_id")
         aggregator_constants = self.world["aggregator_constants"].get(scenario_type, [])
-        order_security_goals = list(dict.fromkeys(list(scenario_security_goals) + list(aggregator_constants)))
+        order_security_goals = list(
+            dict.fromkeys(list(scenario_security_goals) + list(aggregator_constants))
+        )
 
         proposals: List[Dict[str, Any]] = []
         for ex_id in self.world["operator_ids"]:
@@ -36,6 +39,8 @@ class AggregatorEntity(BaseEntity):
                 },
                 timeout_s=20.0,
                 expected_sender=ex_id,
+                trace_id=trace_id,
+                parent_span_id=parent_span_id,
             )
             if resp.get("status") == "ok":
                 proposals.append(resp["proposal"])
@@ -52,7 +57,10 @@ class AggregatorEntity(BaseEntity):
 
         proposals = [p for p in proposals if ok_offer(p)]
         if not proposals:
-            self.send_response(request_msg=msg, payload={"status": "error", "error": "no_acceptable_proposals"})
+            self.send_response(
+                request_msg=msg,
+                payload={"status": "error", "error": "no_acceptable_proposals"},
+            )
             return
 
         proposals.sort(key=lambda x: float(x["price"]))
@@ -70,6 +78,8 @@ class AggregatorEntity(BaseEntity):
             },
             timeout_s=120.0,
             expected_sender=operator_id,
+            trace_id=trace_id,
+            parent_span_id=parent_span_id,
         )
 
         self.send_response(
@@ -87,4 +97,3 @@ class AggregatorEntity(BaseEntity):
                 },
             },
         )
-
