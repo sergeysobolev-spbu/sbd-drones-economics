@@ -77,6 +77,31 @@ class FleetManagerService:
             "maintenance_alerts": 0,
         }
 
+    # NOTE: вспомогательный метод для unit-теста агродрон-сценария.
+    # Исторически тест обращается к приватному `_filter_suitable_uas` и ожидает,
+    # что он использует YAML-каталог разработчиков и вернёт модели БАС
+    # (включая `DW-AG300`). Чтобы не ломать основной async-API, реализуем
+    # тонкую обёртку поверх DeveloperClient с синхронным интерфейсом.
+    def _filter_suitable_uas(self, fleet, requirements: Dict[str, Any]):  # type: ignore[unused-argument]
+        """
+        Подбор подходящих БАС по требованиям на основе каталогов разработчиков.
+
+        Используется только в unit-тесте `test_agro_uas_selection.py`.
+        Основной продакшн-путь — `find_suitable_uas`.
+        """
+        try:
+            # Обеспечиваем, что кеш каталогов заполнен (для YAML-каталога это sync-вызов)
+            if getattr(self.developer_client, "use_yaml_catalog", False):
+                if not getattr(self.developer_client, "catalogs_cache", {}):
+                    # Заполняем кеш из YAML без сетевых вызовов
+                    self.developer_client._load_catalogs_from_yaml()  # type: ignore[attr-defined]
+
+            # Доверяем DeveloperClient выбору лучших моделей под требования
+            return self.developer_client.find_best_uas_for_requirements(requirements)
+        except Exception as exc:  # защитный fallback для тестов
+            self.logger.error(f"Failed to filter suitable UAS from catalogs: {exc}")
+            return []
+
     async def initialize_fleet(self) -> Dict[str, Any]:
         """Инициализация парка БАС из каталогов разработчиков"""
         try:

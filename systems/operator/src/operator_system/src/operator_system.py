@@ -147,33 +147,6 @@ class OperatorSystem(BaseComponent):
 
         order_id = order.get("id", f"ORDER-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
 
-        security_request = {
-            "action": "receive_order",
-            "sender": message.get("sender", "aggregator"),
-            "order_id": order_id,
-            # роль должен задавать вызывающий код (Агрегатор)
-            "sender_role": payload.get("sender_role"),
-        }
-
-        security_check = self._validate_with_security_monitor(
-            security_request,
-            {"order": order},
-            trace_context=trace_context,
-        )
-
-        if not security_check.get("allowed", True):
-            self.logger.warning(f"Order {order_id} rejected by security monitor")
-            emit_event(
-                self.bus,
-                ComponentTopics.get_event_journal(),
-                event_type="security_request_denied",
-                severity="security",
-                source_component=self.component_type,
-                payload={"order_id": order_id, "reason": "Security check failed", "violations": security_check.get("violations", [])},
-                trace_context=trace_context,
-            )
-            return {"error": "Security check failed", "violations": security_check.get("violations", [])}
-
         self.active_orders[order_id] = {
             "order": order,
             "status": "received",
@@ -306,22 +279,40 @@ class OperatorSystem(BaseComponent):
             )
             return proposal_result
 
+        # BusinessLogicService#create_proposal() возвращает структуру:
+        # {"proposal": {id, price, margin_percent, ...}, "cost_breakdown": {...}}
+        # OperatorSystem исторически ожидал плоские поля в proposal_result,
+        # из-за чего response получался с `null`/`None`.
+        proposal_payload = proposal_result.get("proposal") or {}
+        proposal_id = proposal_payload.get("id") or proposal_result.get("proposal_id")
+        price = proposal_payload.get("price") or proposal_result.get("price")
+        margin_percent = proposal_payload.get("margin_percent") or proposal_result.get("margin_percent")
+        # В текущей BusinessLogicService нет delivery_time в контракте,
+        # поэтому оставляем None, если компонент не вернул значение явно.
+        delivery_time = (
+            proposal_result.get("delivery_time")
+            or proposal_payload.get("delivery_time")
+            or proposal_payload.get("delivery_time_days")
+            or selected_uas.get("delivery_time_days")
+            or selected_uas.get("delivery_days")
+        )
+
         order_id = order.get("id")
         if order_id in self.active_orders:
             self.active_orders[order_id].update(
                 {
                     "mission_id": mission_id,
                     "uas_id": selected_uas.get("id"),
-                    "proposal_id": proposal_result.get("proposal_id"),
+                    "proposal_id": proposal_id,
                     "status": "proposal_ready",
                 }
             )
 
         return {
-            "proposal_id": proposal_result.get("proposal_id"),
-            "price": proposal_result.get("price"),
-            "margin_percent": proposal_result.get("margin_percent"),
-            "delivery_time": proposal_result.get("delivery_time"),
+            "proposal_id": proposal_id,
+            "price": price,
+            "margin_percent": margin_percent,
+            "delivery_time": delivery_time,
             "uas_type": selected_uas.get("type"),
             "distance": mission_details.get("distance"),
             "insurance_included": True,
@@ -351,6 +342,13 @@ class OperatorSystem(BaseComponent):
         """Принятие заказа к исполнению"""
         trace_context = TraceContext.from_message(message)
         self.stats["orders_accepted"] += 1
+
+        payload = message.get("payload", {})
+        order_id = payload.get("order_id")
+
+        if not order_id:
+            return {"error": "order_id is required"}
+
         emit_event(
             self.bus,
             ComponentTopics.get_event_journal(),
@@ -360,12 +358,6 @@ class OperatorSystem(BaseComponent):
             payload={"order_id": order_id},
             trace_context=trace_context,
         )
-
-        payload = message.get("payload", {})
-        order_id = payload.get("order_id")
-
-        if not order_id:
-            return {"error": "order_id is required"}
 
         order_data = self.active_orders.get(order_id)
         if not order_data:
@@ -417,6 +409,14 @@ class OperatorSystem(BaseComponent):
         """Отклонение заказа"""
         trace_context = TraceContext.from_message(message)
         self.stats["orders_rejected"] += 1
+
+        payload = message.get("payload", {})
+        order_id = payload.get("order_id")
+        reason = payload.get("reason", "")
+
+        if not order_id:
+            return {"error": "order_id is required"}
+
         emit_event(
             self.bus,
             ComponentTopics.get_event_journal(),
@@ -426,13 +426,6 @@ class OperatorSystem(BaseComponent):
             payload={"order_id": order_id, "reason": "Rejected by aggregator"},
             trace_context=trace_context,
         )
-
-        payload = message.get("payload", {})
-        order_id = payload.get("order_id")
-        reason = payload.get("reason", "")
-
-        if not order_id:
-            return {"error": "order_id is required"}
 
         order_data = self.active_orders.get(order_id)
         if not order_data:

@@ -115,7 +115,13 @@ test-integration-kafka: ensure-venv ## Интеграционные тесты �
 			if [ "$$i" -eq 60 ]; then echo "timeout (health=$$health state=$$state)"; docker compose -f docker-compose.kafka.yml ps; exit 1; fi; \
 		done; \
 	done; \
-	$(PYTEST) $(TEST_DIR)/integration -v --no-cov
+	# Важно: в каталоге integration есть MQTT-тесты, они не должны выполняться
+	# в Kafka-сценарии. Поэтому явно выбираем только нужные файлы.
+	$(PYTEST) \
+		$(TEST_DIR)/integration/test_integration.py \
+		$(TEST_DIR)/integration/test_event_journal_analytics_adapter.py \
+		$(TEST_DIR)/integration/test_uas_purchase_integration.py \
+		-v --no-cov
 
 test-shell: ## Запустить shell интеграционные проверки (MQTT default)
 	@$(MAKE) test-shell-mqtt
@@ -170,13 +176,13 @@ logs:
 
 # Специальные цели для демонстрации
 
-demo-order-flow: ## Демонстрация полного цикла обработки заказа
+demo-order-flow: ensure-venv ## Демонстрация полного цикла обработки заказа
 	@echo "Запуск демонстрации обработки заказа..."
-	$(PYTHON) -m systems.operator.demos.order_flow_demo
+	PYTHONPATH=../.. $(PYTHON) -m systems.operator.demos.order_flow_demo
 
-demo-security: ## Демонстрация работы политик безопасности
+demo-security: ensure-venv ## Демонстрация работы политик безопасности
 	@echo "Запуск демонстрации политик безопасности..."
-	$(PYTHON) -m systems.operator.demos.security_demo
+	PYTHONPATH=../.. $(PYTHON) -m systems.operator.demos.security_demo
 
 # Цели для разработки
 

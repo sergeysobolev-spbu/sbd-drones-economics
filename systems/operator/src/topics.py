@@ -130,6 +130,7 @@ class ComponentTopics:
         """Топик компонента Event Journal"""
         return TopicBuilder.build_internal_topic("event_journal")
 
+
 class _TopicsMeta(type):
     """
     Метакласс для ленивых "констант" топиков.

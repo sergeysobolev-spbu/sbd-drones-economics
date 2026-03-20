@@ -217,27 +217,35 @@ class TestOperatorSystemIntegration:
 
     @pytest.mark.asyncio
     async def test_security_policy_enforcement(self, operator_components, system_bus):
-        """Тест применения политик безопасности"""
+        """Внешние запросы не должны проходить через SecurityMonitor"""
         operator = operator_components["operator_system"]
 
-        # Настраиваем security monitor для отклонения запроса
+        # Блокируем SecurityMonitor, но ожидаем, что внешний receive_order
+        # обойдёт монитор безопасности (проверки не должны выполняться здесь).
+        base_side_effect = system_bus.request.side_effect
+
         def mock_security_request(topic, message, timeout=None):
             if topic == ComponentTopics.SECURITY_MONITOR:
-                return {
-                    "success": True,
-                    "payload": {
-                        "allowed": False,
-                        "violations": [
-                            {
-                                "policy_id": "P1",
-                                "policy_name": "Authorized Operators Only",
-                                "reason": "Unauthorized sender",
-                                "severity": "critical",
-                            }
-                        ],
-                    },
-                }
-            return {"success": False}
+                # Имитация отказа по внешнему sender (должно не влиять на receive_order).
+                original_req = (message.get("payload") or {}).get("request") or {}
+                if original_req.get("sender") == "unknown_sender":
+                    return {
+                        "success": True,
+                        "payload": {
+                            "allowed": False,
+                            "violations": [
+                                {
+                                    "policy_id": "P1",
+                                    "policy_name": "Authorized Operators Only",
+                                    "reason": "Unauthorized sender",
+                                    "severity": "critical",
+                                }
+                            ],
+                        },
+                    }
+                return {"success": True, "payload": {"allowed": True}}
+
+            return base_side_effect(topic, message, timeout=timeout)
 
         system_bus.request.side_effect = mock_security_request
 
@@ -249,10 +257,10 @@ class TestOperatorSystemIntegration:
 
         result = operator._handle_receive_order(order_message)
 
-        assert "error" in result
-        assert "Security check failed" in result["error"]
-        assert len(result["violations"]) == 1
-        assert result["violations"][0]["policy_id"] == "P1"
+        assert "error" not in result
+        assert result["order_id"] == "ORDER-HACK-001"
+        assert result["status"] == "received"
+        assert "proposal" in result
 
     @pytest.mark.asyncio
     async def test_no_suitable_uas_scenario(self, operator_components, system_bus):

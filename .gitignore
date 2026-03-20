@@ -10,3 +10,6 @@ __pycache__
 .generated/
 .coverage
 Pipfile
+*.log
+.jupyter/
+messages.html

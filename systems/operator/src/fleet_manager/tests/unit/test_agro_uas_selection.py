@@ -38,4 +38,3 @@ def test_find_suitable_agro_uas_from_catalog():
     assert suitable, "ожидается хотя бы один подходящий агродрон"
     model_ids = {u.model_id for u in suitable}
     assert "DW-AG300" in model_ids
-

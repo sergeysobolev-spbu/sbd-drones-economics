@@ -1,5 +1,6 @@
 """Kafka SystemBus."""
 import json
+import logging
 import threading
 import time
 import asyncio
@@ -17,6 +18,8 @@ except ImportError:
 
 from broker.src.system_bus import SystemBus
 from broker.config import get_kafka_bootstrap
+
+logger = logging.getLogger(__name__)
 
 
 class KafkaSystemBus(SystemBus):
@@ -55,7 +58,8 @@ class KafkaSystemBus(SystemBus):
         client_id: str = "system_bus",
         group_id: str = None,
         username: str = None,
-        password: str = None
+        password: str = None,
+        event_journal_topic: Optional[str] = None,
     ):
         if not KAFKA_AVAILABLE:
             raise ImportError(
@@ -76,6 +80,15 @@ class KafkaSystemBus(SystemBus):
         self._pending_lock = threading.Lock()
         self._reply_topic = f"replies.{client_id}.{uuid4().hex[:8]}"
         self._started = False
+        # Dependency inversion: Kafka bus не должен знать про конкретные топики/классы
+        # подсистем Эксплуатанта. Вместо импортов из `systems.operator` используем
+        # инъекцию (параметр/ENV) топика EventJournal.
+        system_id = os.getenv("SYSTEM_ID", "operator-default")
+        self.event_journal_topic = (
+            event_journal_topic
+            or os.getenv("EVENT_JOURNAL_TOPIC")
+            or f"{system_id}.event_journal"
+        )
 
     def _get_sasl_config(self) -> dict:
         """SASL-конфиг для producer/consumer, если заданы username/password."""
@@ -272,6 +285,28 @@ class KafkaSystemBus(SystemBus):
         if not self._started:
             self.start()
         correlation_id = str(uuid4())
+        source_component = message.get("sender") or "system_bus"
+        try:
+            from sdk.event_emitter import emit_event
+
+            emit_event(
+                self,
+                self.event_journal_topic,
+                "ipc_request",
+                severity="info",
+                source_component=source_component,
+                payload={
+                    "topic": topic,
+                    "action": message.get("action"),
+                    "sender": message.get("sender"),
+                    "correlation_id": correlation_id,
+                    "timeout_s": timeout,
+                },
+            )
+        except Exception:
+            # IPC logging не должен ломать бизнес-логику
+            pass
+
         future: Future = Future()
         with self._pending_lock:
             self._pending_requests[correlation_id] = future
@@ -283,19 +318,100 @@ class KafkaSystemBus(SystemBus):
         if not self.publish(topic, request_message):
             with self._pending_lock:
                 self._pending_requests.pop(correlation_id, None)
+            try:
+                from sdk.event_emitter import emit_event
+
+                emit_event(
+                    self,
+                    self.event_journal_topic,
+                    "ipc_response",
+                    severity="error",
+                    source_component=source_component,
+                    payload={
+                        "topic": topic,
+                        "action": message.get("action"),
+                        "sender": message.get("sender"),
+                        "correlation_id": correlation_id,
+                        "success": False,
+                        "error": "publish_failed",
+                    },
+                )
+            except Exception:
+                pass
             return None
         try:
             result = future.result(timeout=timeout)
+            try:
+                from sdk.event_emitter import emit_event
+
+                emit_event(
+                    self,
+                    self.event_journal_topic,
+                    "ipc_response",
+                    severity="info" if (result or {}).get("success", True) else "error",
+                    source_component=source_component,
+                    payload={
+                        "topic": topic,
+                        "action": message.get("action"),
+                        "sender": message.get("sender"),
+                        "correlation_id": correlation_id,
+                        "response": (result or {}).get("payload") if isinstance(result, dict) else result,
+                        "success": (result or {}).get("success", True) if isinstance(result, dict) else True,
+                        "error": (result or {}).get("error") if isinstance(result, dict) else None,
+                    },
+                )
+            except Exception:
+                pass
             return result
         except TimeoutError:
             with self._pending_lock:
                 self._pending_requests.pop(correlation_id, None)
             print(f"Request to {topic} timed out after {timeout}s")
+            try:
+                from sdk.event_emitter import emit_event
+
+                emit_event(
+                    self,
+                    self.event_journal_topic,
+                    "ipc_response",
+                    severity="error",
+                    source_component=source_component,
+                    payload={
+                        "topic": topic,
+                        "action": message.get("action"),
+                        "sender": message.get("sender"),
+                        "correlation_id": correlation_id,
+                        "success": False,
+                        "error": "timeout",
+                    },
+                )
+            except Exception:
+                pass
             return None
         except Exception as e:
             with self._pending_lock:
                 self._pending_requests.pop(correlation_id, None)
             print(f"Error waiting for response: {e}")
+            try:
+                from sdk.event_emitter import emit_event
+
+                emit_event(
+                    self,
+                    self.event_journal_topic,
+                    "ipc_response",
+                    severity="error",
+                    source_component=source_component,
+                    payload={
+                        "topic": topic,
+                        "action": message.get("action"),
+                        "sender": message.get("sender"),
+                        "correlation_id": correlation_id,
+                        "success": False,
+                        "error": str(e),
+                    },
+                )
+            except Exception:
+                pass
             return None
 
     def request_async(

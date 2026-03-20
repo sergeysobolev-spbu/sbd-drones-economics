@@ -46,4 +46,3 @@ class EventJournal(BaseComponent):
             "event_type": payload.get("event_type"),
             "severity": payload.get("severity", "info"),
         }
-

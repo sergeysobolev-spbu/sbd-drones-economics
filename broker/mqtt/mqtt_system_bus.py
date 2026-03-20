@@ -1,5 +1,6 @@
 """MQTT SystemBus."""
 import json
+import logging
 import threading
 import time
 import asyncio
@@ -16,6 +17,8 @@ except ImportError:
 
 from broker.src.system_bus import SystemBus
 
+logger = logging.getLogger(__name__)
+
 
 class MQTTSystemBus(SystemBus):
 
@@ -26,7 +29,8 @@ class MQTTSystemBus(SystemBus):
         client_id: str = "system_bus",
         qos: int = 1,
         username: str = None,
-        password: str = None
+        password: str = None,
+        event_journal_topic: Optional[str] = None,
     ):
         if not MQTT_AVAILABLE:
             raise ImportError(
@@ -48,6 +52,14 @@ class MQTTSystemBus(SystemBus):
         self._connected = False
         self._started = False
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mqtt_cb")
+        # Dependency inversion: MQTT bus не должен импортировать конкретные
+        # топики/классы подсистем Эксплуатанта. Используем инъекцию (параметр/ENV).
+        system_id = os.getenv("SYSTEM_ID", "operator-default")
+        self.event_journal_topic = (
+            event_journal_topic
+            or os.getenv("EVENT_JOURNAL_TOPIC")
+            or f"{system_id}.event_journal"
+        )
 
     def _topic_to_mqtt(self, topic: str) -> str:
         """Топик systems.xxx -> systems/xxx для MQTT."""
@@ -207,6 +219,7 @@ class MQTTSystemBus(SystemBus):
         if not self._started:
             self.start()
         correlation_id = str(uuid4())
+        source_component = message.get("sender") or "system_bus"
         future: Future = Future()
         
         with self._pending_lock:
@@ -217,24 +230,124 @@ class MQTTSystemBus(SystemBus):
             "correlation_id": correlation_id,
             "reply_to": self._reply_topic
         }
+
+        try:
+            from sdk.event_emitter import emit_event
+            emit_event(
+                self,
+                self.event_journal_topic,
+                "ipc_request",
+                severity="info",
+                source_component=source_component,
+                payload={
+                    "topic": topic,
+                    "action": message.get("action"),
+                    "sender": message.get("sender"),
+                    "correlation_id": correlation_id,
+                    "timeout_s": timeout,
+                },
+            )
+        except Exception:
+            pass
         
         if not self.publish(topic, request_message):
             with self._pending_lock:
                 self._pending_requests.pop(correlation_id, None)
+            try:
+                from sdk.event_emitter import emit_event
+
+                emit_event(
+                    self,
+                    self.event_journal_topic,
+                    "ipc_response",
+                    severity="error",
+                    source_component=source_component,
+                    payload={
+                        "topic": topic,
+                        "action": message.get("action"),
+                        "sender": message.get("sender"),
+                        "correlation_id": correlation_id,
+                        "success": False,
+                        "error": "publish_failed",
+                    },
+                )
+            except Exception:
+                pass
             return None
         
         try:
             result = future.result(timeout=timeout)
+            try:
+                from sdk.event_emitter import emit_event
+
+                emit_event(
+                    self,
+                    self.event_journal_topic,
+                    "ipc_response",
+                    severity="info" if (result or {}).get("success", True) else "error",
+                    source_component=source_component,
+                    payload={
+                        "topic": topic,
+                        "action": message.get("action"),
+                        "sender": message.get("sender"),
+                        "correlation_id": correlation_id,
+                        "response": (result or {}).get("payload") if isinstance(result, dict) else result,
+                        "success": (result or {}).get("success", True) if isinstance(result, dict) else True,
+                        "error": (result or {}).get("error") if isinstance(result, dict) else None,
+                    },
+                )
+            except Exception:
+                pass
             return result
         except TimeoutError:
             with self._pending_lock:
                 self._pending_requests.pop(correlation_id, None)
             print(f"Request to {topic} timed out after {timeout}s")
+            try:
+                from sdk.event_emitter import emit_event
+
+                emit_event(
+                    self,
+                    self.event_journal_topic,
+                    "ipc_response",
+                    severity="error",
+                    source_component=source_component,
+                    payload={
+                        "topic": topic,
+                        "action": message.get("action"),
+                        "sender": message.get("sender"),
+                        "correlation_id": correlation_id,
+                        "success": False,
+                        "error": "timeout",
+                    },
+                )
+            except Exception:
+                pass
             return None
         except Exception as e:
             with self._pending_lock:
                 self._pending_requests.pop(correlation_id, None)
             print(f"Error waiting for response: {e}")
+            try:
+                from sdk.event_emitter import emit_event
+
+                emit_event(
+                    self,
+                    self.event_journal_topic,
+                    "ipc_response",
+                    severity="error",
+                    source_component=source_component,
+                    payload={
+                        "topic": topic,
+                        "action": message.get("action"),
+                        "sender": message.get("sender"),
+                        "correlation_id": correlation_id,
+                        "success": False,
+                        "error": str(e),
+                    },
+                )
+            except Exception:
+                pass
             return None
 
     def request_async(

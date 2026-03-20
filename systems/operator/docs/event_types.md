@@ -41,6 +41,12 @@
 - `security_violation` — зафиксировано нарушение политики безопасности.
 - `security_request_denied` — запрос отклонён монитором безопасности.
 - `security_audit` — создана запись аудита по результатам проверки.
+- `security_verdict` — зафиксирован итог проверки безопасности (allow/audit/deny).
+
+### IPC (request/response между системами)
+
+- `ipc_request` — отправлен IPC request через SystemBus.
+- `ipc_response` — получен IPC response (или timeout/error) по correlation_id.
 
 ### Интеграции
 

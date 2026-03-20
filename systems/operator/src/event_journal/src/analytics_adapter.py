@@ -45,4 +45,3 @@ class AnalyticsAdapter:
         except Exception as exc:
             logger.warning("AnalyticsAdapter: failed to send event: %s", exc)
             return False
-

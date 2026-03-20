@@ -108,6 +108,37 @@ class SecurityMonitor(BaseComponent):
             # Обрабатываем через сервис
             result = await self.service.process_request(enriched_message)
 
+            # Журналируем ВСЕ вердикты: allow/audit/deny.
+            # Не мешаем бизнес-логике: любые ошибки эмиссии глушим.
+            try:
+                severity = (
+                    "security"
+                    if not result.get("allowed", False)
+                    else ("audit" if result.get("audited") else "info")
+                )
+                emit_event(
+                    self.bus,
+                    ComponentTopics.get_event_journal(),
+                    event_type="security_verdict",
+                    severity=severity,
+                    source_component=self.component_type,
+                    payload={
+                        "sender_id": enriched_message.get("sender"),
+                        "sender_role": enriched_message.get("sender_role"),
+                        "action": enriched_message.get("action"),
+                        "target_component": enriched_message.get("target"),
+                        "allowed": result.get("allowed"),
+                        "audited": result.get("audited", False),
+                        "policy": result.get("policy"),
+                        "reason": result.get("reason"),
+                        "details": result.get("details"),
+                        "warning": result.get("warning"),
+                    },
+                    trace_context=trace_context,
+                )
+            except Exception:
+                pass
+
             # Логируем результат
             self._log_with_trace(
                 "info",

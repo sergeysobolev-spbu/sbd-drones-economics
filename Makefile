@@ -1,4 +1,4 @@
-.PHONY: help init unit-test tests docker-up docker-down docker-logs docker-ps docker-clean
+.PHONY: help init unit-test integration-test e2e-test tests docker-up docker-down docker-logs docker-ps docker-clean
 
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
 LOAD_ENV = set -a && . docker/.env && set +a
@@ -7,7 +7,9 @@ PYTEST_CONFIG = config/pyproject.toml
 
 help:
 	@echo "make init              - Установить pipenv и зависимости"
-	@echo "make unit-test         - Unit тесты (SDK + broker + standalone компоненты)"
+	@echo "make tests-unit        - Unit тесты (SDK + broker + standalone компоненты)"
+	@echo "make tests-integration  - Интеграционные тесты (operator, wrapper)"
+	@echo "make tests-e2e           - Сквозные testы (docker shell сценарии)"
 	@echo "make tests             - Все тесты"
 	@echo "make docker-up         - Запустить инфраструктуру брокера"
 	@echo "make docker-down       - Остановить"
@@ -19,13 +21,23 @@ init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
 	PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv install --dev
 
-unit-test:
+tests-unit:
 	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) \
 		tests/unit/ \
 		components/dummy_component/tests/ \
 		-v
 
-tests: unit-test
+tests-integration: tests-unit
+	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) \
+		tests/integration/ \
+		-v
+
+tests-e2e: tests-unit
+	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) \
+		tests/e2e/ \
+		-v
+
+tests: tests-unit tests-integration tests-e2e
 
 docker-up:
 	@test -f docker/.env || cp docker/example.env docker/.env

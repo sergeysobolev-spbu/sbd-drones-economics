@@ -5,7 +5,7 @@
 Поддерживает сквозную трассировку через trace_id, span_id, parent_span_id.
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Callable, Optional
+from typing import Dict, Any, Callable, Optional, Tuple
 import uuid
 import time
 import logging
@@ -168,6 +168,31 @@ class BaseComponent(ABC):
             # Логируем начало обработки
             self._log_with_trace('info', f"Handling action: {action}", handler_context, 
                                action=action, sender=message.get('sender'))
+
+            # SecurityMonitor должен валидировать внутренние request/response цепочки
+            # (сообщения с reply_to, сформированные внутри системы). Внешние запросы
+            # не маркируются флагом `security_internal` и сюда не попадают.
+            if (
+                message.get("reply_to")
+                and message.get("security_internal")
+                and self.component_type != "security_monitor"
+            ):
+                allowed, violations, reason = self._security_validate_internal_request(message)
+                if not allowed:
+                    response = create_response(
+                        correlation_id=message.get("correlation_id"),
+                        payload={
+                            "error": "Security check failed",
+                            "violations": violations or [],
+                            "reason": reason,
+                        },
+                        sender=self.component_id,
+                        success=False,
+                        error="Security check failed",
+                    )
+                    self._inject_trace_context(response, handler_context)
+                    self.bus.publish(message["reply_to"], response)
+                    return
             
             start_time = time.time()
             result = handler(message)
@@ -214,6 +239,50 @@ class BaseComponent(ABC):
                 self._inject_trace_context(response, handler_context)
                 self.bus.publish(message["reply_to"], response)
 
+    def _security_validate_internal_request(
+        self,
+        message: Dict[str, Any],
+        timeout_s: float = 2.0,
+    ) -> Tuple[bool, Optional[Any], Optional[str]]:
+        """
+        Валидируем внутреннее сообщение через SecurityMonitor.
+
+        Возвращает кортеж: (allowed, violations, reason).
+        """
+        try:
+            from systems.operator.src.topics import ComponentTopics, SecurityMonitorActions
+        except Exception:
+            # Если SecurityMonitor не доступен в окружении, не валидируем.
+            return True, None, None
+
+        validate_payload = {
+            # SecurityMonitor сам извлечёт sender/action/payload из request.
+            "request": message,
+            "context": {},
+            "sender_role": message.get("sender_role") or "system",
+            "target_component": self.component_type,
+        }
+
+        validate_message = self.create_message(
+            action=SecurityMonitorActions.VALIDATE_REQUEST,
+            payload=validate_payload,
+            trace_context=None,
+        )
+
+        response = self.bus.request(ComponentTopics.get_security_monitor(), validate_message, timeout=timeout_s)
+        if not response:
+            return False, None, "Security monitor unavailable"
+
+        payload = response.get("payload") or {}
+        allowed = bool(payload.get("allowed", False))
+        if allowed:
+            return True, None, None
+
+        # В демо-версии SecurityMonitor может возвращать reason/details/policy.
+        violations = payload.get("violations")
+        reason = payload.get("reason") or payload.get("details") or payload.get("policy")
+        return False, violations, reason
+
     def _handle_ping(self, message: Dict[str, Any]) -> Dict[str, Any]:
         return {"pong": True, "component_id": self.component_id}
 
@@ -229,12 +298,18 @@ class BaseComponent(ABC):
     def create_message(self, action: str, payload: Dict[str, Any], 
                       trace_context: Optional[TraceContext] = None) -> Dict[str, Any]:
         """Создать сообщение с контекстом трассировки"""
+        sender_role = "admin" if self.component_type == "operator_system" else "system"
         message = {
             'action': action,
             'payload': payload,
             'sender': self.component_id,
+            'sender_role': sender_role,
             'timestamp': time.time()
         }
+
+        # Флаг маркирует сообщение как внутреннее для целей security-monitor валидатора.
+        # Внешние запросы (агрегатор/клиенты) флаг обычно не содержат.
+        message["security_internal"] = True
         
         if trace_context and self.enable_tracing:
             # Создаем дочерний span для исходящего сообщения
