@@ -7,10 +7,6 @@ WORKDIR /app
 COPY systems/operator/src/ ./systems/operator/src/
 COPY systems/operator/__init__.py ./systems/operator/__init__.py
 
-# Копирование SDK и broker (из корня репозитория)
-COPY sdk/ ./sdk/
-COPY broker/ ./broker/
-
 # Установка переменных окружения по умолчанию
 ENV COMPONENT_TYPE=operator_system
 ENV COMPONENT_ID=operator-01

@@ -5,6 +5,12 @@ WORKDIR /app
 # Python зависимости (единый слой для всех компонентов Эксплуатанта)
 COPY systems/operator/requirements.runtime.txt ./requirements.runtime.txt
 COPY systems/operator/requirements.kafka.txt ./requirements.kafka.txt
+
+# Копирование SDK и broker (из корня репозитория)
+COPY sdk/ ./sdk/
+COPY shared/ ./shared/
+COPY broker/ ./broker/
+
 RUN pip install --no-cache-dir -r requirements.runtime.txt
 ARG INSTALL_KAFKA=0
 RUN if [ "$INSTALL_KAFKA" = "1" ]; then pip install --no-cache-dir -r requirements.kafka.txt; fi

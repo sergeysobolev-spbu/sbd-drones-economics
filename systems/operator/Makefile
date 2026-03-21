@@ -184,7 +184,7 @@ dev-run: ensure-venv ## Запустить систему в режиме раз
 	cd ../../ && COMPONENT_TYPE=operator_system COMPONENT_ID=operator-01 $(PYTHON) -m systems.operator.src.run_component
 
 dev-monitor: ensure-venv ## Запустить монитор безопасности отдельно
-	COMPONENT_TYPE=security_monitor COMPONENT_ID=security-01 $(PYTHON) -m systems.operator.src.run_component
+	cd ../../ && COMPONENT_TYPE=security_monitor COMPONENT_ID=security-01 $(PYTHON) -m systems.operator.src.run_component
 
 # Проверка качества кода
 

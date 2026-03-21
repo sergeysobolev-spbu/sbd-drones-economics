@@ -45,7 +45,7 @@ class SecurityMonitor(BaseComponent):
         )
 
         # Инициализируем подкомпоненты
-        self.core = SecurityMonitorCore()
+        self.core = SecurityMonitorCore(component_id=component_id)
         self.service = SecurityMonitorService(self.core)
 
         # Настройка логирования

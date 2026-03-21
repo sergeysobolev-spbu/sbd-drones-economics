@@ -8,10 +8,11 @@ Security Monitor Core - Доверенный домен D0_CRITICAL
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+import uuid
 import time
 import hashlib
 import json
-
+import logging
 
 class PolicyResult(Enum):
     """Результат проверки политики"""
@@ -46,6 +47,43 @@ class SecurityContext:
     trace_id: Optional[str] = None
 
 
+class TraceContext:
+    """Контекст трассировки для отслеживания цепочки вызовов"""
+    
+    def __init__(self, trace_id: Optional[str] = None, 
+                 span_id: Optional[str] = None,
+                 parent_span_id: Optional[str] = None):
+        self.trace_id = trace_id or str(uuid.uuid4())
+        self.span_id = span_id or str(uuid.uuid4())
+        self.parent_span_id = parent_span_id
+        self.start_time = time.time()
+    
+    def create_child_span(self) -> 'TraceContext':
+        """Создать дочерний span для вложенной операции"""
+        return TraceContext(
+            trace_id=self.trace_id,
+            span_id=str(uuid.uuid4()),
+            parent_span_id=self.span_id
+        )
+    
+    def to_dict(self) -> Dict[str, str]:
+        """Преобразовать контекст в словарь для передачи в сообщениях"""
+        return {
+            'trace_id': self.trace_id,
+            'span_id': self.span_id,
+            'parent_span_id': self.parent_span_id
+        }
+    
+    @classmethod
+    def from_message(cls, message: Dict[str, Any]) -> 'TraceContext':
+        """Извлечь контекст трассировки из сообщения"""
+        return cls(
+            trace_id=message.get('trace_id'),
+            span_id=message.get('span_id'),
+            parent_span_id=message.get('parent_span_id')
+        )
+
+
 class SecurityMonitorCore:
     """
     Ядро монитора безопасности - минимальный TCB
@@ -56,18 +94,21 @@ class SecurityMonitorCore:
     - Ведение журнала нарушений
     """
 
-    def __init__(self):
+    def __init__(self, component_id):
         """Инициализация ядра монитора безопасности"""
         self.policies = self._load_security_policies()
         self.violations_log: List[PolicyViolation] = []
         self.trusted_components = {
             "fleet_manager",
+            "operator_system",
             "mission_planner",
             "business_logic",
             "security_monitor",
             "regulator_client",
             "developer_client",
         }
+        self.component_id = component_id
+        self.logger = logging.getLogger(f"{self.__class__.__name__}.{component_id}")
 
     def _load_security_policies(self) -> Dict[str, Dict[str, Any]]:
         """Загрузка политик безопасности"""
@@ -180,10 +221,34 @@ class SecurityMonitorCore:
         # Только admin может выполнять критические действия
         return context.sender_role == "admin"
 
+    def _extract_trace_context(self, message: Dict[str, Any]) -> TraceContext:
+        """Извлечь или создать контекст трассировки из сообщения"""
+        if self.enable_tracing:
+            return TraceContext.from_message(message)
+        return TraceContext()
+
+    def _log(self, level: str, message: str, **kwargs):
+        """Логирование с контекстом трассировки"""
+        extra = {
+            'component_id': self.component_id,            
+            **kwargs
+        }
+        
+        if level == 'debug':
+            self.logger.debug(message, extra=extra)
+        elif level == 'info':
+            self.logger.info(message, extra=extra)
+        elif level == 'warning':
+            self.logger.warning(message, extra=extra)
+        elif level == 'error':
+            self.logger.error(message, extra=extra)
+
     def _log_violation(self, violation: PolicyViolation):
         """Логирование нарушения политики"""
         self.violations_log.append(violation)
         # В реальной системе здесь бы была запись в защищенное хранилище
+        self._log("error", violation)
+
 
     def check_rate_limit(self, sender_id: str, action: str, request_history: List[float]) -> Tuple[bool, Optional[str]]:
         """

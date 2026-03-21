@@ -1,4 +1,4 @@
-pyyaml
+pyyaml>=6.0.3
 
 # Testing
 pytest>=7.4.0

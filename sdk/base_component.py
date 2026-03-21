@@ -36,7 +36,7 @@ class TraceContext:
         )
     
     def to_dict(self) -> Dict[str, str]:
-        """��реобразовать контекст в словарь для передачи в сообщениях"""
+        """Преобразовать контекст в словарь для передачи в сообщениях"""
         return {
             'trace_id': self.trace_id,
             'span_id': self.span_id,
