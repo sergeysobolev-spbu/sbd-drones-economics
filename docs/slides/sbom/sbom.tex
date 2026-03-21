@@ -1,0 +1,1010 @@
+% !TeX program = xelatex
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usepackage{polyglossia}
+\setdefaultlanguage{russian}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,shapes.geometric}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{ragged2e}
+\usepackage{makecell}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{caption}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue
+}
+
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{210,210,210}
+\definecolor{darkgreen}{RGB}{0,110,0}
+\definecolor{darkblue}{RGB}{0,60,140}
+
+\lstdefinelanguage{PlantUML}{
+  morekeywords={
+    @startuml,@enduml,title,actor,participant,database,rectangle,component,node,
+    artifact,cloud,folder,package,frame,queue,collections,note,left,right,of,as,
+    start,stop,if,then,else,endif,repeat,while,endwhile,skinparam
+  },
+  sensitive=false,
+  morecomment=[l]',
+  morestring=[b]"
+}
+
+\lstset{
+  language=PlantUML,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{darkblue}\bfseries,
+  commentstyle=\color{darkgreen},
+  stringstyle=\color{red!60!black},
+  breaklines=true,
+  columns=fullflexible,
+  frame=single,
+  rulecolor=\color{codeframe},
+  backgroundcolor=\color{codebg},
+  showstringspaces=false,
+  tabsize=2
+}
+\input{lk-theme.tex}
+
+% Кириллица в Beamer/TikZ: явные шрифты Unicode (иначе LM Sans без кириллицы в узлах)
+\IfFontExistsTF{DejaVu Sans}{%
+  \setsansfont{DejaVu Sans}%
+  \setmainfont{DejaVu Serif}%
+  \setmonofont{DejaVu Sans Mono}%
+  \newfontfamily\cyrillicfont{DejaVu Serif}%
+  \newfontfamily\cyrillicfontsf{DejaVu Sans}%
+  \newfontfamily\cyrillicfonttt{DejaVu Sans Mono}%
+}{%
+  \setsansfont{Latin Modern Sans}%
+  \setmainfont{Latin Modern Roman}%
+  \setmonofont{Latin Modern Mono}%
+}
+\usefonttheme{professionalfonts}
+
+% Пути к рисункам (сборка из каталога docs/slides/sbom или с -output-directory)
+\graphicspath{{images/}{./images/}{docs/slides/sbom/images/}}
+
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+
+\title[SBOM]{Методически корректное формирование SBOM}
+\subtitle{Подход, процессы, контроль качества и интеграция в жизненный цикл ПО}
+\author[Методика SBOM]{Презентация для методического и практического использования}
+\date{\today\quad(ГОСТ~Р~72118-2025, TARA, ДВБ)}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{План выступления}
+\tableofcontents
+\end{frame}
+
+\section{Зачем нужен SBOM}
+
+\begin{frame}{Почему тема SBOM стала обязательной}
+\begin{itemize}
+  \item Рост числа атак на цепочку поставки ПО.
+  \item Повышение требований заказчиков, регуляторов и аудита.
+  \item Необходимость быстро отвечать на вопросы:
+  \begin{itemize}
+    \item что входит в поставку;
+    \item где используется уязвимый компонент;
+    \item какие лицензии и обязательства применимы.
+  \end{itemize}
+  \item Переход от инвентаризации «по памяти команды» к формальному артефакту.
+\end{itemize}
+
+\begin{block}{Ключевая мысль}
+SBOM — это не выгрузка из сканера, а управляемый артефакт жизненного цикла продукта.
+\end{block}
+\end{frame}
+
+\begin{frame}{Что такое SBOM}
+\begin{block}{Определение}
+SBOM (Software Bill of Materials) — это формализованный машиночитаемый перечень компонентов, входящих в программный продукт, сборку, образ, пакет или поставку.
+\end{block}
+
+\begin{itemize}
+  \item отражает состав продукта;
+  \item фиксирует версии и зависимости;
+  \item обеспечивает прослеживаемость происхождения компонентов;
+  \item служит входом для процессов безопасности, лицензирования и аудита.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Каким должен быть корректный SBOM}
+\begin{table}
+\footnotesize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2.7cm}Y}
+\toprule
+Свойство & Пояснение \\
+\midrule
+Полный & Охватывает все значимые компоненты поставки, а не только прямые зависимости. \\
+Прослеживаемый & Позволяет понять источник данных: манифест, lock-файл, бинарный анализ, контейнер, реестр артефактов. \\
+Актуальный & Привязан к конкретной сборке, релизу, образу или поставке. \\
+Машиночитаемый & Представлен в стандартном формате и пригоден для автоматической обработки. \\
+Повторяемый & Для одинакового процесса и одинакового входа дает воспроизводимый результат. \\
+Проверяемый & Допускает валидацию схемы, полноты, идентификации и качества. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+\begin{frame}{Основные цели формирования SBOM}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{block}{Безопасность}
+\begin{itemize}
+  \item поиск уязвимых компонентов;
+  \item реакция на CVE;
+  \item мониторинг цепочки поставки;
+  \item поддержка VEX.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{block}{Управление и комплаенс}
+\begin{itemize}
+  \item лицензионный контроль;
+  \item выполнение контрактных требований;
+  \item аудит релизов;
+  \item унификация релизного процесса.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+
+\begin{alertblock}{Практический вывод}
+Методика построения SBOM зависит от цели. Если цель не определена, артефакт быстро теряет практическую ценность.
+\end{alertblock}
+\end{frame}
+
+\section{Объект учета и границы}
+
+\begin{frame}{Для чего именно формируется SBOM}
+\begin{itemize}
+  \item для исходного проекта;
+  \item для конкретной сборки;
+  \item для контейнерного образа;
+  \item для инсталляционного пакета;
+  \item для встроенного ПО;
+  \item для комплексного решения из нескольких сервисов.
+\end{itemize}
+
+\begin{block}{Что должно быть зафиксировано методически}
+Единица учета, границы состава, уровень детализации, момент формирования и ответственный за выпуск.
+\end{block}
+\end{frame}
+
+\begin{frame}{Типовые вопросы, которые надо решить заранее}
+\begin{itemize}
+  \item Включать ли транзитивные зависимости?
+  \item Нужно ли учитывать компоненты базового контейнерного образа?
+  \item Нужно ли включать системные пакеты ОС?
+  \item Включать ли плагины, скрипты, модели, данные конфигурации?
+  \item Нужно ли отражать инструменты сборки?
+  \item Как учитывать внутренние проприетарные модули и форки?
+\end{itemize}
+
+\begin{alertblock}{Риск}
+Если границы состава не формализованы, разные команды начнут выпускать несопоставимые SBOM.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Типы SBOM по моменту формирования}
+\begin{table}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2.2cm}p{2.85cm}Y}
+\toprule
+Тип & Источник & Для чего полезен \\
+\midrule
+Design-time &
+\makecell[tl]{Манифесты, lock-файлы,\\описание проекта} &
+Анализ заявленных зависимостей на стадии разработки. \\
+Build-time &
+\makecell[tl]{Сборка, пакеты, артефакты,\\контейнерные слои} &
+Фиксация того, что реально вошло в сборку и релиз. \\
+Runtime / Deployed &
+\makecell[tl]{Среда исполнения, контейнер,\\ОС-пакеты} &
+Проверка фактически развёрнутого состояния и дрейфа от релиза. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{block}{Рекомендуемый подход}
+Минимум — иметь build-time SBOM, а для зрелой практики дополнять его design-time и runtime.
+\end{block}
+\end{frame}
+
+\section{Стандарты и источники данных}
+
+\begin{frame}{Сравнение форматов: SPDX и CycloneDX}
+\begin{table}
+\tiny
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{1.55cm}Y Y Y}
+\toprule
+Формат & Сильные стороны & Когда выбирать & Ограничения \\
+\midrule
+SPDX &
+\makecell[tl]{Зрелый стандарт; сильная\\лицензионная модель} &
+\makecell[tl]{Юридический и лицензионный\\учёт; обмен с заказчиком} &
+\makecell[tl]{В части DevSecOps-сценариев\\менее удобен, чем CycloneDX} \\
+CycloneDX &
+\makecell[tl]{Удобен для безопасности,\\зависимостей, контейнеров, VEX} &
+\makecell[tl]{DevSecOps; уязвимости; CI/CD} &
+\makecell[tl]{Нужна дисциплина по ID\\и метаданным} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\begin{frame}{Сравнение форматов: SWID}
+\begin{table}
+\footnotesize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{1.8cm}Y Y Y}
+\toprule
+Формат & Сильные стороны & Когда выбирать & Ограничения \\
+\midrule
+SWID &
+\makecell[tl]{Учёт установленного ПО\\в корпоративных сценариях} &
+\makecell[tl]{Специализированные\\корпоративные контуры} &
+\makecell[tl]{Реже — основной формат SBOM} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\vspace{0.4em}
+\footnotesize
+Выбор формата закрепляют в политике; при необходимости допускают два формата (например SPDX + CycloneDX) для разных контуров.
+\end{frame}
+
+\begin{frame}{Из каких источников должен строиться SBOM}
+\begin{table}
+\scriptsize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.0cm}Y}
+\toprule
+Источник & Примеры \\
+\midrule
+Манифесты зависимостей & pom.xml, package-lock.json, requirements.txt, poetry.lock, go.mod, Cargo.lock. \\
+Сборочная система & Maven, Gradle, npm, pip, Poetry, Go, Cargo, Bazel. \\
+Бинарный анализ & Сканирование библиотек, архивов, jar, dll, so, исполняемых файлов. \\
+Контейнерный анализ & Образы, слои, базовые образы, ОС-пакеты внутри контейнера. \\
+Реестр артефактов & Репозитории пакетов, контейнерные регистри, хранилища релизов. \\
+Ручное подтверждение & Внутренние компоненты, форки, подрядные модули, патченные сборки. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{alertblock}{Правильный принцип}
+Нужно учитывать не только то, что заявлено в проекте, но и то, что реально попало в поставку.
+\end{alertblock}
+\end{frame}
+
+\section{ГОСТ Р 72118-2025, TARA и доверенная вычислительная база}
+
+\begin{frame}{ГОСТ Р 72118-2025: официальное издание (по PDF)}
+\footnotesize
+\textbf{Полное наименование:} Защита информации. Системы с конструктивной информационной безопасностью. \textbf{Методология разработки} (ГОСТ Р 72118---2025).
+
+\vspace{0.25em}
+\begin{itemize}
+  \setlength{\itemsep}{0.15em}
+  \item \textbf{Разработан:} ФСТЭК России; ФАУ «ГНИИИ ПТЗИ ФСТЭК России»; АО «Лаборатория Касперского»; ИСП РАН.
+  \item \textbf{Внесён:} ТК~362 «Защита информации».
+  \item \textbf{Утверждён и введён в действие:} Приказ Росстандарта от 6~июня~2025~г. №~539-ст (издание официальное, 2025).
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Проект стандарта (DOCX) и связь с SBOM}
+
+\vspace{0.35em}
+\textbf{Связь с SBOM} (инженерная интерпретация для поставки ПО):
+\begin{itemize}
+  \setlength{\itemsep}{0.15em}
+  \item Стандарт задаёт \textbf{методологию СКИБ} и опирается на требования по ЖЦ (ГОСТ~Р~57193-2016) и на \textbf{безопасную разработку ПО} (ГОСТ~Р~56939) — SBOM фиксирует \textbf{фактический состав} компонентов, подпадающих под эти процессы.
+  \item Для обоснования \textbf{целей безопасности} и снижения последствий угроз (в т.\,ч.\ эксплуатация уязвимостей) важны уменьшение поверхности атаки и контроль связей между элементами — \textbf{прозрачный SBOM} это поддерживает.
+  \item Форматы CycloneDX/SPDX остаются практической основой машиночитаемого SBOM; ГОСТ определяет \textbf{организационно-методический контекст} применения.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Термины ГОСТ Р 72118-2025 (§\,3, часть 1)}
+\scriptsize
+\begin{description}
+  \setlength{\itemsep}{0.1em}
+  \item[СКИБ] система с конструктивной ИБ (достигнутой конструктивными подходами).
+  \item[ЦБ] намерение обеспечить заданные характеристики безопасности; проверяемость по критериям.
+  \item[ПБ] ограничения и допущения среды, дополняющие ЦБ.
+\end{description}
+\end{frame}
+
+\begin{frame}{Термины ГОСТ Р 72118-2025 (§\,3, часть 2)}
+\scriptsize
+\begin{description}
+  \setlength{\itemsep}{0.1em}
+  \item[Доверенная система] обоснованное соответствие ЦБ при выполнении ПБ (доверенным может быть элемент).
+  \item[Конструктивный подход] свойства безопасности закладываются при создании, с замысла (архитектура, шаблоны).
+\end{description}
+\vspace{0.35em}
+\footnotesize \textbf{ДВБ} на слайдах — инженерный аналог минимального доверенного набора компонентов (см. доверенную систему в стандарте).
+\end{frame}
+
+\begin{frame}{Методология СКИБ и ЖЦ (§\,5): процессы}
+\footnotesize
+Методология СКИБ встраивается в модель ЖЦ (ГОСТ~Р~72118-2025) и охватывает процессы:
+\begin{itemize}
+  \setlength{\itemsep}{0.08em}
+  \item планирование; анализ бизнеса\/назначения; требования заинтересованных сторон;
+  \item \textbf{системные требования}; \textbf{архитектура}; проект; системный анализ;
+  \item \textbf{реализация}; комплексирование; гарантия качества; \textbf{верификация}; \textbf{валидация}.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Методология СКИБ: где SBOM}
+\footnotesize
+\begin{itemize}
+  \setlength{\itemsep}{0.15em}
+  \item При \textbf{реализации и комплексировании} SBOM фиксирует фактический состав поставляемого ПО.
+  \item На \textbf{верификации и валидации} SBOM сопоставляют с требованиями, ЦБ доменов и результатами анализа уязвимостей.
+  \item Параллельно с \textbf{системной инженерией} цели SBOM (полнота, границы, форматы) задаются на уровне политики и трассируются к ЦБ.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Трассировка: моделирование угроз $\rightarrow$ цели $\rightarrow$ ДВБ $\rightarrow$ SBOM}
+\footnotesize
+\textbf{TARA} задаёт сценарии и пути атаки к активам. В терминологии ГОСТ~Р~72118-2025 \textbf{цели безопасности (ЦБ)} формализуют намерение по защите; \textbf{предположения безопасности (ПБ)} задают контекст среды. \textbf{ДВБ} здесь — инженерное обозначение минимального доверенного набора ПО/аппаратуры (см. также «доверенная система» в стандарте). SBOM описывает \textbf{фактический состав} компонентов внутри и на границе доверия.
+
+\vspace{0.25em}
+\centering
+\begin{tikzpicture}[
+  font=\scriptsize,
+  node distance=0.35cm,
+  box/.style={rectangle, draw=KaspGreen!80!black, thick, rounded corners=2pt, align=center, inner sep=3pt, minimum height=0.85cm},
+  arr/.style={-{Stealth[length=1.8mm]}, thick, KaspGreen}
+]
+\node[box, fill=KaspLight] (t) {TARA:\\угрозы, риски};
+\node[box, right=0.45cm of t, fill=white] (g) {ЦБ\\(ГОСТ)};
+\node[box, right=0.45cm of g, fill=white] (d) {Граница\\ДВБ};
+\node[box, right=0.45cm of d, fill=KaspLight] (s) {SBOM:\\состав ПО};
+\draw[arr] (t) -- (g);
+\draw[arr] (g) -- (d);
+\draw[arr] (d) -- node[above=1pt, font=\tiny] {обоснование} (s);
+\end{tikzpicture}
+
+\vspace{0.35em}
+\raggedright
+\textbf{Смысл:} без SBOM сложно проверить, что \textbf{реализованная} ДВБ совпадает с \textbf{спроектированной}; без TARA и целей SBOM остаётся «паспортом без адреса».
+\end{frame}
+
+\begin{frame}{ДВБ и граница доверия: зачем SBOM}
+\small
+\begin{itemize}
+  \setlength{\itemsep}{0.2em}
+  \item \textbf{ДВБ (TCB)} — подмножество системы, от которого зависит соблюдение политики безопасности; всё вне границы считается ненадёжным или внешним.
+  \item SBOM позволяет: (1) перечислить компоненты внутри доверия; (2) отследить \textbf{транзитивные зависимости}, которые тоже входят в зону ответственности; (3) при угрозе на цепочку поставок — сопоставить CVE с \textbf{конкретной версией} в поставке.
+  \item \textbf{Моделирование угроз} указывает, какие компоненты критичны для пути атаки; SBOM подтверждает их наличие и версии в артефакте.
+\end{itemize}
+
+\vspace{0.35em}
+\centering
+\begin{tikzpicture}[
+  font=\scriptsize,
+  comp/.style={rectangle, draw, rounded corners=2pt, inner sep=2pt, minimum height=0.55cm},
+  arr/.style={-{Stealth[length=1.5mm]}, thick}
+]
+\node[ellipse, draw=KaspGreen, thick, minimum width=6.8cm, minimum height=2.8cm, fill=KaspLight] (zone) {};
+\node[anchor=north west, font=\tiny] at (zone.north west) {Доверенная зона (концепция)};
+\node[comp, fill=white] at (zone.center) {Компоненты по SBOM (библиотеки, модули, ОС-пакеты)};
+\node[comp, fill=orange!15] at ([yshift=-0.55cm]zone.center) {Критичные элементы по TARA};
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Совмещение с жизненным циклом (схема)}
+\centering
+\begin{tikzpicture}[
+  font=\tiny,
+  node distance=0.25cm,
+  box/.style={rectangle, draw, align=center, inner sep=2pt, minimum height=0.62cm},
+  arr/.style={-{Stealth[length=1.4mm]}, thick}
+]
+\node[box, fill=blue!8] (req) {Требования и\\ЦБ};
+\node[box, right=0.4cm of req, fill=purple!8] (tara) {TARA};
+\node[box, right=0.4cm of tara, fill=green!10] (arch) {Архитектура,\\ДВБ};
+\node[box, right=0.4cm of arch, fill=yellow!10] (sbom) {SBOM в CI/CD};
+\node[box, right=0.4cm of sbom, fill=red!8] (vex) {Уязвимости,\\VEX};
+\draw[arr] (req) -- (tara);
+\draw[arr] (tara) -- (arch);
+\draw[arr] (arch) -- (sbom);
+\draw[arr] (sbom) -- (vex);
+\end{tikzpicture}
+
+\vspace{0.45em}
+\raggedright
+\footnotesize
+По §\,5.7--5.8 ГОСТ~Р~72118-2025 выбор конструктивных подходов должен \textbf{упрощать обоснование ЦБ}, в т.\,ч.\ за счёт учёта угроз, уязвимостей и снижения поверхности атаки; SBOM обеспечивает \textbf{проверяемый состав} ПО на выходе реализации и при анализе уязвимостей (VEX и др.).
+\end{frame}
+
+\section{Целеполагание SBOM и системная инженерия}
+
+\begin{frame}{Анализ контекста и границы системы}
+\footnotesize
+\begin{itemize}
+  \setlength{\itemsep}{0.18em}
+  \item В \textbf{системной инженерии} (ЖЦ по ГОСТ~Р~57193 / ISO~15288) система определяется через \textbf{анализ контекста}: заинтересованные стороны, внешняя среда, границы, допущения и ограничения — это согласуется с \textbf{предположениями безопасности (ПБ)} в ГОСТ~Р~72118-2025.
+  \item \textbf{Целеполагание SBOM:} границы учёта компонентов (продукт, сервис, образ, прошивка) задаются не «по умолчанию», а из контекста и архитектурного разбиения.
+  \item Анализ контекста показывает, какие \textbf{домены} (данные, каналы, ОС, OTA, облако партнёра) нужно выделять для отдельных SBOM и отдельных ЦБ.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{ЦБ верхнего уровня и ЦБ подсистем / доменов}
+\footnotesize
+\begin{itemize}
+  \setlength{\itemsep}{0.15em}
+  \item \textbf{ЦБ верхнего уровня} формулируются для системы\/изделия в целом (например целостность критических функций, защита ПДн).
+  \item \textbf{ЦБ подсистем и доменов безопасности} уточняют те же намерения для границ: бортовой шлюз, телематика, контейнер приложения, сегмент сети — с отдельным TARA\/риском по контуру.
+  \item SBOM привязывают к \textbf{объекту учёта}: системный SBOM, SBOM сервиса, SBOM образа домена — с трассировкой к соответствующей ЦБ и к релизу.
+\end{itemize}
+
+\vspace{0.35em}
+\centering
+\begin{tikzpicture}[
+  font=\tiny,
+  box/.style={rectangle, draw=KaspGreen!75!black, rounded corners=2pt, align=center, inner sep=2pt, minimum height=0.55cm, text width=2.6cm}
+]
+\node[box, fill=KaspLight] (sys) {ЦБ системы\\(верхний уровень)};
+\node[box, below left=0.45cm and -0.2cm of sys, fill=white] (a) {Домен A\\\scriptsize ЦБ$_A$ + SBOM$_A$};
+\node[box, below=0.45cm of sys, fill=white] (b) {Домен B\\\scriptsize ЦБ$_B$ + SBOM$_B$};
+\node[box, below right=0.45cm and -0.2cm of sys, fill=white] (c) {Домен C\\\scriptsize ЦБ$_C$ + SBOM$_C$};
+\draw[->, thick, KaspGreen] (sys) -- (a);
+\draw[->, thick, KaspGreen] (sys) -- (b);
+\draw[->, thick, KaspGreen] (sys) -- (c);
+\end{tikzpicture}
+\end{frame}
+
+\begin{frame}{Трассировка: контекст $\rightarrow$ ЦБ $\rightarrow$ политика SBOM}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2.2cm}Y}
+\toprule
+Этап & Что фиксируют \\
+\midrule
+Контекст &
+\makecell[tl]{Среда, интерфейсы, допущения;\\что в поставке и что внешнее} \\
+ЦБ верхнего уровня &
+\makecell[tl]{Намерения по ИБ для системы;\\вход к разбиению на домены} \\
+ЦБ доменов &
+\makecell[tl]{Уточнённые ЦБ и TARA по контуру;\\критичные компоненты} \\
+Политика SBOM &
+\makecell[tl]{Формат, глубина зависимостей, SBOM по доменам;\\привязка к сборке} \\
+\bottomrule
+\end{tabularx}
+
+\vspace{0.35em}
+\raggedright
+\footnotesize
+\textbf{Итог:} SBOM подтверждает \textbf{состав}, согласованный с инженерной декомпозицией и иерархией ЦБ; без этого состав «плавает» относительно модели угроз и ответственности.
+\end{frame}
+
+\section{Состав и идентификация компонентов}
+
+\begin{frame}{Минимальный состав сведений о продукте}
+\begin{table}
+\footnotesize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.3cm}Y}
+\toprule
+Поле & Что должно быть указано \\
+\midrule
+Наименование продукта & Человеко-читаемое имя продукта, сервиса, пакета или образа. \\
+Версия & Версия релиза, тега контейнера или поставки. \\
+Поставщик / производитель & Организация-владелец или вендор. \\
+Уникальный идентификатор & Внутренний ID, bom-ref, SPDXID или иной устойчивый идентификатор. \\
+Дата формирования & Момент генерации SBOM. \\
+Формат и версия схемы & Например, CycloneDX 1.5 или SPDX 2.3. \\
+Связь с релизом & Коммит, build ID, digest контейнера, release tag. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\begin{frame}{Минимальный состав сведений о компоненте}
+\begin{table}
+\scriptsize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.1cm}Y}
+\toprule
+Поле & Назначение \\
+\midrule
+Имя компонента & Название пакета или модуля. \\
+Версия & Точная версия, а не «2.x». \\
+Тип компонента & Библиотека, контейнер, ОС-пакет, модуль, приложение, фреймворк и т.д. \\
+Поставщик / автор & Если известен. \\
+Идентификатор & purl, CPE, SWID, внутренний идентификатор. \\
+Контрольная сумма & Хэш бинарного артефакта или пакета. \\
+Лицензия & SPDX-идентификатор, выражение лицензии, собственная лицензия. \\
+Зависимости & Связи с родительскими и дочерними компонентами. \\
+Статус включения & Прямая или транзитивная зависимость. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\begin{frame}{Идентификация компонентов: что использовать и зачем}
+\begin{table}
+\tiny
+\setlength{\tabcolsep}{2.5pt}
+\renewcommand{\arraystretch}{1.08}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{1.65cm}p{3.35cm}Y}
+\toprule
+ID & Пример & Зачем \\
+\midrule
+purl &
+\makecell[tl]{\texttt{pkg:maven/org.apache.}\\\texttt{logging.log4j/log4j-core@2.20.0}} &
+Унифицированная идентификация пакетов для автоматизации. \\
+CPE &
+\makecell[tl]{\texttt{cpe:2.3:a:apache:log4j:}\\\texttt{2.20.0:*:*:*:*:*:*:*}} &
+Сопоставление с частью баз уязвимостей. \\
+SWID & Тег SWID & Учёт установленного ПО (ниши). \\
+Хэш & SHA-256 файла или образа & Фиксация конкретного бинарного объекта. \\
+Внутр.\,ID & \texttt{com.company.platform.auth-lib} & Собственные модули и форки. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{block}{Практика}
+Базовый набор для большинства организаций: purl + версия + хэш + внутренний идентификатор при необходимости.
+\end{block}
+\end{frame}
+
+\begin{frame}{Отдельно учитывать внутренние и модифицированные компоненты}
+\begin{itemize}
+  \item собственные модули разработки;
+  \item форки сторонних проектов;
+  \item локально патченные библиотеки;
+  \item переупакованные зависимости;
+  \item компоненты, полученные от подрядчиков;
+  \item компоненты без публичного реестра пакетов.
+\end{itemize}
+
+\begin{alertblock}{Типичная ошибка}
+SBOM хорошо описывает open source-зависимости, но не отражает наиболее критичную внутреннюю часть продукта.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{Политика включения зависимостей}
+\begin{table}
+\footnotesize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3cm}Y}
+\toprule
+Категория & Рекомендация \\
+\midrule
+Прямые зависимости & Обязательны всегда. \\
+Транзитивные зависимости & Обязательны, если реально входят в поставку или сборку. \\
+Компоненты контейнерной базы & Обязательны для контейнерных поставок. \\
+Системные пакеты ОС & Включать, если они поставляются вместе с образом или устройством. \\
+Инструменты сборки & Обычно не включать в продуктовый SBOM, но можно учитывать в отдельном build-контуре. \\
+Плагины, скрипты, модели & Включать, если они являются частью поставки или существенно влияют на поведение продукта. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\section{Автоматизация и CI/CD}
+
+\begin{frame}[fragile]{Диаграмма CI/CD: исходник PlantUML}
+\textbf{Файл:} \texttt{images/sbom-cicd.puml}
+
+\vspace{0.4em}
+
+\lstinputlisting{images/sbom-cicd.puml}
+\end{frame}
+
+\begin{frame}{Диаграмма CI/CD: рендер и ссылка на PNG}
+\begin{center}
+\includegraphics[width=0.92\textwidth,height=0.72\textheight,keepaspectratio]{images/sbom-cicd.png}
+\end{center}
+
+\small
+\textbf{PNG:} \href{run:images/sbom-cicd.png}{\texttt{images/sbom-cicd.png}}
+\end{frame}
+
+\begin{frame}{Как правильно встроить SBOM в CI/CD}
+\begin{enumerate}
+  \item Разработчик фиксирует зависимости и версии.
+  \item Pipeline получает исходный код и сборочные метаданные.
+  \item Генератор SBOM собирает данные из манифестов, lock-файлов, бинарных артефактов и контейнеров.
+  \item Выполняется валидация схемы и контроль качества.
+  \item SBOM подписывается и публикуется вместе с артефактом.
+  \item Запускаются проверки безопасности, лицензий и политики поставки.
+\end{enumerate}
+
+\begin{block}{Лучший момент формирования}
+Во время сборки релизного артефакта или контейнерного образа, а не постфактум вручную.
+\end{block}
+\end{frame}
+
+\section{Качество, валидация и актуализация}
+
+\begin{frame}{Контроль качества SBOM (1/2)}
+\begin{table}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2.9cm}Y}
+\toprule
+Проверка & Смысл \\
+\midrule
+Схема & CycloneDX/SPDX; проходит валидацию \\
+Полнота & Нет явно пропущенных групп компонентов \\
+Версии & У критичных — точные версии \\
+Идентификаторы & purl, CPE, хэши, внутренние ID \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\begin{frame}{Контроль качества SBOM (2/2)}
+\begin{table}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2.9cm}Y}
+\toprule
+Проверка & Смысл \\
+\midrule
+Зависимости & Иерархия и связи корректны \\
+Лицензии & Заполнены и нормализованы по возможности \\
+Без дублей & Один компонент — однозначное описание \\
+Прослеживаемость & Связь с build ID, образом, релизом \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\begin{frame}{Метрики качества SBOM (1/2)}
+\begin{table}
+\scriptsize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.1cm}Y}
+\toprule
+Метрика & Интерпретация \\
+\midrule
+Доля с точной версией & Пригодность для анализа уязвимостей \\
+Доля с purl & Автосопоставление пакетов \\
+Доля с лицензией & Лицензионный контроль \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\begin{frame}{Метрики качества SBOM (2/2)}
+\begin{table}
+\scriptsize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3.1cm}Y}
+\toprule
+Метрика & Интерпретация \\
+\midrule
+Доля с хэшем & Подтверждение бинарных артефактов \\
+Неидентифицированные & Ручной разбор и доработка процесса \\
+Покрытие слоёв / ОС & Корректность контейнерных поставок \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\begin{frame}{Правила актуализации и версионности}
+\begin{itemize}
+  \item SBOM всегда должен быть привязан к конкретному состоянию продукта.
+  \item Изменился состав поставки — требуется перевыпуск SBOM.
+  \item Нужно хранить связки:
+  \begin{itemize}
+    \item SBOM $\leftrightarrow$ релиз;
+    \item SBOM $\leftrightarrow$ коммит;
+    \item SBOM $\leftrightarrow$ контейнерный digest;
+    \item SBOM $\leftrightarrow$ поставка заказчику.
+  \end{itemize}
+  \item Предыдущие версии должны сохраняться для аудита и расследований.
+\end{itemize}
+\end{frame}
+
+\section{Доверие, подписание и защита}
+
+\begin{frame}[fragile]{Диаграмма доверия и публикации: исходник PlantUML}
+\textbf{Файл:} \texttt{images/sbom-trust.puml}
+
+\vspace{0.4em}
+
+\lstinputlisting{images/sbom-trust.puml}
+\end{frame}
+
+\begin{frame}{Диаграмма доверия и публикации: рендер и ссылка на PNG}
+\begin{center}
+\includegraphics[width=0.92\textwidth,height=0.72\textheight,keepaspectratio]{images/sbom-trust.png}
+\end{center}
+
+\small
+\textbf{PNG:} \href{run:images/sbom-trust.png}{\texttt{images/sbom-trust.png}}
+\end{frame}
+\begin{frame}{Почему SBOM нужно подписывать и защищать}
+\begin{itemize}
+  \item SBOM участвует в цепочке доверия поставки.
+  \item Он должен быть защищен от подмены, потери или несанкционированного редактирования.
+  \item Подпись и контроль целостности повышают доверие заказчика и аудитора.
+  \item Хранилище SBOM должно обеспечивать:
+  \begin{itemize}
+    \item разграничение доступа;
+    \item неизменяемость опубликованных релизных артефактов;
+    \item журналирование операций;
+    \item связь с релизными метаданными.
+  \end{itemize}
+\end{itemize}
+
+\begin{block}{Минимум}
+Подпись, хэш, доверенный репозиторий и трассировка, кто и когда сформировал документ.
+\end{block}
+\end{frame}
+
+\section{Связь с уязвимостями и VEX}
+
+\begin{frame}[fragile]{Диаграмма SBOM и VEX: исходник PlantUML}
+\textbf{Файл:} \texttt{images/sbom-vex.puml}
+
+\vspace{0.4em}
+
+\lstinputlisting{images/sbom-vex.puml}
+\end{frame}
+
+\begin{frame}{Диаграмма SBOM и VEX: рендер и ссылка на PNG}
+\begin{center}
+\includegraphics[width=0.92\textwidth,height=0.72\textheight,keepaspectratio]{images/sbom-vex.png}
+\end{center}
+
+\small
+\textbf{PNG:} \href{run:images/sbom-vex.png}{\texttt{images/sbom-vex.png}}
+\end{frame}
+
+\begin{frame}{Почему нельзя смешивать SBOM и выводы об эксплуатируемости}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\begin{block}{SBOM отвечает}
+\begin{itemize}
+  \item что входит в продукт;
+  \item какие есть версии;
+  \item каковы зависимости;
+  \item какие идентификаторы и лицензии задействованы.
+\end{itemize}
+\end{block}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{VEX / анализ уязвимостей отвечает}
+\begin{itemize}
+  \item затрагивает ли CVE конкретный продукт;
+  \item достижима ли уязвимая функция;
+  \item сработают ли компенсирующие меры;
+  \item требуется ли обновление.
+\end{itemize}
+\end{block}
+\end{column}
+\end{columns}
+
+\begin{alertblock}{Методический принцип}
+SBOM — это состав. VEX — это интерпретация применимости уязвимости к продукту.
+\end{alertblock}
+\end{frame}
+
+\section{Роли и методика}
+
+\begin{frame}{Роли и ответственность}
+\begin{table}
+\scriptsize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{3cm}Y}
+\toprule
+Роль & Ответственность \\
+\midrule
+Разработка & Корректность описания зависимостей, внутренних модулей, форков, патчей. \\
+DevOps / CI/CD & Автоматическая генерация, публикация, контроль прохождения pipeline. \\
+Информационная безопасность & Требования к полноте, идентификации, качеству и использованию SBOM в анализе. \\
+Релиз-менеджмент & Привязка SBOM к поставке, версии, образу и артефакту. \\
+Юридическая функция / OSS Office & Лицензионная часть и обязательства по open source. \\
+Архитектура / техлиды & Определение границ состава и правил включения компонентов. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\begin{frame}{Как оформить внутреннюю методику по SBOM}
+\begin{enumerate}
+  \item Цель и область применения.
+  \item Перечень продуктов и артефактов, где SBOM обязателен.
+  \item Допустимые форматы: CycloneDX, SPDX.
+  \item Обязательные поля и источники данных.
+  \item Политика идентификации компонентов.
+  \item Правила учета внутренних, внешних и модифицированных компонентов.
+  \item Порядок автоматической генерации и публикации.
+  \item Контроль качества, подпись, хранение и актуализация.
+  \item Роли и ответственность.
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Рекомендуемый «золотой минимум»}
+\begin{itemize}
+  \item Генерировать SBOM автоматически в CI/CD.
+  \item Привязывать SBOM к каждому релизу и контейнерному образу.
+  \item Включать прямые и транзитивные зависимости.
+  \item Для контейнеров включать базовый образ и системные пакеты.
+  \item Для каждого компонента фиксировать имя, версию, тип, purl, хэш, лицензию и связи зависимостей.
+  \item Проводить валидацию схемы и полноты.
+  \item Подписывать и хранить вместе с артефактом.
+  \item Перевыпускать при изменении состава.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Типичные ошибки внедрения}
+\begin{itemize}
+  \item SBOM формируется только «для галочки».
+  \item Нет связи с конкретной сборкой или релизом.
+  \item Учитываются только прямые зависимости.
+  \item Игнорируются внутренние модули, форки и локальные патчи.
+  \item Отсутствуют версии, purl, хэши и лицензии.
+  \item Смешиваются состав продукта и итоговые выводы по уязвимостям.
+  \item Процесс полностью ручной и не воспроизводимый.
+  \item Нет политики по контейнерам, слоям и ОС-пакетам.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Ландшафт инструментов (1/2)}
+\begin{table}
+\tiny
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2.45cm}Y Y}
+\toprule
+Класс & Примеры & Роль \\
+\midrule
+Генерация SBOM &
+Syft, cdxgen, CycloneDX plugins, SPDX &
+\makecell[tl]{Документ из исходников,\\пакетов, контейнеров} \\
+Сканирование &
+\makecell[tl]{OWASP Dependency-Track,\\Trivy, Grype, Snyk} &
+\makecell[tl]{Состав; известные\\уязвимости} \\
+Лицензии &
+FOSSA, ScanCode, OSS-review &
+\makecell[tl]{Лицензии и\\обязательства} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\begin{frame}{Ландшафт инструментов (2/2)}
+\begin{table}
+\footnotesize
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2.6cm}Y Y}
+\toprule
+Класс & Примеры & Роль \\
+\midrule
+CI/CD &
+GitLab CI, Jenkins, GitHub Actions, registry &
+\makecell[tl]{Генерация, публикация,\\хранение} \\
+Подпись &
+cosign, in-toto, внутренний PKI &
+Доверие и целостность \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\section{Дорожная карта внедрения}
+
+\begin{frame}[fragile]{Диаграмма поэтапного внедрения: исходник PlantUML}
+\textbf{Файл:} \texttt{images/sbom-rollout.puml}
+
+\vspace{0.4em}
+
+\lstinputlisting{images/sbom-rollout.puml}
+\end{frame}
+
+\begin{frame}{Диаграмма поэтапного внедрения: рендер и ссылка на PNG}
+\begin{center}
+\includegraphics[width=0.92\textwidth,height=0.72\textheight,keepaspectratio]{images/sbom-rollout.png}
+\end{center}
+
+\small
+\textbf{PNG:} \href{run:images/sbom-rollout.png}{\texttt{images/sbom-rollout.png}}
+\end{frame}
+
+\begin{frame}{Практический план внедрения: этапы 1--2}
+\begin{table}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{1.35cm}Y Y}
+\toprule
+№ & Что делаем & Результат \\
+\midrule
+1 &
+\makecell[tl]{Цели, форматы, продукты,\\пилотная команда} &
+Утверждённый минимальный стандарт SBOM \\
+2 &
+\makecell[tl]{Генерация в CI/CD и\\контейнерном pipeline} &
+Повторяемый выпуск SBOM для релизов \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\begin{frame}{Практический план внедрения: этапы 3--4}
+\begin{table}
+\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\textwidth}{>{\bfseries}p{1.35cm}Y Y}
+\toprule
+№ & Что делаем & Результат \\
+\midrule
+3 &
+\makecell[tl]{Валидация, метрики, подпись,\\хранение} &
+Управляемый и проверяемый процесс \\
+4 &
+\makecell[tl]{Охват, VEX, аудит,\\заказчики} &
+SBOM — штатный артефакт поставки \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\end{frame}
+
+\section{Итоги}
+
+\begin{frame}{Ключевые выводы (1/2)}
+\small
+\begin{itemize}
+  \setlength{\itemsep}{0.2em}
+  \item Методически правильный SBOM — регламентированный артефакт ЖЦ ПО.
+  \item С \textbf{ГОСТ~Р~72118-2025} SBOM даёт \textbf{доказуемый состав} для аудита и рисков.
+  \item \textbf{TARA} и \textbf{ЦБ} задают, что защищаем; \textbf{ДВБ} — границу доверия; SBOM — фактический состав в контуре поставки.
+  \item Целеполагание SBOM согласуется с системной инженерией: контекст $\rightarrow$ ЦБ системы и доменов $\rightarrow$ политика SBOM.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Ключевые выводы (2/2)}
+\small
+\begin{itemize}
+  \setlength{\itemsep}{0.2em}
+  \item Качество: границы состава, идентификаторы, автоматизация.
+  \item Нужны несколько источников: манифесты, сборка, бинарный и контейнерный анализ.
+  \item SBOM — актуальный, проверяемый, подписанный, привязанный к релизу.
+  \item Применимость уязвимостей — отдельный слой (например VEX), не смешивать с составом.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Короткая формула}
+\begin{block}{Определение}
+Методически правильный SBOM — это формализованный, автоматизированный, проверяемый и актуальный перечень компонентов конкретного программного продукта или поставки, встроенный в жизненный цикл разработки и поставки.
+\end{block}
+
+\vspace{1em}
+
+\begin{center}
+\Large Спасибо за внимание
+\end{center}
+\end{frame}
+
+\begin{frame}
+\begin{center}
+\Huge Вопросы?
+\end{center}
+\end{frame}
+
+\end{document}

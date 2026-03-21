@@ -1,0 +1,30 @@
+@startuml
+title Trusted publication of artifact and SBOM
+
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam rectangle {
+  RoundCorner 15
+}
+
+rectangle "Build environment" as BUILD
+rectangle "SBOM generator" as GEN
+rectangle "Signing service / PKI" as PKI
+database "Trusted artifact repository" as REPO
+actor "Release manager" as RM
+actor "Customer / Auditor" as CA
+
+BUILD --> GEN : compiled artifact,\npackage metadata
+GEN --> PKI : SBOM + hashes
+PKI --> REPO : signed SBOM,\nsigned artifact,\nprovenance
+RM --> REPO : publish release
+CA --> REPO : download and verify
+CA --> PKI : validate signature chain
+
+note bottom of REPO
+Immutable storage,
+access control,
+audit trail
+end note
+
+@enduml

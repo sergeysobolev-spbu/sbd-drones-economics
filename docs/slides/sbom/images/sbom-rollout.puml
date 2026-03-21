@@ -1,0 +1,17 @@
+@startuml
+title Phased SBOM adoption roadmap
+
+skinparam shadowing false
+skinparam defaultTextAlignment center
+
+start
+:Define objectives,\nformats and scope;
+:Select pilot products;
+:Integrate SBOM generation\ninto CI/CD;
+:Validate schema,\nquality and coverage;
+:Sign and publish\nwith releases;
+:Expand to containers,\nOS packages and internal modules;
+:Connect vulnerability,\nlicense and audit processes;
+stop
+
+@enduml
