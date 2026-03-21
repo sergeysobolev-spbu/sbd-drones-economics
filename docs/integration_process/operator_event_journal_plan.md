@@ -31,95 +31,56 @@ _Этот документ фиксирует согласованный пла�
 
 EventJournal должен стать центральной точкой сбора и передачи событий из Эксплуатанта в Analytics, не меняя бизнес-логику существующих компонентов.
 
-## 3. План реализации по шагам
+## 3. План реализации по шагам (актуализированный)
 
-### 3.1. Компонент EventJournal в Эксплуатанте
+### 3.1. Компонент EventJournal в Эксплуатанте (выполнено)
 
-1. Создать структуру компонента в `systems/operator`:
-   - `systems/operator/src/event_journal/__init__.py`
-   - `systems/operator/src/event_journal/src/event_journal.py`
-   - `systems/operator/src/event_journal/src/event_types.py`
-   - `systems/operator/src/event_journal/tests/unit/…`
-   - при необходимости `systems/operator/src/event_journal/tests/module/…`
-   - документация и диаграммы — `systems/operator/src/event_journal/docs/…`
-2. В `systems/operator/src/topics.py`:
-   - добавить internal-топик журнала, например: `ComponentTopics.get_event_journal() -> f"{SYSTEM_ID}.event_journal"`.
-3. Реализовать `event_types.py`:
-   - перечисления типов событий (`EventType`), например:
-     - `ORDER_RECEIVED`, `ORDER_ACCEPTED`, `MISSION_CREATED`, `MISSION_STARTED`, `MISSION_COMPLETED`,
-     - `SECURITY_VIOLATION`, `POLICY_DENIED`, `INCIDENT_REPORTED`,
-     - `UAS_PURCHASED`, `UAS_RESERVED`, `UAS_RELEASED`,
-     - `COST_CALCULATED`, `INSURANCE_QUOTE_REQUESTED`, `INSURANCE_QUOTE_RECEIVED`,
-     - `AGRO_ORDER_RECEIVED`, `AGRO_MISSION_CREATED` и др.
-   - уровни важности (`EventSeverity`): `INFO`, `WARNING`, `ERROR`, `SECURITY`, `AUDIT`.
-4. Реализовать `EventJournal`:
-   - наследник `BaseComponent` c `component_type="event_journal"` и topic=`ComponentTopics.get_event_journal()`;
-   - `_register_handlers()` регистрирует handler для action (например, `"handle_event"` или `"log_event"`),
-   - handler:
-     - валидирует входящее событие (`event_type`, `severity`, `source_component`, `payload`),
-     - обогащает его контекстом (`system_id`, timestamp, trace_id/span_id),
-     - передаёт в адаптер Analytics.
-5. Подключить компонент в запуск:
-   - в `systems/operator/src/run_component.py` добавить импорт `EventJournal` и ветку `COMPONENT_TYPE=event_journal`,
-   - в `systems/operator/docker-compose.yml` и `docker-compose.kafka.yml` добавить сервис `operator-event-journal` (env: `COMPONENT_TYPE=event_journal`), зависящий от брокера.
+1. Структура компонента создана в `systems/operator/src/event_journal` (инициализация, код компонента, unit-тесты).
+2. В `systems/operator/src/topics.py` добавлен internal-топик журнала через `ComponentTopics.get_event_journal() -> f"{SYSTEM_ID}.event_journal"`.
+3. Формат событий (типы и уровни важности) определён и задокументирован в `systems/operator/docs/event_types.md`.
+4. `EventJournal` реализован как наследник `BaseComponent` с `component_type="event_journal"` и topic=`ComponentTopics.get_event_journal()`, принимает нормализованные события и логирует их.
+5. Компонент подключён в запуск:
+   - в `systems/operator/src/run_component.py` добавлена поддержка `COMPONENT_TYPE=event_journal`,
+   - в `systems/operator/docker-compose.yml` и `docker-compose.kafka.yml` добавлен сервис `operator-event-journal`.
 
-### 3.2. Адаптер к Analytics
+### 3.2. Адаптер к Analytics (базовый уровень — выполнено, e2e — в работе)
 
-1. Создать `systems/operator/src/event_journal/src/analytics_adapter.py`:
-   - класс `AnalyticsAdapter(base_url, token, timeout)` с методом `send_event(event: dict) -> None`.
-   - читать конфиг из env (`ANALYTICS_URL`, `ANALYTICS_TOKEN`, `ANALYTICS_TIMEOUT`).
-2. На основе `systems/analytics/backend/app/models.py` и `routes/logs.py`:
-   - определить соответствие полей: `system_id`, `event_type`, `severity`, `payload`, `timestamp` и т.п.
-   - реализовать маппинг внутреннего формата EventJournal в формат REST API Analytics.
-3. В `EventJournal` инициализировать `AnalyticsAdapter` и вызывать его в handler’e событий.
-4. Обработать ошибки сети:
-   - таймауты/5xx → логирование, краткие ретраи, но без падения компонента,
-   - предусмотреть fallback (например, локальный лог) при долгой недоступности Analytics.
-5. Добавить интеграционный тест в `systems/operator/tests/integration`:
-   - поднимает реальный или моковый Analytics,
-   - публикует тестовое событие в топик журнала,
-   - проверяет, что Analytics получил событие в правильном формате.
+1. Реализован `systems/operator/src/event_journal/src/analytics_adapter.py` с классом `AnalyticsAdapter(base_url, api_key, timeout)`.
+2. Определено соответствие полей события Эксплуатанта и моделей Analytics (system_id, type, severity, payload, timestamp).
+3. `EventJournal` использует адаптер как точку расширения для отправки событий во внешний журнал (дальнейшая доработка возможна без изменения остальных компонентов).
+4. Ошибки сети обрабатываются без падения компонента (логируются, возможен fallback).
+5. Написан интеграционный тест `systems/operator/tests/integration/test_event_journal_analytics_adapter.py`, проверяющий доставку событий до тестового HTTP API.
+6. Отдельная e2e-проверка "компонент → EventJournal → реальный systems/analytics" планируется как расширение после стабилизации API Analytics.
 
-### 3.3. Helper для событий и встраивание в компоненты
+### 3.3. Helper для событий и встраивание в компоненты (выполнено)
 
-1. В SDK (например, `sdk/event_emitter.py`) реализовать helper:
-   - `emit_event(bus, system_id, event_type, severity, source_component, payload, trace_context)`,
-   - helper публикует сообщения в топик `"{SYSTEM_ID}.event_journal"` с action `"handle_event"` и добавляет trace_id/span_id.
-2. Внедрить `emit_event` в компоненты:
-   - `OperatorSystem` — при приёме/подтверждении/завершении заказов и миссий, а также при ошибках,
-   - `SecurityMonitor` — при нарушениях политик, логировании инцидентов,
-   - `FleetManager` — при покупках/резервировании/освобождении UAS и изменениях статусов,
-   - `MissionPlanner` — при создании/валидации миссий и ошибках планирования,
-   - `BusinessLogic` — при расчётах стоимости, страховых операциях и проверках маржинальности.
-3. Убедиться, что:
-   - все события содержат корректные `sender`/`sender_role`, не ломая политику SecurityMonitor,
-   - событие — «побочный эффект», не влияющий на основную бизнес-логику.
+1. В `sdk/event_emitter.py` реализован helper `emit_event(bus, topic, event_type, severity, source_component, payload, trace_context)`, не зависящий от конкретных систем (topic передаётся снаружи).
+2. `emit_event` внедрён в компоненты Эксплуатанта:
+   - `OperatorSystem` — при приёме/подтверждении/отклонении заказов и ошибках (`order_received`, `order_accepted/rejected`, проблемы подбора UAS, отказы безопасности),
+   - `SecurityMonitor` — при результатах валидации и нарушениях политик (`security_violation` и др.),
+   - `FleetManager` — при инициализации парка, поиске/резервировании/освобождении БАС,
+   - `MissionPlanner` — при создании/валидации миссий,
+   - `BusinessLogic` — при расчётах стоимости, проверках маржинальности, создании предложений и обработке заказов.
+3. Во всех случаях события не ломают основную бизнес-логику (ошибки журналирования глушатся и логируются).
 
-### 3.4. Агродрон-сценарий
+### 3.4. Агродрон-сценарий (базовый уровень — выполнено, e2e — планируется)
 
-1. В YAML-каталоге разработчиков (используемом `DeveloperClient`) убедиться, что есть агродрон (например, `DW-AG300`):
-   - подходящая `category` (agro),
-   - `max_payload_kg` и `max_range_km` покрывают аграрный сценарий.
-2. Настроить FleetManager/MissionPlanner:
-   - чтобы `find_suitable_uas` мог явно выбирать агродрон при заданных требованиях (тип задачи, масса, дистанция).
-3. Реализовать интеграционный тест агродрон-сценария в `systems/operator/tests/integration`:
-   - поднимает Kafka-стек с Эксплуатантом (и НУС/моком),
-   - от имени Агрегатора отправляет аграрный заказ через Kafka,
-   - проверяет:
-     - выбор UAS агро-категории,
-     - успешное создание/валидацию миссии,
-     - наличие соответствующих событий в EventJournal/Analytics.
-4. Добавить unit/module-тесты подбора агродрона в `systems/operator/src/fleet_manager/tests`.
+1. В YAML-каталоге разработчиков, используемом `DeveloperClient`, уже присутствует агродрон `DW-AG300` (категория `agro`, параметры под аграрные задачи).
+2. FleetManager использует данные каталога и сервис для поиска подходящих UAS.
+3. Реализован unit-тест `systems/operator/src/fleet_manager/tests/unit/test_agro_uas_selection.py`, проверяющий, что при заданных требованиях подбирается модель DW-AG300.
+4. Полноценный интеграционный и e2e-сценарий агродрона (через Kafka, НУС и Analytics) планируется на следующем этапе, вместе с доп. интеграцией с `systems/cyber_drons/agrodron`.
 
-### 3.5. Интеграция с Агрегатором, Страховщиком и НУС
+### 3.5. Интеграция с Агрегатором, Страховщиком и НУС (предстоящие работы)
 
 1. **Агрегатор (Kafka-only)**:
-   - убедиться, что реальные интеграционные тесты Эксплуатант↔Агрегатор используют только Kafka (`docker-compose.kafka.yml`, соответствующие цели Makefile),
-   - для MQTT-сценариев использовать заглушки Агрегатора (совместимые по топикам/формату).
+   - актуализировать интеграционные тесты Эксплуатант↔Агрегатор с учётом EventJournal (Kafka-стек через `docker-compose.kafka.yml`),
+   - для MQTT-сценариев использовать заглушки Агрегатора, совместимые по топикам и формату сообщений.
 2. **Страховщик**:
-   - в точках вызова страховщика (BusinessLogic/Service) добавить события `INSURANCE_QUOTE_REQUESTED/RECEIVED` и ошибки.
+   - в точках вызова страховщика добавить события `insurance_quote_requested/received` и ошибки,
+   - при необходимости расширить интеграционные тесты в `systems/operator` и корневых `tests`.
 3. **НУС/DronePortGCS**:
-   - при передаче задания и получении миссии от НУС — события `GCS_MISSION_REQUESTED`, `GCS_MISSION_READY`, `GCS_MISSION_FAILED`.
+   - при передаче задания и получении миссии от НУС журналировать события `gcs_mission_requested`, `gcs_mission_ready`, `gcs_mission_failed`,
+   - синхронизировать это с планируемыми e2e-сценариями агродрона.
 
 ### 3.6. Структура тестов и корневой Makefile
 

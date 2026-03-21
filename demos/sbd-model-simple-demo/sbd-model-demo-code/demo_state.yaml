@@ -1,0 +1,79 @@
+aggregator_constants:
+  agro:
+  - SG_ID_CONSTR_010
+operator_ids:
+- operator_1
+- operator_2
+system_security_goals:
+  operator_1:
+  - SG_ID_AUTH_001
+  - SG_ID_SAF_002
+  - SG_ID_CONSTR_010
+  operator_2:
+  - SG_ID_AUTH_001
+  - SG_ID_SAF_002
+operators:
+  operator_1:
+    system_security_goals:
+    - SG_ID_AUTH_001
+    - SG_ID_SAF_002
+    - SG_ID_CONSTR_010
+  operator_2:
+    system_security_goals:
+    - SG_ID_AUTH_001
+    - SG_ID_SAF_002
+default_return_port: droneport_B
+dronports:
+  droneport_A:
+    uas:
+    - uas_id: uas_A_01
+      model_id: agro-model-1
+      supported_task_types:
+      - agro
+      base_cost: 9000.0
+  droneport_B:
+    uas:
+    - uas_id: uas_B_11
+      model_id: agro-model-3
+      supported_task_types:
+      - agro
+      base_cost: 9500.0
+    - uas_id: UAS-AGRO-SBD-000002
+      model_id: agro-model-new
+      supported_task_types: &id001
+      - agro
+      base_cost: 9800.0
+    - uas_id: UAS-AGRO-SBD-000003
+      model_id: agro-model-new
+      supported_task_types: *id001
+      base_cost: 9800.0
+landing_sites:
+  ORDER-DEMO-001:
+    droneport_A:
+    - 55.75
+    - 37.61
+    droneport_B:
+    - 55.76
+    - 37.62
+registration_counters:
+  AGRO:SBD: 3
+uas_registry:
+  UAS-AGRO-SBD-000001:
+    imei: '356938035643809'
+    uas_type: AGRO
+    vendor_code: SBD
+    firmware_version: 2.1.0
+  UAS-AGRO-SBD-000002:
+    imei: '356938035643810'
+    uas_type: AGRO
+    vendor_code: SBD
+    firmware_version: 2.1.0
+  UAS-AGRO-SBD-000003:
+    imei: '356938035643811'
+    uas_type: AGRO
+    vendor_code: SBD
+    firmware_version: 2.1.0
+firmware_certificates:
+- approved: true
+  certificate_id: CERT-AGRO-SBD-2_1_0
+  firmware_version: 2.1.0
