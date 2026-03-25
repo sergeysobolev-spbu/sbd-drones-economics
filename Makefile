@@ -1,4 +1,4 @@
-.PHONY: help init unit-test tests ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean
+.PHONY: help init unit-test tests ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi
 
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
 LOAD_ENV = set -a && . docker/.env && set +a
@@ -17,6 +17,7 @@ help:
 	@echo "make docker-logs       - Логи"
 	@echo "make docker-ps         - Статус"
 	@echo "make docker-clean      - Очистка"
+	@echo "make prepare-multi SYSTEMS=\"drone_port gcs\" - Сгенерировать единый compose для нескольких систем"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
@@ -87,3 +88,10 @@ docker-ps:
 docker-clean:
 	-$(DOCKER_COMPOSE) --profile kafka down -v --rmi local 2>/dev/null
 	-$(DOCKER_COMPOSE) --profile mqtt down -v --rmi local 2>/dev/null
+
+prepare-multi:
+	@if [ -z "$(SYSTEMS)" ]; then \
+		echo "Usage: make prepare-multi SYSTEMS=\"drone_port gcs\""; \
+		exit 1; \
+	fi
+	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py --systems $(SYSTEMS)

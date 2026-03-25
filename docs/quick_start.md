@@ -32,6 +32,13 @@ make unit-test
 make test-all-docker
 ```
 
+**Несколько систем (одна Kafka):**
+```bash
+make prepare-multi SYSTEMS="drone_port gcs"
+docker compose -f .generated/multi/docker-compose.yml --env-file .generated/multi/.env --profile kafka up -d --build
+```
+Скрипт `prepare-multi` собирает единый compose для выбранных систем, включает брокер один раз и падает при конфликте host-портов.
+
 ## Протокол
 
 Сообщения — dict: `action`, `payload`, `sender`, `correlation_id`, `reply_to`.
