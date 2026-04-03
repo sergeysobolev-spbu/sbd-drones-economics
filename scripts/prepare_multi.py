@@ -42,8 +42,9 @@ def write_env_file(path: Path, env: Dict[str, str]) -> None:
 
 
 def rewrite_path(original: str, from_dir: Path, to_dir: Path) -> str:
-    abs_path = (from_dir / original).resolve()
-    return os.path.relpath(abs_path, to_dir.resolve())
+    # normpath instead of resolve to avoid following symlinks
+    abs_path = os.path.normpath(from_dir / original)
+    return os.path.relpath(abs_path, os.path.normpath(to_dir))
 
 
 def rewrite_volumes(volumes: List[str], from_dir: Path, to_dir: Path) -> List[str]:

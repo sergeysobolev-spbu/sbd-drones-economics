@@ -7,6 +7,7 @@
 - Маршрутизации по action
 - Health check endpoint
 """
+import os
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Callable, Optional
 import threading
@@ -17,6 +18,8 @@ from flask import Flask, jsonify
 
 from broker.system_bus import SystemBus
 from sdk.messages import create_response, create_dead_letter, DEAD_LETTER_TOPIC
+
+_JOURNAL_TOPIC = os.environ.get("JOURNAL_TOPIC", "").strip()
 
 
 class BaseSystem(ABC):
@@ -48,6 +51,7 @@ class BaseSystem(ABC):
         self._health_app: Optional[Flask] = None
         self._health_thread: Optional[threading.Thread] = None
         self._running = False
+        self._journal_topic = _JOURNAL_TOPIC
 
         self._setup_handlers()
         self._register_handlers()
@@ -69,6 +73,25 @@ class BaseSystem(ABC):
     ):
         """Регистрирует обработчик для действия."""
         self._handlers[action] = handler
+
+    def _emit_journal(self, action: str, sender: str, success: bool, error: str = ""):
+        """Publish a log_event to the journal topic (fire-and-forget)."""
+        if not self._journal_topic or action == "log_event":
+            return
+        try:
+            self.bus.publish(self._journal_topic, {
+                "action": "log_event",
+                "sender": self.topic,
+                "payload": {
+                    "event": action,
+                    "sender": sender,
+                    "success": success,
+                    "error": error,
+                    "component_id": self.system_id,
+                },
+            })
+        except Exception:
+            pass
 
     def _handle_message(self, message: Dict[str, Any]):
         """Маршрутизирует входящее сообщение по полю action."""
@@ -96,6 +119,7 @@ class BaseSystem(ABC):
                 ))
             return
 
+        sender = message.get("sender", "")
         try:
             result = handler(message)
             if message.get("reply_to") and result is not None:
@@ -106,6 +130,7 @@ class BaseSystem(ABC):
                     success=True
                 )
                 self.bus.publish(message["reply_to"], response)
+            self._emit_journal(action, sender, success=True)
 
         except Exception as e:
             print(f"[{self.system_id}] Error handling {action}: {e}")
@@ -124,6 +149,7 @@ class BaseSystem(ABC):
                     sender=self.system_id,
                     error=str(e),
                 ))
+            self._emit_journal(action, sender, success=False, error=str(e))
 
     def _handle_ping(self, message: Dict[str, Any]) -> Dict[str, Any]:
         return {"pong": True, "system_id": self.system_id}
