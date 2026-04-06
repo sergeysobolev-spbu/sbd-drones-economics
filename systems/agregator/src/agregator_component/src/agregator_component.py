@@ -162,6 +162,7 @@ class AgregatorComponent(BaseComponent):
         if insurance_resp and insurance_resp.get("success"):
             ins_payload = insurance_resp.get("payload", {})
             order["policy_id"] = ins_payload.get("policy_id")
+            order["insurance_premium"] = ins_payload.get("premium")
         else:
             order["status"] = "insurance_failed"
             error = "unknown"
@@ -216,17 +217,27 @@ class AgregatorComponent(BaseComponent):
         )
 
     def _buy_insurance(self, order: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Покупает страховку у Insurer для заказа."""
+        """
+        Оформляет миссионное страхование у Insurer перед каждым вылетом.
+
+        Pmission = Vcargo × Rrisk_class × Kenv × Kincident_history
+
+        cargo_value  — объявленная стоимость груза (бюджет заказа).
+        drone_type   — тип дрона из поля order["drone_type"] (default: delivery).
+        env_factor   — Kenv из поля order["env_factor"] (default: 1.0).
+        """
         return self.bus.request(
             ExternalTopics.INSURER,
             {
-                "action": "purchase_policy",
+                "action": "mission_insurance",
                 "sender": self.component_id,
                 "payload": {
                     "order_id": order["id"],
                     "operator_id": order.get("operator_id", ""),
                     "drone_id": order.get("drone_id", ""),
-                    "coverage_amount": order.get("offered_price", 0),
+                    "cargo_value": order.get("budget", 0),
+                    "drone_type": order.get("drone_type", "delivery"),
+                    "env_factor": order.get("env_factor", 1.0),
                 },
             },
             timeout=self.EXTERNAL_REQUEST_TIMEOUT,
