@@ -15,6 +15,7 @@ class ExternalTopics:
     INSURER = f"{_P}systems.insurer"
     ORVD = f"{_P}systems.orvd_system"
     REGULATOR = f"{_P}systems.regulator"
+    FABRIC = f"{_P}systems.dummy_fabric"
 
 
 class AgregatorActions:
