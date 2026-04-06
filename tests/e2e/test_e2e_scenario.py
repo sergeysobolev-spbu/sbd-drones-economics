@@ -6,6 +6,7 @@ Order: Test0 -> Test1 -> Test2 -> Test3 (same session; regulator state in Docker
 from __future__ import annotations
 
 import time
+from decimal import Decimal
 from typing import Any, Dict
 
 import pytest
@@ -15,6 +16,7 @@ OPERATOR_TOPIC = "systems.operator"
 ORVD_TOPIC = "systems.orvd_system"
 REGULATOR_TOPIC = "systems.regulator"
 GCS_TOPIC = "systems.gcs"
+INSURER_TOPIC = "systems.insurer"
 
 EXPECTED_SO = [f"SO_{i}" for i in range(1, 12)]
 
@@ -62,7 +64,11 @@ class Test0_SystemsInRegulator:
 
 
 class Test1_DroneRegistration:
-    """Cert from regulator -> operator -> ORVD via operator."""
+    """Cert from regulator -> operator -> ORVD -> annual insurance (КАСКО)."""
+
+    # Параметры дрона для e2e-drone-001
+    DRONE_VALUE = 150_000
+    DRONE_TYPE = "delivery"
 
     def test_drone_chain(self, kafka_bus):
         drone_id = "e2e-drone-001"
@@ -91,6 +97,31 @@ class Test1_DroneRegistration:
         })
         assert v.get("success") is True
         assert (v.get("payload") or {}).get("valid") is True
+
+        # --- Годовое страхование (КАСКО) ---
+        # Pannual = Vdrone × Rbase_hull × Kfleet_history
+        # = 150_000 × 0.08 (delivery) × 1.0 (новый дрон, < 10 вылетов) = 12_000
+        r_ins = bus_request(kafka_bus, INSURER_TOPIC, "annual_insurance", {
+            "drone_id": drone_id,
+            "drone_value": self.DRONE_VALUE,
+            "drone_type": self.DRONE_TYPE,
+        })
+        assert r_ins.get("success") is True, f"annual_insurance failed: {r_ins}"
+        ins = r_ins.get("payload") or {}
+
+        assert ins.get("policy_type") == "annual"
+        assert ins.get("status") == "active"
+        assert ins.get("drone_id") == drone_id
+        assert ins.get("kfleet_history") == "1.0", "новый дрон должен иметь Kfleet=1.0"
+
+        # Проверяем формулу: 150_000 × 0.08 × 1.0 = 12_000.00
+        expected_premium = Decimal("150000") * Decimal("0.08") * Decimal("1.0")
+        assert Decimal(ins["premium"]) == expected_premium, (
+            f"premium {ins['premium']} != {expected_premium}"
+        )
+
+        assert ins.get("policy_id"), "policy_id должен быть заполнен"
+        assert ins.get("end_date"), "end_date должен быть заполнен (срок 365 дней)"
 
 
 class Test2_OperatorInAggregator:
@@ -122,10 +153,16 @@ class Test2_OperatorInAggregator:
 
 
 class Test3_OrderMissionAndGCS:
-    """Customer order + confirm flow + mission route on GCS."""
+    """Customer order + confirm flow (mission insurance) + mission route on GCS."""
+
+    # Параметры дрона для заказного теста
+    DRONE_VALUE = 120_000
+    DRONE_TYPE = "delivery"
+    ORDER_BUDGET = 5000
 
     @pytest.fixture(autouse=True)
     def _ensure_drone_for_order(self, kafka_bus):
+        """Регистрируем дрон и сразу оформляем годовое страхование."""
         drone_id = "e2e-drone-order"
         r_cert = bus_request(kafka_bus, REGULATOR_TOPIC, "register_drone_cert", {"drone_id": drone_id})
         cert_id = (r_cert.get("payload") or {})["certificate_id"]
@@ -135,6 +172,18 @@ class Test3_OrderMissionAndGCS:
             "capabilities": ["cargo"],
             "certificate_id": cert_id,
         })
+
+        # Годовое страхование при регистрации дрона
+        # Pannual = 120_000 × 0.08 (delivery) × 1.0 = 9_600
+        r_ins = bus_request(kafka_bus, INSURER_TOPIC, "annual_insurance", {
+            "drone_id": drone_id,
+            "drone_value": self.DRONE_VALUE,
+            "drone_type": self.DRONE_TYPE,
+        })
+        assert r_ins.get("success") is True, f"annual_insurance failed during fixture: {r_ins}"
+        ins = r_ins.get("payload") or {}
+        assert ins.get("policy_type") == "annual"
+        assert ins.get("status") == "active"
 
     def test_order_gcs_route_completion(self, agregator_url, kafka_bus):
         pickup = {"lat": 55.75, "lon": 37.62}
@@ -147,7 +196,8 @@ class Test3_OrderMissionAndGCS:
         r = rest_post(agregator_url, "/orders", {
             "customer_id": customer_id,
             "description": "E2E delivery",
-            "budget": 5000,
+            "budget": self.ORDER_BUDGET,
+            "drone_type": self.DRONE_TYPE,
             "pickup": pickup,
             "dropoff": dropoff,
         })
@@ -157,9 +207,25 @@ class Test3_OrderMissionAndGCS:
         if body["status"] != "matched":
             pytest.skip("No drone matched")
 
+        # confirm-price запускает миссионное страхование внутри агрегатора:
+        # Pmission = Vcargo × Rrisk_class × Kenv × Kincident_history
+        # = 5_000 × 0.08 (delivery) × 1.0 × 1.0 = 400.00
         r = rest_post(agregator_url, f"/orders/{order_id}/confirm-price")
         assert r.status_code == 200
-        assert r.json().get("status") == "confirmed"
+        confirm_body = r.json()
+        assert confirm_body.get("status") == "confirmed"
+
+        # Проверяем, что миссионный полис был оформлен
+        order_data = confirm_body.get("order", {})
+        assert order_data.get("policy_id"), "policy_id должен быть заполнен после confirm-price"
+        assert order_data.get("insurance_premium") is not None, (
+            "insurance_premium должен присутствовать в заказе"
+        )
+        # Pmission = budget × 0.08 × 1.0 × 1.0 = 400.00
+        expected_mission_premium = Decimal(str(self.ORDER_BUDGET)) * Decimal("0.08")
+        assert Decimal(str(order_data["insurance_premium"])) == expected_mission_premium, (
+            f"mission premium {order_data['insurance_premium']} != {expected_mission_premium}"
+        )
 
         route_resp = bus_request(kafka_bus, GCS_TOPIC, "plan_mission_route", {
             "pickup": pickup,
@@ -175,7 +241,9 @@ class Test3_OrderMissionAndGCS:
 
         r = rest_get(agregator_url, f"/orders/{order_id}")
         assert r.status_code == 200
-        assert r.json()["order"]["status"] == "completed"
+        final_order = r.json()["order"]
+        assert final_order["status"] == "completed"
+        assert final_order.get("policy_id"), "policy_id должен сохраниться в завершённом заказе"
 
 
 class TestLogVerification:
