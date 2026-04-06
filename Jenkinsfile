@@ -1,10 +1,16 @@
 pipeline {
     agent any
 
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+    }
+
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
+                sh 'git submodule update --init --recursive'
             }
         }
 
@@ -26,12 +32,29 @@ pipeline {
                 sh 'make ci-integration-test'
             }
         }
+
+        stage('E2E Tests') {
+            steps {
+                sh 'make e2e-up'
+                sh 'make e2e-test'
+            }
+            post {
+                always {
+                    sh 'make e2e-logs || true'
+                    sh 'make e2e-down || true'
+                }
+            }
+        }
     }
 
     post {
         always {
             sh 'make docker-down || true'
-            sh 'for sys in systems/*/; do [ -f "$sys/Makefile" ] && make -C "$sys" docker-down 2>/dev/null || true; done'
+            sh '''
+                for sys in systems/*/; do
+                    [ -f "$sys/Makefile" ] && make -C "$sys" docker-down PROJECT_ROOT="$(pwd)" 2>/dev/null || true
+                done
+            '''
         }
     }
 }

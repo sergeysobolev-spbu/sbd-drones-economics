@@ -2,3 +2,21 @@
 	path = fabric-network
 	url = https://gitflic.ru/project/losssaw3/smart-contracts-hlf.git
 	branch = dev
+[submodule "systems/DroneAnalytics"]
+	path = systems/DroneAnalytics
+	url = https://github.com/OurPaintTeam/DroneAnalytics.git
+[submodule "systems/drone-operator-system"]
+	path = systems/drone-operator-system
+	url = https://github.com/glitcher-how/drone-operator-system.git
+[submodule "vendor/DronePortGCS"]
+	path = vendor/DronePortGCS
+	url = https://github.com/losssaw3/DronePortGCS.git
+[submodule "vendor/OpBD"]
+	path = vendor/OpBD
+	url = https://github.com/losssaw3/OpBD.git
+[submodule "vendor/mk2-cooperated"]
+	path = vendor/mk2-cooperated
+	url = https://github.com/losssaw3/mk2-cooperated.git
+[submodule "vendor/cyber_drons"]
+	path = vendor/cyber_drons
+	url = https://gitflic.ru/project/itmoniks/cyber_drons.git

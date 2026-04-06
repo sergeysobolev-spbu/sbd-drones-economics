@@ -1,5 +1,6 @@
-.PHONY: help init unit-test tests ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean
+.PHONY: help init unit-test tests ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e
 
+PROJECT_ROOT := $(CURDIR)
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
 LOAD_ENV = set -a && . docker/.env && set +a
 PIPENV_PIPFILE = config/Pipfile
@@ -17,6 +18,12 @@ help:
 	@echo "make docker-logs       - Логи"
 	@echo "make docker-ps         - Статус"
 	@echo "make docker-clean      - Очистка"
+	@echo "make prepare-multi SYSTEMS=\"drone_port gcs\" - Сгенерировать единый compose для нескольких систем"
+	@echo "make e2e-up            - Поднять всё окружение E2E (4 системы + брокер + DroneAnalytics)"
+	@echo "make e2e-test          - Запустить E2E тесты (pytest tests/e2e/)"
+	@echo "make e2e-logs          - Показать события из DroneAnalytics"
+	@echo "make e2e-down          - Остановить и очистить E2E окружение"
+	@echo "make e2e               - e2e-up + e2e-test + e2e-logs + e2e-down"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
@@ -48,7 +55,7 @@ ci-unit-test:
 	@for sys in systems/*/; do \
 		if ls "$$sys"/tests/test_*unit*.py >/dev/null 2>&1; then \
 			echo "=== Unit tests: $$sys ==="; \
-			PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) "$$sys"/tests/test_*unit*.py -v || exit 1; \
+			PIPENV_PIPFILE=$(PROJECT_ROOT)/config/Pipfile pipenv run pytest -c $(PROJECT_ROOT)/config/pyproject.toml "$$sys"/tests/test_*unit*.py -v || exit 1; \
 			echo ""; \
 		fi; \
 	done
@@ -57,7 +64,7 @@ ci-integration-test:
 	@for sys in systems/*/; do \
 		if [ -f "$$sys/Makefile" ] && grep -q 'test-all-docker' "$$sys/Makefile" 2>/dev/null; then \
 			echo "=== Integration tests: $$sys ==="; \
-			$(MAKE) -C "$$sys" test-all-docker || exit 1; \
+			$(MAKE) -C "$$sys" test-all-docker PROJECT_ROOT=$(PROJECT_ROOT) || exit 1; \
 			echo ""; \
 		elif ls "$$sys"/tests/test_integration*.py >/dev/null 2>&1; then \
 			echo "=== Integration tests (pytest): $$sys ==="; \
@@ -88,3 +95,56 @@ docker-ps:
 docker-clean:
 	-$(DOCKER_COMPOSE) --profile kafka --profile fabric down -v --rmi local 2>/dev/null
 	-$(DOCKER_COMPOSE) --profile mqtt --profile fabric down -v --rmi local 2>/dev/null
+
+prepare-multi:
+	@if [ -z "$(SYSTEMS)" ]; then \
+		echo "Usage: make prepare-multi SYSTEMS=\"drone_port gcs\""; \
+		exit 1; \
+	fi
+	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py --systems $(SYSTEMS)
+
+# ---------------------------------------------------------------------------
+# E2E: full-scenario Docker test (4 systems + broker + DroneAnalytics)
+# ---------------------------------------------------------------------------
+
+E2E_SYSTEMS = agregator insurer operator orvd_system regulator gcs
+E2E_OUTPUT = .generated/e2e
+E2E_COMPOSE = docker compose -f $(E2E_OUTPUT)/docker-compose.yml -f tests/e2e/analytics-compose.yml --env-file $(E2E_OUTPUT)/.env
+E2E_PROFILE = kafka
+
+e2e-up:
+	@echo "=== Generating multi-system compose ==="
+	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py \
+		--systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
+	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
+	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
+	@echo "=== Starting E2E environment ==="
+	$(E2E_COMPOSE) --profile $(E2E_PROFILE) up -d --build
+	@echo "=== Waiting for services to start ==="
+	@for i in $$(seq 1 30); do \
+		curl -sf http://localhost:8080/health >/dev/null 2>&1 && break; \
+		sleep 3; \
+	done
+	@echo "=== E2E environment is up ==="
+
+e2e-test:
+	@echo "=== Running E2E tests ==="
+	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest tests/e2e/ -v -s \
+		--tb=short 2>&1 || (echo "E2E tests failed"; exit 1)
+
+e2e-logs:
+	@echo "=== Fetching events from DroneAnalytics ==="
+	@TOKEN=$$(curl -sf -X POST http://localhost:8090/auth/login \
+		-H 'Content-Type: application/json' \
+		-d '{"username":"admin","password":"admin1234"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null) && \
+	curl -sf http://localhost:8090/log/event?limit=100 \
+		-H "Authorization: Bearer $$TOKEN" | python3 -m json.tool 2>/dev/null || \
+	echo "(DroneAnalytics not available or no events)"
+
+e2e-down:
+	@echo "=== Stopping E2E environment ==="
+	-$(E2E_COMPOSE) --profile $(E2E_PROFILE) down -v 2>/dev/null
+	@echo "=== E2E environment stopped ==="
+
+e2e: e2e-up e2e-test e2e-logs e2e-down
