@@ -2,15 +2,7 @@
 AgregatorComponent -- бизнес-логика агрегатора.
 
 Обрабатывает заказы, взаимодействует с Operator, Insurer и ORVD через bus.
-
-Интеграция с Fabric-леджером:
-    Если задана переменная ENABLE_FABRIC_LEDGER=true, после подтверждения заказа
-    (confirm_price) агрегатор публикует create_order в systems.dummy_fabric,
-    а после завершения (confirm_completion) — finalize_order (fire-and-forget).
-    Используется тот же order_id что и в основной системе, обеспечивая единый
-    идентификатор между in-memory хранилищем и Fabric-леджером.
 """
-import os
 import uuid
 from typing import Dict, Any, Optional
 
@@ -22,8 +14,6 @@ from systems.agregator.src.agregator_component.topics import (
     ExternalTopics,
     AgregatorActions,
 )
-
-_FABRIC_ENABLED = os.environ.get("ENABLE_FABRIC_LEDGER", "false").lower() == "true"
 
 
 class AgregatorComponent(BaseComponent):
@@ -192,26 +182,6 @@ class AgregatorComponent(BaseComponent):
         order["operator_amount"] = (order.get("offered_price") or 0) - commission
         order["status"] = "confirmed"
 
-        # Фиксация заказа в Fabric-леджере. Используем тот же order_id, что и
-        # в основной системе — это обеспечивает единый идентификатор в обоих хранилищах.
-        insurance_premium = order.get("insurance_premium") or 0
-        self._try_fabric("create_order", {
-            "id": order_id,
-            "aggregator_id": self.component_id,
-            "operator_id": order.get("operator_id", ""),
-            "drone_id": order.get("drone_id", ""),
-            "insurer_id": ExternalTopics.INSURER,
-            "cert_center_id": "",
-            "developer_id": "",
-            "fleet_price": order.get("offered_price", 0),
-            "aggregator_fee": round(commission, 2),
-            "insurance_premium": round(float(insurance_premium), 2),
-            "risk_reserve": 0,
-            "insurance_coverage_amount": order.get("budget", 0),
-            "mission_insurance_id": order.get("policy_id", ""),
-            "details": "[]",
-        })
-
         return {"order_id": order_id, "status": "confirmed", "order": order}
 
     def _handle_confirm_completion(self, message: Dict[str, Any]) -> Dict[str, Any]:
@@ -224,36 +194,7 @@ class AgregatorComponent(BaseComponent):
             raise ValueError(f"order status is {order['status']}, expected 'confirmed'")
 
         order["status"] = "completed"
-
-        # Финализация заказа в Fabric-леджере (fire-and-forget)
-        self._try_fabric("finalize_order", {"order_id": order_id})
-
         return {"order_id": order_id, "status": "completed"}
-
-    # -------------------------------------------------------------------------
-    # Fabric dual-write (fire-and-forget)
-    # -------------------------------------------------------------------------
-
-    def _try_fabric(self, action: str, payload: Dict[str, Any]) -> None:
-        """
-        Публикует событие в systems.dummy_fabric (fire-and-forget).
-
-        Не блокирует основную операцию: ошибки только логируются.
-        Активируется через переменную окружения ENABLE_FABRIC_LEDGER=true.
-        """
-        if not _FABRIC_ENABLED:
-            return
-        try:
-            self.bus.publish(
-                ExternalTopics.FABRIC,
-                {
-                    "action": action,
-                    "sender": self.component_id,
-                    "payload": payload,
-                },
-            )
-        except Exception as exc:
-            print(f"[{self.component_id}] Fabric write skipped ({action}): {exc}")
 
     # --- Inter-system communication ---
 

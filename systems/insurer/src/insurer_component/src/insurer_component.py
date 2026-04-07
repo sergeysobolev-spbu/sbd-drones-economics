@@ -10,13 +10,7 @@ InsurerComponent -- бизнес-логика страховщика.
        Pmission = Vcargo × Rrisk_class × Kenv × Kincident_history
    где:
        Kincident_history = Kbase + (Incidents / Total_Missions) × L
-
-Интеграция с Fabric-леджером:
-    Если задана переменная ENABLE_FABRIC_LEDGER=true, после каждого успешного
-    оформления полиса компонент публикует запись в systems.dummy_fabric (fire-and-forget).
-    Основная операция не блокируется и не падает, если Fabric недоступен.
 """
-import os
 import uuid
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal, ROUND_HALF_UP
@@ -27,11 +21,8 @@ from broker.system_bus import SystemBus
 
 from systems.insurer.src.insurer_component.topics import (
     ComponentTopics,
-    ExternalTopics,
     InsurerActions,
 )
-
-_FABRIC_ENABLED = os.environ.get("ENABLE_FABRIC_LEDGER", "false").lower() == "true"
 
 
 class InsurerComponent(BaseComponent):
@@ -99,31 +90,6 @@ class InsurerComponent(BaseComponent):
             topic=ComponentTopics.INSURER_COMPONENT,
             bus=bus,
         )
-
-    # -------------------------------------------------------------------------
-    # Fabric dual-write (fire-and-forget)
-    # -------------------------------------------------------------------------
-
-    def _try_fabric(self, action: str, payload: Dict[str, Any]) -> None:
-        """
-        Публикует событие в systems.dummy_fabric (fire-and-forget).
-
-        Не блокирует основную операцию: ошибки только логируются.
-        Активируется через переменную окружения ENABLE_FABRIC_LEDGER=true.
-        """
-        if not _FABRIC_ENABLED:
-            return
-        try:
-            self.bus.publish(
-                ExternalTopics.FABRIC,
-                {
-                    "action": action,
-                    "sender": self.component_id,
-                    "payload": payload,
-                },
-            )
-        except Exception as exc:
-            print(f"[{self.component_id}] Fabric write skipped ({action}): {exc}")
 
     def _register_handlers(self):
         self.register_handler(InsurerActions.ANNUAL_INSURANCE, self._handle_annual_insurance)
@@ -226,7 +192,7 @@ class InsurerComponent(BaseComponent):
         }
         self._policies[policy_id] = policy
 
-        result = {
+        return {
             "policy_id": policy_id,
             "policy_number": policy_number,
             "policy_type": "annual",
@@ -239,18 +205,6 @@ class InsurerComponent(BaseComponent):
             "end_date": policy["end_date"],
             "status": "active",
         }
-
-        # Фиксация годового страхования в Fabric-леджере (fire-and-forget)
-        self._try_fabric("create_insurance", {
-            "drone_id": drone_id,
-            "insurer_id": operator_id or self.component_id,
-            "coverage_amount": float(drone_value),
-            "incident_count": 0,
-            "valid_from": policy["start_date"],
-            "valid_to": policy["end_date"],
-        })
-
-        return result
 
     # -------------------------------------------------------------------------
     # Миссионное страхование (Pmission)
@@ -360,7 +314,7 @@ class InsurerComponent(BaseComponent):
         # Увеличиваем счётчик вылетов дрона
         self._increment_drone_missions(drone_id)
 
-        result = {
+        return {
             "policy_id": policy_id,
             "policy_number": policy_number,
             "policy_type": "mission",
@@ -375,20 +329,6 @@ class InsurerComponent(BaseComponent):
             "end_date": policy["end_date"],
             "status": "active",
         }
-
-        # Фиксация миссионного полиса в Fabric-леджере (fire-and-forget).
-        # Используем order_id как идентификатор записи — тот же ID будет
-        # использован агрегатором при записи заказа в Fabric.
-        self._try_fabric("create_insurance", {
-            "drone_id": drone_id,
-            "insurer_id": operator_id or self.component_id,
-            "coverage_amount": float(cargo_value),
-            "incident_count": self._drone_stats.get(drone_id, {}).get("incidents", 0),
-            "valid_from": policy["start_date"],
-            "valid_to": policy["end_date"],
-        })
-
-        return result
 
     # -------------------------------------------------------------------------
     # Инциденты и завершение полисов
