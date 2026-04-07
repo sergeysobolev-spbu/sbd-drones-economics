@@ -1,5 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.11'
+            args '-u root -v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker'
+        }
+    }
 
     options {
         timeout(time: 30, unit: 'MINUTES')
@@ -16,7 +21,12 @@ pipeline {
 
         stage('Init') {
             steps {
-                sh 'command -v pipenv >/dev/null 2>&1 || pip install pipenv'
+                sh '''
+                    python3 -m pip install --upgrade pip setuptools wheel
+                    python3 -m pip install pipenv
+                    command -v pipenv
+                    docker --version
+                '''
                 sh 'PIPENV_PIPFILE=config/Pipfile pipenv install --dev'
             }
         }
