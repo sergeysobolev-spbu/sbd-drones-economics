@@ -8,4 +8,4 @@ __pycache__
 *.pytest_cache
 *.pyc
 .generated/
-.DS_Store
+.DS_Store.
