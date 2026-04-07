@@ -9,6 +9,11 @@ class ComponentTopics:
     INSURER_COMPONENT = f"{_P}components.insurer"
 
 
+class ExternalTopics:
+    """Топики внешних систем."""
+    FABRIC = f"{_P}systems.dummy_fabric"
+
+
 class InsurerActions:
     # Годовое страхование (КАСКО/hull) — оформляется при регистрации дрона
     ANNUAL_INSURANCE = "annual_insurance"
