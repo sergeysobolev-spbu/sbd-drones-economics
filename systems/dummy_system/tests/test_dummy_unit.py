@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 from systems.dummy_system.src.dummy_component_a.src.dummy_component import DummyComponent
 from systems.dummy_system.src.dummy_component_b.src.dummy_component import DummyComponent as DummyComponentB
+from systems.dummy_system.src.gateway.src.gateway import DummyGateway
 
 
 @pytest.fixture
@@ -103,3 +104,61 @@ def test_component_a_ask_b_relays_b_response(component_and_bus):
     assert result["b_response"]["data"] == "from_b"
     assert result["relayed_by"] == "test_component"
     bus.request.assert_called_once()
+
+
+# --- Gateway tests ---
+
+@pytest.fixture
+def gateway_and_bus():
+    mock_bus = MagicMock()
+    gw = DummyGateway(system_id="test_gateway", bus=mock_bus)
+    return gw, mock_bus
+
+
+def test_gateway_routes_echo_to_component_a(gateway_and_bus):
+    """Gateway проксирует echo в компонент A."""
+    gw, bus = gateway_and_bus
+    bus.request.return_value = {
+        "success": True,
+        "payload": {"echo": {"msg": "hi"}, "from": "dummy_component_a"},
+    }
+
+    message = {"action": "echo", "sender": "external", "payload": {"msg": "hi"}}
+    result = gw._handle_proxy(message)
+
+    bus.request.assert_called_once_with(
+        "components.dummy_component_a",
+        {"action": "echo", "sender": "test_gateway", "payload": {"msg": "hi"}},
+        timeout=10.0,
+    )
+    assert result["echo"] == {"msg": "hi"}
+
+
+def test_gateway_routes_get_data_to_component_b(gateway_and_bus):
+    """Gateway проксирует get_data в компонент B."""
+    gw, bus = gateway_and_bus
+    bus.request.return_value = {
+        "success": True,
+        "payload": {"data": "response_for_test", "source": "dummy_component_b"},
+    }
+
+    message = {"action": "get_data", "sender": "external", "payload": {"query": "test"}}
+    result = gw._handle_proxy(message)
+
+    bus.request.assert_called_once_with(
+        "components.dummy_component_b",
+        {"action": "get_data", "sender": "test_gateway", "payload": {"query": "test"}},
+        timeout=10.0,
+    )
+    assert result["data"] == "response_for_test"
+
+
+def test_gateway_timeout_returns_error(gateway_and_bus):
+    """Gateway возвращает ошибку при таймауте компонента."""
+    gw, bus = gateway_and_bus
+    bus.request.return_value = None
+
+    message = {"action": "echo", "sender": "external", "payload": {}}
+    result = gw._handle_proxy(message)
+
+    assert "error" in result

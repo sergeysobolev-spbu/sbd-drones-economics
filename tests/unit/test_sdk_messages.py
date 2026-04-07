@@ -1,6 +1,6 @@
 """Тесты протокола сообщений SDK."""
 import pytest
-from sdk.messages import Message, create_response
+from sdk.messages import Message, create_response, create_dead_letter, DEAD_LETTER_TOPIC
 
 
 def test_message_create():
@@ -65,3 +65,39 @@ def test_create_response_error():
     )
     assert resp["success"] is False
     assert resp["error"] == "something failed"
+
+
+def test_dead_letter_topic_constant():
+    assert DEAD_LETTER_TOPIC == "errors.dead_letters"
+
+
+def test_create_dead_letter():
+    original = {
+        "action": "do_something",
+        "sender": "component_a",
+        "payload": {"key": "value"},
+    }
+    dl = create_dead_letter(
+        original_message=original,
+        sender="component_b",
+        error="handler crashed",
+    )
+    assert dl["action"] == "dead_letter"
+    assert dl["sender"] == "component_b"
+    assert dl["error"] == "handler crashed"
+    assert dl["original_action"] == "do_something"
+    assert dl["original_sender"] == "component_a"
+    assert dl["original_payload"] == {"key": "value"}
+    assert "timestamp" in dl
+
+
+def test_create_dead_letter_with_missing_fields():
+    dl = create_dead_letter(
+        original_message={},
+        sender="comp",
+        error="bad message",
+    )
+    assert dl["original_action"] is None
+    assert dl["original_sender"] is None
+    assert dl["original_payload"] is None
+    assert dl["error"] == "bad message"

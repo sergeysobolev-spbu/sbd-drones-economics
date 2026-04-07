@@ -94,4 +94,65 @@ def test_message_routing_with_reply(comp, bus):
 def test_message_routing_unknown_action(comp, bus):
     msg = {"action": "nonexistent", "sender": "x"}
     comp._handle_message(msg)
-    bus.publish.assert_not_called()
+    bus.publish.assert_called_once()
+    topic, dead_letter = bus.publish.call_args[0]
+    assert topic == "errors.dead_letters"
+    assert dead_letter["action"] == "dead_letter"
+    assert dead_letter["error"] == "Unknown action: nonexistent"
+    assert dead_letter["original_action"] == "nonexistent"
+    assert dead_letter["sender"] == "test_comp"
+
+
+def test_dead_letter_on_handler_exception(bus):
+    class FailingComponent(BaseComponent):
+        def _register_handlers(self):
+            self.register_handler("fail", self._handle_fail)
+
+        def _handle_fail(self, message):
+            raise ValueError("something broke")
+
+    comp = FailingComponent(
+        component_id="fail_comp",
+        component_type="test",
+        topic="components.fail",
+        bus=bus,
+    )
+    msg = {"action": "fail", "sender": "caller", "payload": {"x": 1}}
+    comp._handle_message(msg)
+    bus.publish.assert_called_once()
+    topic, dead_letter = bus.publish.call_args[0]
+    assert topic == "errors.dead_letters"
+    assert dead_letter["action"] == "dead_letter"
+    assert dead_letter["sender"] == "fail_comp"
+    assert "something broke" in dead_letter["error"]
+    assert dead_letter["original_action"] == "fail"
+    assert dead_letter["original_sender"] == "caller"
+    assert dead_letter["original_payload"] == {"x": 1}
+
+
+def test_no_dead_letter_when_reply_to_present(bus):
+    class FailingComponent(BaseComponent):
+        def _register_handlers(self):
+            self.register_handler("fail", self._handle_fail)
+
+        def _handle_fail(self, message):
+            raise ValueError("err")
+
+    comp = FailingComponent(
+        component_id="fail_comp",
+        component_type="test",
+        topic="components.fail",
+        bus=bus,
+    )
+    msg = {
+        "action": "fail",
+        "sender": "caller",
+        "reply_to": "replies.caller",
+        "correlation_id": "c1",
+    }
+    comp._handle_message(msg)
+    bus.publish.assert_called_once()
+    topic, response = bus.publish.call_args[0]
+    assert topic == "replies.caller"
+    assert response["success"] is False
+    assert "err" in response["error"]
