@@ -15,6 +15,8 @@ class ComponentTopics:
 
 class GatewayActions:
     """Actions, доступные извне через systems.insurer."""
+    ANNUAL_INSURANCE = "annual_insurance"
+    MISSION_INSURANCE = "mission_insurance"
     CALCULATE_POLICY = "calculate_policy"
     PURCHASE_POLICY = "purchase_policy"
     REPORT_INCIDENT = "report_incident"

@@ -18,6 +18,8 @@ from systems.insurer.src.gateway.topics import (
 class InsurerGateway(BaseGateway):
 
     ACTION_ROUTING = {
+        GatewayActions.ANNUAL_INSURANCE: ComponentTopics.INSURER_COMPONENT,
+        GatewayActions.MISSION_INSURANCE: ComponentTopics.INSURER_COMPONENT,
         GatewayActions.CALCULATE_POLICY: ComponentTopics.INSURER_COMPONENT,
         GatewayActions.PURCHASE_POLICY: ComponentTopics.INSURER_COMPONENT,
         GatewayActions.REPORT_INCIDENT: ComponentTopics.INSURER_COMPONENT,
