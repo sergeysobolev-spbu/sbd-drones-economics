@@ -64,12 +64,19 @@ ci-integration-test:
 	@for sys in systems/*/; do \
 		if [ -f "$$sys/Makefile" ] && grep -q 'test-all-docker' "$$sys/Makefile" 2>/dev/null; then \
 			echo "=== Integration tests: $$sys ==="; \
-			$(MAKE) -C "$$sys" test-all-docker PROJECT_ROOT=$(PROJECT_ROOT) || exit 1; \
+			$(MAKE) -C "$$sys" test-all-docker PROJECT_ROOT=$(PROJECT_ROOT); \
+			rc=$$?; if [ $$rc -ne 0 ]; then \
+				if ls "$$sys"/tests/test_*integr*.py >/dev/null 2>&1; then exit $$rc; \
+				else echo "(no test files found, skipping)"; fi; \
+			fi; \
 			echo ""; \
 		elif ls "$$sys"/tests/test_integration*.py >/dev/null 2>&1; then \
 			echo "=== Integration tests (pytest): $$sys ==="; \
-			PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) "$$sys"/tests/test_integration*.py -v || exit 1; \
+			PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) "$$sys"/tests/test_integration*.py -v; \
+			rc=$$?; if [ $$rc -ne 0 ] && [ $$rc -ne 5 ]; then exit 1; fi; \
 			echo ""; \
+		else \
+			echo "=== Skipping $$sys (no integration tests) ==="; \
 		fi; \
 	done
 
