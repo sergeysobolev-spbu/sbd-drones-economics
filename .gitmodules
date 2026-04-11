@@ -1,18 +1,23 @@
+[submodule "fabric-network"]
+	path = fabric-network
+	url = https://gitflic.ru/project/losssaw3/smart-contracts-hlf.git
+	branch = dev
 [submodule "systems/DroneAnalytics"]
 	path = systems/DroneAnalytics
 	url = https://github.com/OurPaintTeam/DroneAnalytics.git
-[submodule "systems/drone-operator-system"]
-	path = systems/drone-operator-system
-	url = https://github.com/glitcher-how/drone-operator-system.git
-[submodule "vendor/DronePortGCS"]
-	path = vendor/DronePortGCS
-	url = https://github.com/losssaw3/DronePortGCS.git
-[submodule "vendor/OpBD"]
-	path = vendor/OpBD
-	url = https://github.com/losssaw3/OpBD.git
-[submodule "vendor/mk2-cooperated"]
-	path = vendor/mk2-cooperated
-	url = https://github.com/losssaw3/mk2-cooperated.git
-[submodule "vendor/cyber_drons"]
-	path = vendor/cyber_drons
+[submodule "systems/insurer"]
+	path = systems/insurer
+	url = https://github.com/DashDashh/Insurer.git
+	branch = integration
+[submodule "systems/cyber_drons"]
+	path = systems/cyber_drons
 	url = https://gitflic.ru/project/itmoniks/cyber_drons.git
+	branch = agrodron_for_andrey
+[submodule "systems/drones"]
+	path = systems/drones
+	url = https://github.com/AMCP-Drones/drones.git
+	branch = extract/only-system
+[submodule "systems/orvd_system"]
+	path = systems/orvd_system
+	url = https://github.com/autoryuzo/OpBD.git
+	branch = system

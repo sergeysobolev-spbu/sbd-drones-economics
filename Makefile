@@ -84,13 +84,14 @@ ci-test: ci-unit-test ci-integration-test
 
 docker-up:
 	@test -f docker/.env || cp docker/example.env docker/.env
-	@profile=$${BROKER_TYPE:-$$(grep '^BROKER_TYPE=' docker/.env 2>/dev/null | cut -d= -f2)}; \
-	profile=$${profile:-kafka}; \
-	$(DOCKER_COMPOSE) --profile $$profile up -d
+	@set -a && . docker/.env && set +a && \
+		profiles="--profile $${BROKER_TYPE:-kafka}"; \
+		[ "$${ENABLE_FABRIC:-false}" = "true" ] && profiles="$$profiles --profile fabric"; \
+		$(DOCKER_COMPOSE) $$profiles up -d --build
 
 docker-down:
-	-$(DOCKER_COMPOSE) --profile kafka down 2>/dev/null
-	-$(DOCKER_COMPOSE) --profile mqtt down 2>/dev/null
+	-$(DOCKER_COMPOSE) --profile kafka --profile fabric down 2>/dev/null
+	-$(DOCKER_COMPOSE) --profile mqtt --profile fabric down 2>/dev/null
 
 docker-logs:
 	$(DOCKER_COMPOSE) --profile $$(grep BROKER_TYPE docker/.env | cut -d= -f2) logs -f
@@ -99,8 +100,8 @@ docker-ps:
 	@docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 docker-clean:
-	-$(DOCKER_COMPOSE) --profile kafka down -v --rmi local 2>/dev/null
-	-$(DOCKER_COMPOSE) --profile mqtt down -v --rmi local 2>/dev/null
+	-$(DOCKER_COMPOSE) --profile kafka --profile fabric down -v --rmi local 2>/dev/null
+	-$(DOCKER_COMPOSE) --profile mqtt --profile fabric down -v --rmi local 2>/dev/null
 
 prepare-multi:
 	@if [ -z "$(SYSTEMS)" ]; then \
@@ -125,6 +126,7 @@ e2e-up:
 	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
+	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
 	@echo "=== Starting E2E environment ==="
 	$(E2E_COMPOSE) --profile $(E2E_PROFILE) up -d --build
 	@echo "=== Waiting for services to start ==="
