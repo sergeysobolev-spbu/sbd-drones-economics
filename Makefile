@@ -119,6 +119,7 @@ e2e-up:
 	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
+	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
 	@echo "=== Starting E2E environment ==="
 	$(E2E_COMPOSE) --profile $(E2E_PROFILE) up -d --build
 	@echo "=== Waiting for services to start ==="

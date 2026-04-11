@@ -4,29 +4,25 @@
 
 ## Внешние репозитории (git submodule)
 
-Часть систем живёт в **отдельных репозиториях** и подключена через `git submodule`.
+Часть систем живёт в **отдельных репозиториях** и подключена как `git submodule` напрямую в `systems/`.
 
-Некоторые из них — **монорепозитории** (содержат несколько проектов), поэтому используется схема:
-- полный клон лежит в `vendor/<имя>/`
-- в `systems/` — **симлинк** на нужную подпапку
-
-| Рабочий путь (симлинк) | Vendor-подпапка | Удалённый репозиторий |
+| Путь | Удалённый репозиторий | Ветка |
 |---|---|---|
-| `systems/gcs` | `vendor/DronePortGCS/systems/gcs` | [Kaitrye/DronePortGCS](https://github.com/Kaitrye/DronePortGCS.git) |
-| `systems/cyber_drons` | `vendor/cyber_drons` (корень = весь репо) | [itmoniks/cyber_drons](https://gitflic.ru/project/itmoniks/cyber_drons.git) |
-| `systems/orvd_system` | `vendor/OpBD/systems/orvd_system` | [autoryuzo/OpBD](https://github.com/autoryuzo/OpBD.git) |
-| `systems/operator` | `vendor/mk2-cooperated/systems/operator` | [glitcher-how/mk2-cooperated](https://github.com/glitcher-how/mk2-cooperated.git) |
+| `systems/orvd_system` | [autoryuzo/OpBD](https://github.com/autoryuzo/OpBD.git) | `system` |
+| `systems/insurer` | [DashDashh/Insurer](https://github.com/DashDashh/Insurer.git) | `integration` |
+| `systems/cyber_drons` | [itmoniks/cyber_drons](https://gitflic.ru/project/itmoniks/cyber_drons.git) | `agrodron_for_andrey` |
+| `systems/drones` | [AMCP-Drones/drones](https://github.com/AMCP-Drones/drones.git) | `extract/only-system` |
+| `systems/DroneAnalytics` | [OurPaintTeam/DroneAnalytics](https://github.com/OurPaintTeam/DroneAnalytics.git) | `main` |
 
-Следующие submodule'ы — **не** монорепо, подключены напрямую в `systems/`:
+**Симлинк** (для совместимости путей в docker-compose):
 
-| Путь | Удалённый репозиторий |
+| Симлинк | Цель |
 |---|---|
-| `systems/DroneAnalytics` | [OurPaintTeam/DroneAnalytics](https://github.com/OurPaintTeam/DroneAnalytics.git) |
-| `systems/drone-operator-system` | [glitcher-how/drone-operator-system](https://github.com/glitcher-how/drone-operator-system.git) |
+| `systems/deliverydron` | `drones` |
 
 ### Правило: всегда работай через `systems/`
 
-Скрипты, docker-compose, `prepare_multi.py`, E2E-тесты — **всё** ходит через `systems/<имя>`. Папка `vendor/` — только место хранения полного клона; напрямую в ней ничего менять не нужно.
+Скрипты, docker-compose, `prepare_multi.py`, E2E-тесты — **всё** ходит через `systems/<имя>`.
 
 ### Клон с сабмодулями
 
@@ -49,9 +45,7 @@ git submodule update --remote --recursive
 # затем при необходимости закоммить обновлённые SHA
 ```
 
-Остальные системы (`agregator`, `insurer`, `regulator`, `dummy_system`, …) живут прямо в этом репозитории.
-
-Для E2E к GCS добавлены сервисы `gcs_system_gateway` и `gcs_route_component` (топик `systems.gcs`, action `plan_mission_route`) в `../vendor/DronePortGCS/systems/gcs` (симлинк `systems/gcs`).
+Остальные системы (`agregator`, `gcs`, `operator`, `regulator`, `dummy_system`, …) живут прямо в этом репозитории.
 
 ## Создать свою систему
 

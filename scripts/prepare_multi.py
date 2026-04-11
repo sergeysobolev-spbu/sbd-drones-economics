@@ -69,6 +69,30 @@ def env_list_to_dict(env_block: Any) -> Dict[str, str]:
     return {}
 
 
+def _split_port_string(s: str) -> List[str]:
+    """Split on ':' that is outside ${...} braces."""
+    parts: List[str] = []
+    depth = 0
+    current: List[str] = []
+    for ch in s:
+        if ch == "$" or (ch == "{" and current and current[-1] == "$"):
+            current.append(ch)
+            if ch == "{":
+                depth += 1
+            continue
+        if ch == "}" and depth > 0:
+            depth -= 1
+            current.append(ch)
+            continue
+        if ch == ":" and depth == 0:
+            parts.append("".join(current))
+            current = []
+            continue
+        current.append(ch)
+    parts.append("".join(current))
+    return parts
+
+
 def parse_port_mapping(mapping: Any) -> Optional[Tuple[str, str]]:
     """
     Возвращает (host_port_expr, protocol) для short syntax.
@@ -92,14 +116,12 @@ def parse_port_mapping(mapping: Any) -> Optional[Tuple[str, str]]:
     else:
         protocol = "tcp"
 
-    parts = s.split(":")
+    parts = _split_port_string(s)
     if len(parts) == 1:
-        # только container port -> host не задан
         return None
     if len(parts) == 2:
         host = parts[0]
     else:
-        # ip:host:container
         host = parts[-2]
 
     if not host:
@@ -190,6 +212,7 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
 
     merged_services: Dict[str, Dict[str, Any]] = {}
     merged_services.update(broker_services)
+    merged_volumes: Dict[str, Any] = {}
 
     # Нормализуем redis как общий сервис с именем redis, если он есть хотя бы в одной системе.
     has_global_redis = "redis" in merged_services
@@ -199,6 +222,12 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
         sys_compose = yaml.safe_load(sys_compose_path.read_text()) or {}
         sys_services = deepcopy(sys_compose.get("services", {}))
         sys_name = sys_path.name
+
+        sys_volume_names = set()
+        for vol_name, vol_cfg in (sys_compose.get("volumes") or {}).items():
+            prefixed = f"{sys_name}_{vol_name}"
+            merged_volumes[prefixed] = vol_cfg
+            sys_volume_names.add(vol_name)
 
         # Приоритет: если redis уже есть, локальные redis из следующих систем не добавляем.
         for original_name, svc in sys_services.items():
@@ -220,6 +249,13 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                     build["context"] = rewrite_path(build["context"], sys_compose_path.parent, output_dir)
             if "volumes" in svc:
                 svc["volumes"] = rewrite_volumes(svc["volumes"], sys_compose_path.parent, output_dir)
+                rewritten = []
+                for v in svc["volumes"]:
+                    parts = str(v).split(":")
+                    if len(parts) >= 2 and parts[0] in sys_volume_names:
+                        parts[0] = f"{sys_name}_{parts[0]}"
+                    rewritten.append(":".join(parts))
+                svc["volumes"] = rewritten
 
             # Поддерживаем общий брокер и сеть
             env_dict = env_list_to_dict(svc.get("environment"))
@@ -250,7 +286,7 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
 
     validate_ports(merged_services)
 
-    merged = {
+    merged: Dict[str, Any] = {
         "name": "drones",
         "services": merged_services,
         "networks": {
@@ -260,6 +296,8 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
             }
         },
     }
+    if merged_volumes:
+        merged["volumes"] = merged_volumes
 
     merged_env = parse_env_file(broker_env_path)
 
