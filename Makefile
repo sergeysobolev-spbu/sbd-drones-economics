@@ -43,42 +43,35 @@ ci-unit-test:
 	@echo "=== SDK unit tests ==="
 	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/unit/ -v
 	@echo ""
-	@if [ -d components ] && ls -d components/*/ >/dev/null 2>&1; then \
-		for comp in components/*/; do \
-			if [ -d "$$comp/tests" ]; then \
-				echo "=== Unit tests: $$comp ==="; \
-				PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) "$$comp/tests/" -v || exit 1; \
-				echo ""; \
-			fi; \
-		done; \
-	fi
-	@for sys in systems/*/; do \
-		if ls "$$sys"/tests/test_*unit*.py >/dev/null 2>&1; then \
-			echo "=== Unit tests: $$sys ==="; \
-			PIPENV_PIPFILE=$(PROJECT_ROOT)/config/Pipfile pipenv run pytest -c $(PROJECT_ROOT)/config/pyproject.toml "$$sys"/tests/test_*unit*.py -v || exit 1; \
+	@fail=0; \
+	for dir in components/*/ systems/*/; do \
+		[ -d "$$dir" ] || continue; \
+		if [ -d "$$dir/tests/unit" ]; then \
+			echo "=== Unit tests: $$dir ==="; \
+			PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) "$$dir/tests/unit/" -v || fail=1; \
+			echo ""; \
+		elif [ -d "$$dir/tests" ] && ls "$$dir"/tests/test_*unit*.py >/dev/null 2>&1; then \
+			echo "=== Unit tests (legacy): $$dir ==="; \
+			PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) "$$dir"/tests/test_*unit*.py -v || fail=1; \
 			echo ""; \
 		fi; \
-	done
+	done; \
+	if [ $$fail -ne 0 ]; then echo "=== Some unit tests FAILED ==="; exit 1; fi
 
 ci-integration-test:
-	@for sys in systems/*/; do \
-		if [ -f "$$sys/Makefile" ] && grep -q 'test-all-docker' "$$sys/Makefile" 2>/dev/null; then \
-			echo "=== Integration tests: $$sys ==="; \
-			$(MAKE) -C "$$sys" test-all-docker PROJECT_ROOT=$(PROJECT_ROOT); \
-			rc=$$?; if [ $$rc -ne 0 ]; then \
-				if ls "$$sys"/tests/test_*integr*.py >/dev/null 2>&1; then exit $$rc; \
-				else echo "(no test files found, skipping)"; fi; \
-			fi; \
-			echo ""; \
-		elif ls "$$sys"/tests/test_integration*.py >/dev/null 2>&1; then \
-			echo "=== Integration tests (pytest): $$sys ==="; \
-			PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) "$$sys"/tests/test_integration*.py -v; \
-			rc=$$?; if [ $$rc -ne 0 ] && [ $$rc -ne 5 ]; then exit 1; fi; \
+	@fail=0; \
+	for dir in components/*/ systems/*/; do \
+		[ -d "$$dir" ] || continue; \
+		if [ -f "$$dir/Makefile" ] && grep -qE '^test-all-docker:|^integration-test:' "$$dir/Makefile" 2>/dev/null; then \
+			target=$$(grep -oE '^(test-all-docker|integration-test):' "$$dir/Makefile" | head -1 | tr -d ':'); \
+			echo "=== Integration tests: $$dir (make $$target) ==="; \
+			$(MAKE) -C "$$dir" $$target PROJECT_ROOT=$(PROJECT_ROOT) || fail=1; \
 			echo ""; \
 		else \
-			echo "=== Skipping $$sys (no integration tests) ==="; \
+			echo "=== Skipping $$dir (no integration target) ==="; \
 		fi; \
-	done
+	done; \
+	if [ $$fail -ne 0 ]; then echo "=== Some integration tests FAILED ==="; exit 1; fi
 
 ci-test: ci-unit-test ci-integration-test
 
