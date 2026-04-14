@@ -16,7 +16,7 @@ from typing import Generator
 import pytest
 import requests
 
-AGREGATOR_URL = os.environ.get("AGREGATOR_URL", "http://localhost:8080")
+AGREGATOR_URL = os.environ.get("AGREGATOR_URL", "http://localhost:8081")
 ANALYTICS_URL = os.environ.get("ANALYTICS_URL", "http://localhost:8090")
 ANALYTICS_API_KEY = os.environ.get("ANALYTICS_API_KEY", "test-api-key-e2e-12345")
 ANALYTICS_USER = os.environ.get("ANALYTICS_USER", "admin")

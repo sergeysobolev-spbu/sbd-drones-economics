@@ -21,3 +21,15 @@
 	path = systems/orvd_system
 	url = https://github.com/autoryuzo/OpBD.git
 	branch = system
+[submodule "systems/Agregator"]
+	path = systems/Agregator
+	url = https://github.com/DashDashh/Agregator.git
+	branch = integration-system-layout
+[submodule "systems/team1-regulator_operation_devsecops"]
+	path = systems/team1-regulator_operation_devsecops
+	url = https://github.com/souma94621/team1-regulator_operation_devsecops.git
+	branch = integration
+[submodule "systems/SITL-module"]
+	path = systems/SITL-module
+	url = https://github.com/SECS-team5/SITL-module.git
+	branch = pure

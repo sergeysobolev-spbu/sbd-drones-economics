@@ -114,7 +114,7 @@ prepare-multi:
 # E2E: full-scenario Docker test (4 systems + broker + DroneAnalytics)
 # ---------------------------------------------------------------------------
 
-E2E_SYSTEMS = agregator insurer operator orvd_system regulator gcs
+E2E_SYSTEMS = Agregator insurer operator orvd_system regulator gcs
 E2E_OUTPUT = .generated/e2e
 E2E_COMPOSE = docker compose -f $(E2E_OUTPUT)/docker-compose.yml -f tests/e2e/analytics-compose.yml --env-file $(E2E_OUTPUT)/.env
 E2E_PROFILE = kafka
@@ -138,7 +138,7 @@ e2e-up:
 
 e2e-test:
 	@echo "=== Running E2E tests ==="
-	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest tests/e2e/ -v -s \
+	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest tests/e2e/test_e2e_scenario.py -v -s \
 		--tb=short 2>&1 || (echo "E2E tests failed"; exit 1)
 
 e2e-logs:

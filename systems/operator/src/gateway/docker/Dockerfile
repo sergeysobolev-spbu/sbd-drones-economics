@@ -14,4 +14,4 @@ COPY . .
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "-m", "systems.agregator.src.gateway"]
+CMD ["python", "-m", "systems.operator.src.gateway"]

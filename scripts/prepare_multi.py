@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 from copy import deepcopy
 from pathlib import Path
@@ -31,7 +32,13 @@ def parse_env_file(path: Path) -> Dict[str, str]:
             continue
         if "=" in line:
             key, _, value = line.partition("=")
-            env[key.strip()] = value.strip()
+            value = value.strip()
+            # Strip surrounding quotes and unescape \" inside
+            if len(value) >= 2 and value[0] == '"' and value[-1] == '"':
+                value = value[1:-1].replace('\\"', '"')
+            else:
+                value = value.replace('\\"', '"')
+            env[key.strip()] = value
     return env
 
 
@@ -229,6 +236,15 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
             merged_volumes[prefixed] = vol_cfg
             sys_volume_names.add(vol_name)
 
+        # Маппинг original_name -> prefixed_name для переписывания env hostname'ов
+        _GLOBAL_SERVICES = {"kafka", "mosquitto", "redis", "zookeeper"}
+        svc_name_map: Dict[str, str] = {}
+        for orig in sys_services:
+            if orig == "redis":
+                svc_name_map[orig] = "redis"
+            else:
+                svc_name_map[orig] = f"{sys_name.lower()}_{orig}"
+
         # Приоритет: если redis уже есть, локальные redis из следующих систем не добавляем.
         for original_name, svc in sys_services.items():
             svc_name = original_name
@@ -240,7 +256,8 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                 svc_name = "redis"
             else:
                 # Избегаем коллизий между системами (orchestrator, drone_manager, ...)
-                svc_name = f"{sys_name}_{original_name}"
+                # Docker требует lowercase имена сервисов
+                svc_name = f"{sys_name.lower()}_{original_name}"
 
             # rewrite build/volumes для сервисов систем
             if "build" in svc:
@@ -257,21 +274,65 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                     rewritten.append(":".join(parts))
                 svc["volumes"] = rewritten
 
-            # Поддерживаем общий брокер и сеть
+            # Inline env_file: merge referenced .env files into environment
+            # (lower priority than explicit environment vars).
+            # This also enables Docker Compose variable substitution for values
+            # like ${BROKER_USER:-admin} which wouldn't be interpolated in env_file.
+            if "env_file" in svc:
+                env_files = svc.pop("env_file")
+                if isinstance(env_files, str):
+                    env_files = [env_files]
+                base_env: Dict[str, str] = {}
+                for ef in env_files:
+                    ef_path = (sys_compose_path.parent / ef).resolve()
+                    base_env.update(parse_env_file(ef_path))
+                explicit_env = env_list_to_dict(svc.get("environment"))
+                base_env.update(explicit_env)
+                svc["environment"] = base_env
+
             env_dict = env_list_to_dict(svc.get("environment"))
             if original_name != "redis":
                 if "REDIS_HOST" in env_dict and has_global_redis:
                     env_dict["REDIS_HOST"] = "redis"
+            # Переписываем hostname'ы внутрисистемных сервисов в env значениях.
+            # Например DATABASE_URL: ...@postgres:5432... → ...@agregator_postgres:5432...
+            for env_key, env_val in env_dict.items():
+                if not isinstance(env_val, str):
+                    continue
+                for orig_svc, prefixed_svc in svc_name_map.items():
+                    if orig_svc in _GLOBAL_SERVICES or orig_svc == original_name:
+                        continue
+                    # Если значение ровно равно имени сервиса (например POSTGRES_HOST=postgres)
+                    if env_val == orig_svc:
+                        env_val = prefixed_svc
+                        continue
+                    # Заменяем hostname в URL: @hostname:PORT (не трогаем схемы вида proto://)
+                    env_val = re.sub(
+                        rf'(?<=@){re.escape(orig_svc)}(?=:\d)',
+                        prefixed_svc,
+                        env_val,
+                    )
+                env_dict[env_key] = env_val
             svc["environment"] = env_dict
 
             ensure_common_network(svc)
 
-            # depends_on -> можно оставить как есть, но гарантируем ожидание broker health.
+            # depends_on -> переименовываем внутрисистемные зависимости с префиксом,
+            # глобальные (kafka, mosquitto, redis) оставляем как есть.
             dep = svc.get("depends_on", {})
             if isinstance(dep, list):
                 dep = {name: {"condition": "service_started"} for name in dep}
             elif not isinstance(dep, dict):
                 dep = {}
+
+            prefixed_dep: Dict[str, Any] = {}
+            for dep_name, dep_cfg in dep.items():
+                if dep_name in _GLOBAL_SERVICES:
+                    prefixed_dep[dep_name] = dep_cfg
+                else:
+                    # зависимость на сервис той же системы → добавляем lowercase префикс
+                    prefixed_dep[f"{sys_name.lower()}_{dep_name}"] = dep_cfg
+            dep = prefixed_dep
 
             dep["kafka"] = {"condition": "service_healthy", "required": False}
             dep["mosquitto"] = {"condition": "service_healthy", "required": False}

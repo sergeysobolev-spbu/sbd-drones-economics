@@ -10,3 +10,4 @@ __pycache__
 .generated/
 fabric/
 .DS_Store
+**/postgres_data/
