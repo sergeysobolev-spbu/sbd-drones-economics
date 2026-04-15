@@ -18,6 +18,8 @@ class ExternalTopics:
     INSURER = f"{_P}systems.insurer"
     ORVD = f"{_P}systems.orvd_system"
     REGULATOR = f"{_P}systems.regulator"
+    AGREGATOR_REQUESTS = f"{_P}components.agregator.operator.requests"
+    AGREGATOR_RESPONSES = f"{_P}components.agregator.operator.responses"
 
 
 class OperatorActions:
@@ -27,4 +29,6 @@ class OperatorActions:
     BUY_INSURANCE_POLICY = "buy_insurance_policy"
     REGISTER_DRONE_IN_ORVD = "register_drone_in_orvd"
     SEND_ORDER_TO_NUS = "send_order_to_nus"
+    CREATE_ORDER = "create_order"
+    CONFIRM_PRICE = "confirm_price"
 

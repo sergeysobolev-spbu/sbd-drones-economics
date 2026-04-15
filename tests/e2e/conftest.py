@@ -45,7 +45,6 @@ def _wait_for_http(url: str, label: str, timeout: int = STARTUP_TIMEOUT) -> None
 
 
 REGULATOR_URL = os.environ.get("REGULATOR_URL", "http://localhost:8088")
-GCS_GATEWAY_URL = os.environ.get("GCS_GATEWAY_URL", "http://localhost:8091")
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -54,7 +53,6 @@ def wait_for_services() -> None:
     _wait_for_http(f"{AGREGATOR_URL}/health", "Agregator")
     _wait_for_http(f"{ANALYTICS_URL}/", "DroneAnalytics")
     _wait_for_http(f"{REGULATOR_URL}/health", "Regulator")
-    _wait_for_http(f"{GCS_GATEWAY_URL}/health", "GCS gateway")
 
 
 @pytest.fixture(scope="session")

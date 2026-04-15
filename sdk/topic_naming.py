@@ -12,7 +12,28 @@
 С namespace=fleet_1:
     fleet_1.components.drone_port.charging_manager
 """
+import re
 import os
+
+
+def clean_topic_part(value: str) -> str:
+    """Sanitize a topic segment: lowercase, replace spaces/invalid chars with '_'.
+
+    Used by GCS external_topics.py to normalise env-var values before embedding
+    them into topic strings.
+
+    Examples::
+
+        clean_topic_part("My System") -> "my_system"
+        clean_topic_part("Agrodron")  -> "agrodron"   # preserves case intentionally
+        clean_topic_part("")          -> ""
+    """
+    if not value:
+        return value
+    # Replace whitespace and characters that are invalid in topic names with '_'
+    cleaned = re.sub(r"[\s/\\]+", "_", value.strip())
+    # Remove any leading/trailing underscores produced by the replacement
+    return cleaned.strip("_")
 
 
 def build_component_topic(

@@ -2,10 +2,12 @@
 OperatorComponent -- бизнес-логика оператора.
 
 Управляет реестром дронов, обрабатывает запросы на поиск дронов,
-взаимодействует с Insurer и ORVD через bus.
+взаимодействует с Insurer, ORVD и Agregator через bus.
 """
 from __future__ import annotations
 
+import json
+import logging
 from typing import Any, Dict, Optional
 
 from broker.system_bus import SystemBus
@@ -16,6 +18,8 @@ from systems.operator.src.operator_component.topics import (
     ExternalTopics,
     OperatorActions,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class OperatorComponent(BaseComponent):
@@ -43,6 +47,8 @@ class OperatorComponent(BaseComponent):
         self.register_handler(OperatorActions.BUY_INSURANCE_POLICY, self._handle_buy_insurance)
         self.register_handler(OperatorActions.REGISTER_DRONE_IN_ORVD, self._handle_register_in_orvd)
         self.register_handler(OperatorActions.SEND_ORDER_TO_NUS, self._handle_send_to_nus)
+        self.register_handler(OperatorActions.CREATE_ORDER, self._handle_create_order)
+        self.register_handler(OperatorActions.CONFIRM_PRICE, self._handle_confirm_price)
 
     def _handle_register_drone(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Регистрирует дрон в реестре оператора."""
@@ -194,4 +200,90 @@ class OperatorComponent(BaseComponent):
             "status": "sent_to_nus",
             "order_id": payload.get("order_id", ""),
             "note": "NUS integration pending",
+        }
+
+    # ---- Agregator integration (Kafka topics) ----
+
+    def _handle_create_order(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Обрабатывает create_order от Агрегатора: подбирает дрон, рассчитывает
+        стоимость с учётом миссионной страховки и отправляет price_offer обратно."""
+        payload = message.get("payload", {}) or {}
+        if isinstance(payload, (str, bytes)):
+            payload = json.loads(payload)
+
+        order_id = message.get("correlation_id", "") or payload.get("order_id", "")
+        budget = float(payload.get("budget", 0) or 0)
+
+        available = [d for d in self._drones.values() if d["status"] == "available"]
+        if not available:
+            logger.warning("[%s] create_order: no available drones for order %s",
+                           self.component_id, order_id)
+            return None
+
+        best = available[0]
+        drone_id = best["drone_id"]
+
+        base_price = budget * 0.85 if budget else 1000.0
+
+        insurance_premium = 0.0
+        try:
+            ins_resp = self.bus.request(
+                ExternalTopics.INSURER,
+                {
+                    "action": "mission_insurance",
+                    "sender": self.component_id,
+                    "payload": {
+                        "order_id": order_id,
+                        "operator_id": self.component_id,
+                        "drone_id": drone_id,
+                        "coverage_amount": budget,
+                    },
+                },
+                timeout=self.EXTERNAL_REQUEST_TIMEOUT,
+            )
+            if ins_resp and ins_resp.get("success"):
+                ins_pl = ins_resp.get("payload") or {}
+                insurance_premium = float(ins_pl.get("premium", 0))
+                logger.info("[%s] mission insurance premium=%.2f for order %s",
+                            self.component_id, insurance_premium, order_id)
+        except Exception as exc:
+            logger.warning("[%s] insurance request failed for order %s: %s",
+                           self.component_id, order_id, exc)
+
+        total_price = base_price + insurance_premium
+
+        offer = {
+            "action": "price_offer",
+            "sender": self.component_id,
+            "correlation_id": order_id,
+            "payload": {
+                "order_id": order_id,
+                "operator_id": self.component_id,
+                "operator_name": self.component_id,
+                "price": round(total_price, 2),
+                "estimated_time_minutes": 30,
+                "insurance_coverage": f"mission_{insurance_premium:.0f}",
+            },
+        }
+        self.bus.publish(ExternalTopics.AGREGATOR_RESPONSES, offer)
+        logger.info("[%s] published price_offer for order %s price=%.2f",
+                    self.component_id, order_id, total_price)
+        return {"status": "offer_sent", "order_id": order_id, "price": total_price}
+
+    def _handle_confirm_price(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Подтверждение цены от Агрегатора — фиксируем заказ у оператора."""
+        payload = message.get("payload", {}) or {}
+        if isinstance(payload, (str, bytes)):
+            payload = json.loads(payload)
+
+        order_id = message.get("correlation_id", "") or payload.get("order_id", "")
+        operator_id = payload.get("operator_id", "")
+        accepted_price = payload.get("accepted_price", 0)
+
+        logger.info("[%s] confirm_price order=%s operator=%s price=%s",
+                    self.component_id, order_id, operator_id, accepted_price)
+        return {
+            "status": "confirmed",
+            "order_id": order_id,
+            "accepted_price": accepted_price,
         }

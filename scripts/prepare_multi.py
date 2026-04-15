@@ -294,6 +294,38 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
             if original_name != "redis":
                 if "REDIS_HOST" in env_dict and has_global_redis:
                     env_dict["REDIS_HOST"] = "redis"
+
+            # ----------------------------------------------------------------
+            # System-specific env injections
+            # ----------------------------------------------------------------
+            # cyber_drons: standalone imports like "from components.x import y"
+            # need the system root on PYTHONPATH alongside /app.
+            if sys_name.lower() == "cyber_drons":
+                existing = env_dict.get("PYTHONPATH", "/app")
+                paths = [p for p in existing.split(":") if p]
+                extra = "/app/systems/cyber_drons"
+                if extra not in paths:
+                    paths.append(extra)
+                env_dict["PYTHONPATH"] = ":".join(paths)
+
+            # GCS drone_manager & mission_converter need to reach the Agrodron
+            # SecurityMonitor at the monorepo topic scheme (components.Agrodron.*)
+            # rather than the GCS default "v1.Agrodron.Agrodron001.*".
+            if sys_name.lower() == "gcs" and original_name in (
+                "drone_manager", "mission_converter", "orchestrator",
+            ):
+                env_dict.setdefault(
+                    "AGRODRON_SECURITY_MONITOR_TOPIC",
+                    "components.Agrodron.security_monitor",
+                )
+                env_dict.setdefault(
+                    "AGRODRON_MISSION_HANDLER_TOPIC",
+                    "components.Agrodron.mission_handler",
+                )
+                env_dict.setdefault(
+                    "AGRODRON_AUTOPILOT_TOPIC",
+                    "components.Agrodron.autopilot",
+                )
             # Переписываем hostname'ы внутрисистемных сервисов в env значениях.
             # Например DATABASE_URL: ...@postgres:5432... → ...@agregator_postgres:5432...
             for env_key, env_val in env_dict.items():

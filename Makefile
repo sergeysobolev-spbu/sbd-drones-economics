@@ -107,7 +107,7 @@ prepare-multi:
 # E2E: full-scenario Docker test (4 systems + broker + DroneAnalytics)
 # ---------------------------------------------------------------------------
 
-E2E_SYSTEMS = Agregator insurer operator orvd_system regulator gcs
+E2E_SYSTEMS = Agregator insurer operator orvd_system team1-regulator_operation_devsecops gcs drone_port cyber_drons
 E2E_OUTPUT = .generated/e2e
 E2E_COMPOSE = docker compose -f $(E2E_OUTPUT)/docker-compose.yml -f tests/e2e/analytics-compose.yml --env-file $(E2E_OUTPUT)/.env
 E2E_PROFILE = kafka
