@@ -166,6 +166,8 @@ e2e-codespace:
 	git submodule update --init --recursive
 	@echo "=== Installing Python dependencies ==="
 	pip install -r $(REQUIREMENTS)
+	@echo "=== Preparing docker/.env ==="
+	@test -f docker/.env || cp docker/example.env docker/.env
 	@echo "=== Generating multi-system compose ==="
 	@$(LOAD_ENV) && python scripts/prepare_multi.py \
 		--systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
