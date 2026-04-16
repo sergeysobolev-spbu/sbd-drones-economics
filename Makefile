@@ -1,10 +1,11 @@
-.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e
+.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace
 
 PROJECT_ROOT := $(CURDIR)
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
 LOAD_ENV = set -a && . docker/.env && set +a
 PIPENV_PIPFILE = config/Pipfile
 PYTEST_CONFIG = config/pyproject.toml
+REQUIREMENTS = config/requirements.txt
 
 help:
 	@echo "make init              - Установить pipenv и зависимости"
@@ -155,3 +156,40 @@ e2e-down:
 	@echo "=== E2E environment stopped ==="
 
 e2e: e2e-up e2e-test e2e-logs e2e-down
+
+# ---------------------------------------------------------------------------
+# E2E Codespace: без pipenv, без привязки к версии Python
+# ---------------------------------------------------------------------------
+
+e2e-codespace:
+	@echo "=== Initializing git submodules ==="
+	git submodule update --init --recursive
+	@echo "=== Installing Python dependencies ==="
+	pip install -r $(REQUIREMENTS)
+	@echo "=== Generating multi-system compose ==="
+	@$(LOAD_ENV) && python scripts/prepare_multi.py \
+		--systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
+	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
+	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
+	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
+	@echo "=== Starting E2E environment ==="
+	$(E2E_COMPOSE) --profile $(E2E_PROFILE) up -d --build
+	@echo "=== Waiting for services to start ==="
+	@for i in $$(seq 1 30); do \
+		curl -sf http://localhost:8080/health >/dev/null 2>&1 && break; \
+		sleep 3; \
+	done
+	@echo "=== Running E2E tests ==="
+	@$(LOAD_ENV) && python -m pytest tests/e2e/test_e2e_scenario.py -v -s \
+		--tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
+	@echo "=== Fetching events from DroneAnalytics ==="
+	@TOKEN=$$(curl -sf -X POST http://localhost:8090/auth/login \
+		-H 'Content-Type: application/json' \
+		-d '{"username":"admin","password":"admin1234"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null) && \
+	curl -sf http://localhost:8090/log/event?limit=100 \
+		-H "Authorization: Bearer $$TOKEN" | python3 -m json.tool 2>/dev/null || \
+	echo "(DroneAnalytics not available or no events)"
+	@echo "=== Stopping E2E environment ==="
+	-$(E2E_COMPOSE) --profile $(E2E_PROFILE) down -v 2>/dev/null
+	@echo "=== Done ==="
