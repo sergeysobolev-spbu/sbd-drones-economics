@@ -253,11 +253,10 @@ cd systems/dummy_fabric
 make unit-test
 ```
 
-**4. E2E тесты (требуют запущенную Fabric-сеть; `docker-up` выполняется автоматически):**
+**4. E2E тесты (требуют запущенную Fabric-сеть; и `docker-up`.**
 
 ```bash
-cd systems/dummy_fabric
-make test-e2e
+make test-dummy-fabric (из корня проекта)
 ```
 
 ### Сценарий E2E теста

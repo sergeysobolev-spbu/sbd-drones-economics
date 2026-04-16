@@ -1,4 +1,4 @@
-.PHONY: help init unit-test tests ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e
+.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e
 
 PROJECT_ROOT := $(CURDIR)
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
@@ -10,6 +10,7 @@ help:
 	@echo "make init              - Установить pipenv и зависимости"
 	@echo "make unit-test         - Unit тесты (SDK + broker + standalone компоненты)"
 	@echo "make tests             - Все тесты"
+	@echo "make test-dummy-fabric - E2E dummy_fabric (pytest systems/dummy_fabric/tests/test_e2e.py)"
 	@echo "make ci-unit-test      - CI: unit тесты всех components/ и systems/"
 	@echo "make ci-integration-test - CI: integration тесты всех systems/"
 	@echo "make ci-test           - CI: unit + integration (все components/ и systems/)"
@@ -36,6 +37,11 @@ unit-test:
 		-v
 
 tests: unit-test
+
+test-dummy-fabric:
+	@echo "=== dummy_fabric E2E (нужны Fabric + fabric-proxy) ==="
+	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) \
+		systems/dummy_fabric/tests/test_e2e.py -v -s --tb=short
 
 # --- CI: автообнаружение тестов во всех components/ и systems/ ---
 
