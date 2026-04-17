@@ -25,6 +25,7 @@ ANALYTICS_PASSWORD = os.environ.get("ANALYTICS_PASSWORD", "admin1234")
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
 STARTUP_TIMEOUT = int(os.environ.get("E2E_STARTUP_TIMEOUT", "120"))
+SKIP_ANALYTICS = os.environ.get("E2E_SKIP_ANALYTICS", "0") not in ("0", "", "false", "False")
 
 
 def _wait_for_http(url: str, label: str, timeout: int = STARTUP_TIMEOUT) -> None:
@@ -51,8 +52,9 @@ REGULATOR_URL = os.environ.get("REGULATOR_URL", "http://localhost:8088")
 def wait_for_services() -> None:
     """Block until all E2E services respond."""
     _wait_for_http(f"{AGREGATOR_URL}/health", "Agregator")
-    _wait_for_http(f"{ANALYTICS_URL}/", "DroneAnalytics")
     _wait_for_http(f"{REGULATOR_URL}/health", "Regulator")
+    if not SKIP_ANALYTICS:
+        _wait_for_http(f"{ANALYTICS_URL}/", "DroneAnalytics")
 
 
 @pytest.fixture(scope="session")
@@ -73,6 +75,8 @@ def analytics_api_key() -> str:
 @pytest.fixture(scope="session")
 def analytics_bearer_token() -> str:
     """Log in to DroneAnalytics and return an access token."""
+    if SKIP_ANALYTICS:
+        pytest.skip("Analytics disabled (E2E_SKIP_ANALYTICS=1)")
     resp = requests.post(
         f"{ANALYTICS_URL}/auth/login",
         json={"username": ANALYTICS_USER, "password": ANALYTICS_PASSWORD},

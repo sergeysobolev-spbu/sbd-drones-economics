@@ -176,6 +176,10 @@ e2e-codespace:
 	@echo "=== Generating multi-system compose ==="
 	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
+	@$(LOAD_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
+	@$(LOAD_ENV) && echo "BROKER_PASSWORD=$${ADMIN_PASSWORD:-admin_secret_123}" >> $(E2E_OUTPUT)/.env
+	@echo "=== Resetting Docker network ==="
+	@docker network rm $${DOCKER_NETWORK:-drones_net} 2>/dev/null || true
 	@echo "=== Starting E2E environment (no analytics) ==="
 	$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) up -d --build
 	@echo "=== Waiting for Agregator (8081) ==="
@@ -207,8 +211,10 @@ e2e-local:
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
-	@echo "=== Creating Docker network ==="
-	@docker network create $${DOCKER_NETWORK:-drones_net} 2>/dev/null || true
+	@$(LOAD_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
+	@$(LOAD_ENV) && echo "BROKER_PASSWORD=$${ADMIN_PASSWORD:-admin_secret_123}" >> $(E2E_OUTPUT)/.env
+	@echo "=== Resetting Docker network ==="
+	@docker network rm $${DOCKER_NETWORK:-drones_net} 2>/dev/null || true
 	@echo "=== Starting E2E environment (with analytics) ==="
 	$(E2E_COMPOSE) --profile $(E2E_PROFILE) up -d --build
 	@echo "=== Waiting for Agregator (8081) ==="

@@ -9,7 +9,7 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - ES_JAVA_OPTS=-Xms128m -Xmx128m
     networks:
       - drones_net
     healthcheck:
@@ -17,7 +17,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
-      start_period: 30s
+      start_period: 90s
     restart: unless-stopped
 
   analytics-init:
