@@ -1,4 +1,4 @@
-.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace
+.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local
 
 PROJECT_ROOT := $(CURDIR)
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
@@ -26,6 +26,8 @@ help:
 	@echo "make e2e-logs          - Показать события из DroneAnalytics"
 	@echo "make e2e-down          - Остановить и очистить E2E окружение"
 	@echo "make e2e               - e2e-up + e2e-test + e2e-logs + e2e-down"
+	@echo "make e2e-local         - Полный E2E локально (pip, со всеми системами и аналитикой)"
+	@echo "make e2e-codespace     - Полный E2E в GitHub Codespace (pip, без аналитики)"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
@@ -117,6 +119,7 @@ prepare-multi:
 E2E_SYSTEMS = Agregator insurer operator orvd_system team1-regulator_operation_devsecops gcs drone_port cyber_drons
 E2E_OUTPUT = .generated/e2e
 E2E_COMPOSE = docker compose -f $(E2E_OUTPUT)/docker-compose.yml -f tests/e2e/analytics-compose.yml --env-file $(E2E_OUTPUT)/.env
+E2E_COMPOSE_NO_ANALYTICS = docker compose -f $(E2E_OUTPUT)/docker-compose.yml --env-file $(E2E_OUTPUT)/.env
 E2E_PROFILE = kafka
 
 e2e-up:
@@ -168,30 +171,56 @@ e2e-codespace:
 	pip install -r $(REQUIREMENTS)
 	@echo "=== Preparing docker/.env ==="
 	@test -f docker/.env || cp docker/example.env docker/.env
+	@echo "=== Cleaning leftover build artifacts ==="
+	@sudo rm -rf systems/Agregator/postgres_data 2>/dev/null || true
 	@echo "=== Generating multi-system compose ==="
-	@$(LOAD_ENV) && python scripts/prepare_multi.py \
-		--systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
+	@echo "=== Starting E2E environment (no analytics) ==="
+	$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) up -d --build
+	@echo "=== Waiting for Agregator (8081) ==="
+	@for i in $$(seq 1 60); do curl -sf http://localhost:8081/health >/dev/null 2>&1 && echo "Agregator is up" && break; [ $$i -eq 60 ] && echo "WARNING: Agregator did not respond after 300s" || sleep 5; done
+	@echo "=== Waiting for Regulator (8088) ==="
+	@for i in $$(seq 1 30); do curl -sf http://localhost:8088/health >/dev/null 2>&1 && echo "Regulator is up" && break; [ $$i -eq 30 ] && echo "WARNING: Regulator did not respond after 150s" || sleep 5; done
+	@echo "=== Running E2E tests ==="
+	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
+	@echo "=== Stopping E2E environment ==="
+	-$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null
+	@echo "=== Done ==="
+
+# ---------------------------------------------------------------------------
+# E2E Local: полный локальный запуск со всеми системами и DroneAnalytics
+# ---------------------------------------------------------------------------
+
+e2e-local:
+	@echo "=== Initializing git submodules ==="
+	git submodule update --init --recursive
+	@echo "=== Installing Python dependencies ==="
+	pip install -r $(REQUIREMENTS)
+	@echo "=== Preparing docker/.env ==="
+	@test -f docker/.env || cp docker/example.env docker/.env
+	@echo "=== Cleaning leftover build artifacts ==="
+	@sudo rm -rf systems/Agregator/postgres_data 2>/dev/null || true
+	@echo "=== Generating multi-system compose ==="
+	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
 	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
-	@echo "=== Starting E2E environment ==="
+	@echo "=== Creating Docker network ==="
+	@docker network create $${DOCKER_NETWORK:-drones_net} 2>/dev/null || true
+	@echo "=== Starting E2E environment (with analytics) ==="
 	$(E2E_COMPOSE) --profile $(E2E_PROFILE) up -d --build
-	@echo "=== Waiting for services to start ==="
-	@for i in $$(seq 1 30); do \
-		curl -sf http://localhost:8080/health >/dev/null 2>&1 && break; \
-		sleep 3; \
-	done
+	@echo "=== Waiting for Agregator (8081) ==="
+	@for i in $$(seq 1 60); do curl -sf http://localhost:8081/health >/dev/null 2>&1 && echo "Agregator is up" && break; [ $$i -eq 60 ] && echo "WARNING: Agregator did not respond after 300s" || sleep 5; done
+	@echo "=== Waiting for Regulator (8088) ==="
+	@for i in $$(seq 1 30); do curl -sf http://localhost:8088/health >/dev/null 2>&1 && echo "Regulator is up" && break; [ $$i -eq 30 ] && echo "WARNING: Regulator did not respond after 150s" || sleep 5; done
+	@echo "=== Waiting for DroneAnalytics (8090) ==="
+	@for i in $$(seq 1 60); do curl -sf http://localhost:8090/ >/dev/null 2>&1 && echo "DroneAnalytics is up" && break; [ $$i -eq 60 ] && echo "WARNING: DroneAnalytics did not respond after 300s" || sleep 5; done
 	@echo "=== Running E2E tests ==="
-	@$(LOAD_ENV) && python -m pytest tests/e2e/test_e2e_scenario.py -v -s \
-		--tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
+	@$(LOAD_ENV) && python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
 	@echo "=== Fetching events from DroneAnalytics ==="
-	@TOKEN=$$(curl -sf -X POST http://localhost:8090/auth/login \
-		-H 'Content-Type: application/json' \
-		-d '{"username":"admin","password":"admin1234"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null) && \
-	curl -sf http://localhost:8090/log/event?limit=100 \
-		-H "Authorization: Bearer $$TOKEN" | python3 -m json.tool 2>/dev/null || \
-	echo "(DroneAnalytics not available or no events)"
+	@TOKEN=$$(curl -sf -X POST http://localhost:8090/auth/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin1234"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null) && curl -sf http://localhost:8090/log/event?limit=100 -H "Authorization: Bearer $$TOKEN" | python3 -m json.tool 2>/dev/null || echo "(DroneAnalytics not available or no events)"
 	@echo "=== Stopping E2E environment ==="
 	-$(E2E_COMPOSE) --profile $(E2E_PROFILE) down -v 2>/dev/null
 	@echo "=== Done ==="
