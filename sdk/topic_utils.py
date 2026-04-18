@@ -26,6 +26,13 @@ def instance_id() -> str:
     return os.environ.get("INSTANCE_ID", f"{system_name()}001")
 
 
+def topic_prefix() -> str:
+    """Возвращает префикс системы: components.{SYSTEM_NAME}."""
+    ns = os.environ.get("SYSTEM_NAMESPACE", "")
+    prefix = f"{ns}." if ns else ""
+    return f"{prefix}components.{system_name()}"
+
+
 def topic_for(component_suffix: str) -> str:
     """
     Возвращает полное имя топика для компонента.

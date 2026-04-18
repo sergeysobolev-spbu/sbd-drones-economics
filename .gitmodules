@@ -9,8 +9,8 @@
 	path = systems/insurer
 	url = https://github.com/DashDashh/Insurer.git
 	branch = integration
-[submodule "systems/cyber_drons"]
-	path = systems/cyber_drons
+[submodule "systems/agrodron"]
+	path = systems/agrodron
 	url = https://gitflic.ru/project/itmoniks/cyber_drons.git
 	branch = agrodron_for_andrey
 [submodule "systems/drones"]

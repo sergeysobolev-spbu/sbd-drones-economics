@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -298,15 +299,49 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
             # ----------------------------------------------------------------
             # System-specific env injections
             # ----------------------------------------------------------------
-            # cyber_drons: standalone imports like "from components.x import y"
-            # need the system root on PYTHONPATH alongside /app.
-            if sys_name.lower() == "cyber_drons":
-                existing = env_dict.get("PYTHONPATH", "/app")
-                paths = [p for p in existing.split(":") if p]
-                extra = "/app/systems/cyber_drons"
-                if extra not in paths:
-                    paths.append(extra)
-                env_dict["PYTHONPATH"] = ":".join(paths)
+            # agrodron: force Kafka broker and inject correct external topics.
+            if sys_name.lower() == "agrodron":
+                env_dict["BROKER_TYPE"] = "kafka"
+                env_dict["NUS_TOPIC"] = "components.gcs.drone_manager"
+                env_dict["ORVD_TOPIC"] = "systems.orvd_system"
+                env_dict["DRONEPORT_TOPIC"] = "components.drone_port.drone_manager"
+
+                # Inject SECURITY_POLICIES for security_monitor from monorepo config.
+                if original_name == "security_monitor":
+                    _policies_file = root / "config" / "agrodron" / "security_policies.json"
+                    if _policies_file.exists():
+                        env_dict["SECURITY_POLICIES"] = _policies_file.read_text().strip()
+
+                # Resolve placeholders in SECURITY_POLICIES and append e2e_test_host rules.
+                if original_name == "security_monitor" and env_dict.get("SECURITY_POLICIES"):
+                    _raw = env_dict.get("SYSTEM_NAME", "Agrodron")
+                    _system_name = "Agrodron" if "${" in str(_raw) else str(_raw)
+                    _A = f"components.{_system_name}"
+                    _subs = {
+                        "${SYSTEM_NAME}": _A,
+                        "$SYSTEM_NAME":   _A,
+                        "${NUS_TOPIC}":              env_dict.get("NUS_TOPIC", ""),
+                        "${ORVD_TOPIC}":             env_dict.get("ORVD_TOPIC", ""),
+                        "${DRONEPORT_TOPIC}":        env_dict.get("DRONEPORT_TOPIC", ""),
+                        "${SITL_TOPIC}":             env_dict.get("SITL_TOPIC", ""),
+                        "${SITL_COMMANDS_TOPIC}":    env_dict.get("SITL_COMMANDS_TOPIC", "sitl.commands"),
+                        "${SITL_TELEMETRY_REQUEST_TOPIC}": env_dict.get(
+                            "SITL_TELEMETRY_REQUEST_TOPIC", "sitl.telemetry.request"),
+                        "${SITL_VERIFIER_HOME_TOPIC}": env_dict.get(
+                            "SITL_VERIFIER_HOME_TOPIC", "sitl-drone-home"),
+                    }
+                    sp = env_dict["SECURITY_POLICIES"]
+                    for placeholder, value in _subs.items():
+                        sp = sp.replace(placeholder, value)
+                    try:
+                        policies = json.loads(sp)
+                        policies += [
+                            {"sender": "e2e_test_host", "topic": f"{_A}.autopilot",        "action": "get_state"},
+                            {"sender": "e2e_test_host", "topic": f"{_A}.security_monitor", "action": "*"},
+                        ]
+                        env_dict["SECURITY_POLICIES"] = json.dumps(policies)
+                    except (json.JSONDecodeError, ValueError):
+                        env_dict["SECURITY_POLICIES"] = sp
 
             # GCS drone_manager & mission_converter need to reach the Agrodron
             # SecurityMonitor at the monorepo topic scheme (components.Agrodron.*)

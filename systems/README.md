@@ -10,7 +10,7 @@
 |---|---|---|
 | `systems/orvd_system` | [autoryuzo/OpBD](https://github.com/autoryuzo/OpBD.git) | `system` |
 | `systems/insurer` | [DashDashh/Insurer](https://github.com/DashDashh/Insurer.git) | `integration` |
-| `systems/cyber_drons` | [itmoniks/cyber_drons](https://gitflic.ru/project/itmoniks/cyber_drons.git) | `agrodron_for_andrey` |
+| `systems/agrodron` | [itmoniks/cyber_drons](https://gitflic.ru/project/itmoniks/cyber_drons.git) | `agrodron_for_andrey` |
 | `systems/drones` | [AMCP-Drones/drones](https://github.com/AMCP-Drones/drones.git) | `extract/only-system` |
 | `systems/DroneAnalytics` | [OurPaintTeam/DroneAnalytics](https://github.com/OurPaintTeam/DroneAnalytics.git) | `main` |
 
