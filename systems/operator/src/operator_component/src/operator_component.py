@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Any, Dict, Optional
 
 from broker.system_bus import SystemBus
@@ -25,6 +26,8 @@ logger = logging.getLogger(__name__)
 class OperatorComponent(BaseComponent):
 
     EXTERNAL_REQUEST_TIMEOUT = 15.0
+    AGREGATOR_OFFER_RETRIES = 6
+    AGREGATOR_OFFER_RETRY_SLEEP_S = 2.0
 
     def __init__(
         self,
@@ -211,7 +214,11 @@ class OperatorComponent(BaseComponent):
         if isinstance(payload, (str, bytes)):
             payload = json.loads(payload)
 
-        order_id = message.get("correlation_id", "") or payload.get("order_id", "")
+        order_id = (
+            message.get("correlation_id", "")
+            or message.get("request_id", "")
+            or payload.get("order_id", "")
+        )
         budget = float(payload.get("budget", 0) or 0)
 
         available = [d for d in self._drones.values() if d["status"] == "available"]
@@ -265,9 +272,18 @@ class OperatorComponent(BaseComponent):
                 "insurance_coverage": f"mission_{insurance_premium:.0f}",
             },
         }
-        self.bus.publish(ExternalTopics.AGREGATOR_RESPONSES, offer)
-        logger.info("[%s] published price_offer for order %s price=%.2f",
-                    self.component_id, order_id, total_price)
+        for attempt in range(1, self.AGREGATOR_OFFER_RETRIES + 1):
+            self.bus.publish(ExternalTopics.AGREGATOR_RESPONSES, offer)
+            logger.info(
+                "[%s] published price_offer attempt=%s/%s order=%s price=%.2f",
+                self.component_id,
+                attempt,
+                self.AGREGATOR_OFFER_RETRIES,
+                order_id,
+                total_price,
+            )
+            if attempt < self.AGREGATOR_OFFER_RETRIES:
+                time.sleep(self.AGREGATOR_OFFER_RETRY_SLEEP_S)
         return {"status": "offer_sent", "order_id": order_id, "price": total_price}
 
     def _handle_confirm_price(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:

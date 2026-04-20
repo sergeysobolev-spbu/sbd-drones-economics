@@ -45,7 +45,7 @@ test-all-docker: docker-up
 	@echo "Waiting for broker and components..."
 	@sleep 45
 	@set -a && . $(GENERATED)/.env && set +a && \
-		PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/test_integration.py -v
+		PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/integration/test_integration.py -v
 	-$(MAKE) docker-down
 
 tests: unit-test test-all-docker

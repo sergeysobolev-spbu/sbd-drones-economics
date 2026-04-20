@@ -20,6 +20,10 @@ class ExternalTopics:
     REGULATOR = f"{_P}systems.regulator"
     AGREGATOR_REQUESTS = f"{_P}components.agregator.operator.requests"
     AGREGATOR_RESPONSES = f"{_P}components.agregator.operator.responses"
+    # Основной Kafka-топик агрегатора. Публикация create_order сюда с correlation_id=order_id
+    # заставляет Агрегатор перевести заказ из 'pending' в 'searching' (через его Kafka-консьюмер),
+    # после чего SetOperatorOffer принимает нашу price_offer.
+    AGREGATOR_SYSTEM = f"{_P}systems.agregator"
 
 
 class OperatorActions:

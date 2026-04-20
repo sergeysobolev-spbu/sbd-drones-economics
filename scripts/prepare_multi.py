@@ -56,10 +56,23 @@ def rewrite_path(original: str, from_dir: Path, to_dir: Path) -> str:
 
 
 def rewrite_volumes(volumes: List[str], from_dir: Path, to_dir: Path) -> List[str]:
+    def should_rewrite_source(source: str) -> bool:
+        """
+        Rewrite only bind-mount like sources.
+        Keep named volumes (e.g. postgres_data) untouched.
+        """
+        if not source or source.startswith("$"):
+            return False
+        if source.startswith(("/", "./", "../", "~")):
+            return True
+        # Relative host path like "data/logs" should be rewritten.
+        # Named volumes typically don't contain a path separator.
+        return "/" in source or "\\" in source
+
     result = []
     for vol in volumes:
         parts = vol.split(":")
-        if len(parts) >= 2 and not parts[0].startswith("/") and not parts[0].startswith("$"):
+        if len(parts) >= 2 and should_rewrite_source(parts[0]):
             parts[0] = rewrite_path(parts[0], from_dir, to_dir)
         result.append(":".join(parts))
     return result
@@ -181,12 +194,52 @@ def ensure_common_network(svc: Dict[str, Any]) -> None:
     raise RuntimeError(f"Unsupported networks type: {type(networks)}")
 
 
+def env_key_looks_like_hostname(env_key: str) -> bool:
+    """
+    Return True for env keys that are expected to contain a hostname value.
+    This protects credentials/ids from accidental service-name rewrites.
+    """
+    key = env_key.upper()
+    explicit_host_keys = {
+        "KAFKA_BROKER",
+        "KAFKA_BOOTSTRAP_SERVERS",
+        "MQTT_BROKER",
+        "REDIS_HOST",
+        "POSTGRES_HOST",
+        "DB_HOST",
+        "DATABASE_HOST",
+        "MYSQL_HOST",
+        "MONGO_HOST",
+        "HOST",
+        "HOSTNAME",
+    }
+    return (
+        key in explicit_host_keys
+        or key.endswith("_HOST")
+        or key.endswith("_HOSTNAME")
+    )
+
+
 def normalize_system_path(root: Path, system_name: str) -> Path:
     if system_name.startswith("systems/"):
         p = root / system_name
     else:
         p = root / "systems" / system_name
     return p
+
+
+def detect_system_compose_path(system_path: Path) -> Path:
+    """Support both docker-compose.yml and docker-compose.yaml."""
+    candidates = (
+        system_path / "docker-compose.yml",
+        system_path / "docker-compose.yaml",
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    raise RuntimeError(
+        f"System compose not found: expected one of {candidates[0]} or {candidates[1]}"
+    )
 
 
 def prepare_multi(systems: List[str], output: Optional[str]) -> None:
@@ -201,9 +254,7 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
         path = normalize_system_path(root, item)
         if not path.is_dir():
             raise RuntimeError(f"System dir not found: {path}")
-        compose = path / "docker-compose.yml"
-        if not compose.exists():
-            raise RuntimeError(f"System compose not found: {compose}")
+        compose = detect_system_compose_path(path)
         system_paths.append(path)
 
     output_dir = (root / output).resolve() if output else (root / ".generated" / "multi").resolve()
@@ -226,10 +277,25 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
     has_global_redis = "redis" in merged_services
 
     for sys_path in system_paths:
-        sys_compose_path = sys_path / "docker-compose.yml"
+        sys_compose_path = detect_system_compose_path(sys_path)
         sys_compose = yaml.safe_load(sys_compose_path.read_text()) or {}
         sys_services = deepcopy(sys_compose.get("services", {}))
         sys_name = sys_path.name
+
+        # SITL-module integration mode:
+        # use shared broker stack from monorepo and keep only SITL components.
+        if sys_name.lower() == "sitl-module":
+            for infra_service in ("zookeeper", "kafka", "mosquitto", "redis"):
+                sys_services.pop(infra_service, None)
+            for sitl_service_name, sitl_service in sys_services.items():
+                if not sitl_service_name.startswith("sitl_"):
+                    continue
+                # Upstream SITL compose references local-only images (sitl-module-*)
+                # that are not available in registry. In monorepo integration mode,
+                # run SITL components from a public Python base image and keep their
+                # existing runtime command/volumes.
+                sitl_service.pop("build", None)
+                sitl_service["image"] = "python:3.13-slim"
 
         sys_volume_names = set()
         for vol_name, vol_cfg in (sys_compose.get("volumes") or {}).items():
@@ -305,6 +371,12 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                 env_dict["NUS_TOPIC"] = "components.gcs.drone_manager"
                 env_dict["ORVD_TOPIC"] = "systems.orvd_system"
                 env_dict["DRONEPORT_TOPIC"] = "components.drone_port.drone_manager"
+                # One shared drone_id across AgroDron, DronePort and SITL.
+                env_dict["INSTANCE_ID"] = "drone_001"
+                env_dict["SITL_TOPIC"] = "sitl.telemetry.request"
+                env_dict["SITL_COMMANDS_TOPIC"] = "sitl.commands"
+                env_dict["SITL_TELEMETRY_REQUEST_TOPIC"] = "sitl.telemetry.request"
+                env_dict["SITL_VERIFIER_HOME_TOPIC"] = "sitl-drone-home"
 
                 # Inject SECURITY_POLICIES for security_monitor from monorepo config.
                 if original_name == "security_monitor":
@@ -361,21 +433,44 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                     "AGRODRON_AUTOPILOT_TOPIC",
                     "components.Agrodron.autopilot",
                 )
+
+            if sys_name.lower() == "sitl-module":
+                env_dict["BROKER_BACKEND"] = "kafka"
+                env_dict["KAFKA_SERVERS"] = "kafka:29092"
+                env_dict["MQTT_BROKER"] = "mosquitto"
+                env_dict["MQTT_PORT"] = "1883"
+                env_dict["REDIS_URL"] = "redis://redis:6379"
             # Переписываем hostname'ы внутрисистемных сервисов в env значениях.
             # Например DATABASE_URL: ...@postgres:5432... → ...@agregator_postgres:5432...
+            _NON_HOST_KEYS = {
+                "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB",
+                "MYSQL_USER", "MYSQL_PASSWORD", "MYSQL_DATABASE",
+                "MONGO_INITDB_ROOT_USERNAME", "MONGO_INITDB_ROOT_PASSWORD",
+                "BROKER_USER", "BROKER_PASSWORD",
+                "ADMIN_USER", "ADMIN_PASSWORD",
+            }
             for env_key, env_val in env_dict.items():
                 if not isinstance(env_val, str):
+                    continue
+                if env_key in _NON_HOST_KEYS:
                     continue
                 for orig_svc, prefixed_svc in svc_name_map.items():
                     if orig_svc in _GLOBAL_SERVICES or orig_svc == original_name:
                         continue
-                    # Если значение ровно равно имени сервиса (например POSTGRES_HOST=postgres)
-                    if env_val == orig_svc:
+                    # Replace plain service names only for host-like keys
+                    # (e.g. POSTGRES_HOST=postgres). Avoid touching credentials/usernames.
+                    if env_key_looks_like_hostname(env_key) and env_val == orig_svc:
                         env_val = prefixed_svc
                         continue
-                    # Заменяем hostname в URL: @hostname:PORT (не трогаем схемы вида proto://)
+                    # Replace hostname in DSN URL authority: user:pass@hostname:PORT
                     env_val = re.sub(
                         rf'(?<=@){re.escape(orig_svc)}(?=:\d)',
+                        prefixed_svc,
+                        env_val,
+                    )
+                    # Replace hostname in URL with scheme: proto://hostname[:PORT][/...]
+                    env_val = re.sub(
+                        rf'(?<=://){re.escape(orig_svc)}(?=:\d|/|$)',
                         prefixed_svc,
                         env_val,
                     )
