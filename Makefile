@@ -121,6 +121,10 @@ E2E_OUTPUT = .generated/e2e
 E2E_COMPOSE = docker compose -f $(E2E_OUTPUT)/docker-compose.yml -f tests/e2e/analytics-compose.yml --env-file $(E2E_OUTPUT)/.env
 E2E_COMPOSE_NO_ANALYTICS = docker compose -f $(E2E_OUTPUT)/docker-compose.yml --env-file $(E2E_OUTPUT)/.env
 E2E_PROFILE = kafka
+# Прогрев стенда после health-чеков: даём Kafka-консьюмерам во всех сервисах
+# (Agregator, Operator, Regulator, ORVD, GCS и т.д.) вступить в consumer group,
+# иначе первые тесты нестабильны (гейтвеи ловят таймауты до первой ребалансировки).
+E2E_WARMUP_SECONDS ?= 45
 
 e2e-up:
 	@echo "=== Generating multi-system compose ==="
@@ -132,13 +136,19 @@ e2e-up:
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
 	@echo "AGRODRON_GATEWAY_HOST_PORT=18081" >> $(E2E_OUTPUT)/.env
 	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env
+	@$(LOAD_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
+	@$(LOAD_ENV) && echo "BROKER_PASSWORD=$${ADMIN_PASSWORD:-admin_secret_123}" >> $(E2E_OUTPUT)/.env
 	@echo "=== Starting E2E environment ==="
 	$(E2E_COMPOSE) --profile $(E2E_PROFILE) up -d --build
-	@echo "=== Waiting for services to start ==="
-	@for i in $$(seq 1 30); do \
-		curl -sf http://localhost:8080/health >/dev/null 2>&1 && break; \
-		sleep 3; \
-	done
+	@echo "=== Waiting for Agregator (8081) ==="
+	@for i in $$(seq 1 60); do curl -sf http://localhost:8081/health >/dev/null 2>&1 && echo "Agregator is up" && break; [ $$i -eq 60 ] && echo "WARNING: Agregator did not respond after 300s" || sleep 5; done
+	@echo "=== Waiting for Regulator (8088) ==="
+	@for i in $$(seq 1 30); do curl -sf http://localhost:8088/health >/dev/null 2>&1 && echo "Regulator is up" && break; [ $$i -eq 30 ] && echo "WARNING: Regulator did not respond after 150s" || sleep 5; done
+	@echo "=== Waiting for DroneAnalytics (8090) ==="
+	@for i in $$(seq 1 60); do curl -sf http://localhost:8090/ >/dev/null 2>&1 && echo "DroneAnalytics is up" && break; [ $$i -eq 60 ] && echo "WARNING: DroneAnalytics did not respond after 300s" || sleep 5; done
+	@$(LOAD_ENV) && bash scripts/e2e_warmup.sh
+	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
+	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== E2E environment is up ==="
 
 e2e-test:
@@ -190,6 +200,9 @@ e2e-codespace:
 	@for i in $$(seq 1 60); do curl -sf http://localhost:8081/health >/dev/null 2>&1 && echo "Agregator is up" && break; [ $$i -eq 60 ] && echo "WARNING: Agregator did not respond after 300s" || sleep 5; done
 	@echo "=== Waiting for Regulator (8088) ==="
 	@for i in $$(seq 1 30); do curl -sf http://localhost:8088/health >/dev/null 2>&1 && echo "Regulator is up" && break; [ $$i -eq 30 ] && echo "WARNING: Regulator did not respond after 150s" || sleep 5; done
+	@$(LOAD_ENV) && bash scripts/e2e_warmup.sh
+	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
+	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== Running E2E tests ==="
 	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
 	@echo "=== Stopping E2E environment ==="
@@ -229,6 +242,9 @@ e2e-local:
 	@for i in $$(seq 1 30); do curl -sf http://localhost:8088/health >/dev/null 2>&1 && echo "Regulator is up" && break; [ $$i -eq 30 ] && echo "WARNING: Regulator did not respond after 150s" || sleep 5; done
 	@echo "=== Waiting for DroneAnalytics (8090) ==="
 	@for i in $$(seq 1 60); do curl -sf http://localhost:8090/ >/dev/null 2>&1 && echo "DroneAnalytics is up" && break; [ $$i -eq 60 ] && echo "WARNING: DroneAnalytics did not respond after 300s" || sleep 5; done
+	@$(LOAD_ENV) && bash scripts/e2e_warmup.sh
+	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
+	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== Running E2E tests ==="
 	@$(LOAD_ENV) && python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
 	@echo "=== Fetching events from DroneAnalytics ==="

@@ -6,7 +6,7 @@ name: drones
 
 services:
   kafka:
-    image: apache/kafka:latest
+    image: apache/kafka:3.9.1
     container_name: kafka
     profiles: ["kafka"]
     ports:
