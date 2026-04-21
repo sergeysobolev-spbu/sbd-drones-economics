@@ -24,7 +24,7 @@ ANALYTICS_PASSWORD = os.environ.get("ANALYTICS_PASSWORD", "admin1234")
 
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
-STARTUP_TIMEOUT = int(os.environ.get("E2E_STARTUP_TIMEOUT", "120"))
+STARTUP_TIMEOUT = int(os.environ.get("E2E_STARTUP_TIMEOUT", "180"))
 SKIP_ANALYTICS = os.environ.get("E2E_SKIP_ANALYTICS", "0") not in ("0", "", "false", "False")
 
 

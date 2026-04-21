@@ -124,7 +124,7 @@ E2E_PROFILE = kafka
 # Прогрев стенда после health-чеков: даём Kafka-консьюмерам во всех сервисах
 # (Agregator, Operator, Regulator, ORVD, GCS и т.д.) вступить в consumer group,
 # иначе первые тесты нестабильны (гейтвеи ловят таймауты до первой ребалансировки).
-E2E_WARMUP_SECONDS ?= 45
+E2E_WARMUP_SECONDS ?= 100
 
 e2e-up:
 	@echo "=== Generating multi-system compose ==="
