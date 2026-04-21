@@ -23,7 +23,7 @@ pipeline {
             steps {
                 checkout scm
                 sh 'git submodule update --init --recursive'
-                stash name: 'source'
+                stash name: 'source', excludes: 'venv/**, systems/deliverydron/**'
             }
         }
 
