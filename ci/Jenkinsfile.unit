@@ -23,11 +23,11 @@ pipeline {
             steps {
                 checkout scm
                 sh 'git submodule update --init --recursive'
-                stash name: 'source', includes: '**', useDefaultExcludes: false
+                stash name: 'source'
             }
         }
 
-        stage('Init') {
+        stage('Unit Tests') {
             agent {
                 docker {
                     image 'python:3.11'
@@ -43,24 +43,6 @@ pipeline {
                         python3 -m pip install --user --upgrade pip setuptools wheel
                         python3 -m pip install --user pipenv
                     fi
-                    export PATH="$HOME/.local/bin:$PATH"
-                    pipenv --version
-                    pipenv install --dev
-                '''
-            }
-        }
-
-        stage('Unit Tests') {
-            agent {
-                docker {
-                    image 'python:3.11'
-                    args '-u root'
-                }
-            }
-            steps {
-                unstash 'source'
-                sh '''
-                    set -eu
                     export PATH="$HOME/.local/bin:$PATH"
                     pipenv install --dev
                     make ci-unit-test
