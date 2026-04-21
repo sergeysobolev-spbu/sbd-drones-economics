@@ -21,6 +21,19 @@ pipeline {
     }
 
     stages {
+        stage('Cleanup workspace') {
+            steps {
+                sh '''
+                    docker run --rm -v "${WORKSPACE}":/ws alpine sh -c '
+                        chown -R 1000:1000 /ws 2>/dev/null || true
+                        rm -rf /ws/config/Pipfile.lock 2>/dev/null || true
+                        find /ws -type d -name .pytest_cache -prune -exec rm -rf {} + 2>/dev/null || true
+                        find /ws -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
+                    ' || true
+                '''
+            }
+        }
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -77,6 +90,7 @@ pipeline {
                     [ -f "$sys/Makefile" ] && make -C "$sys" docker-down PROJECT_ROOT="$(pwd)" 2>/dev/null || true
                 done
                 docker system prune -f --volumes --filter "label=ci=drones" || true
+                docker run --rm -v "${WORKSPACE}":/ws alpine sh -c 'chown -R 1000:1000 /ws' 2>/dev/null || true
             '''
             archiveArtifacts artifacts: '**/pytest-report*.xml, **/*.log', allowEmptyArchive: true
         }
