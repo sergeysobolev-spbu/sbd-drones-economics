@@ -1,0 +1,65 @@
+// Unit-test pipeline: make ci-unit-test
+// Fast lane: pipenv + pytest в докер-агенте python:3.11, без Docker-in-Docker.
+pipeline {
+    agent {
+        docker {
+            image 'python:3.11'
+            args '-u root'
+        }
+    }
+
+    options {
+        timeout(time: 15, unit: 'MINUTES')
+        timestamps()
+        ansiColor('xterm')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+    }
+
+    environment {
+        PIPENV_PIPFILE = 'config/Pipfile'
+        PIP_DISABLE_PIP_VERSION_CHECK = '1'
+        PYTHONDONTWRITEBYTECODE = '1'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh 'git submodule update --init --recursive'
+            }
+        }
+
+        stage('Init') {
+            steps {
+                sh '''
+                    set -eu
+                    if ! command -v pipenv >/dev/null 2>&1; then
+                        python3 -m ensurepip --upgrade || true
+                        python3 -m pip install --user --upgrade pip setuptools wheel
+                        python3 -m pip install --user pipenv
+                    fi
+                    export PATH="$HOME/.local/bin:$PATH"
+                    pipenv --version
+                    pipenv install --dev
+                '''
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh '''
+                    set -eu
+                    export PATH="$HOME/.local/bin:$PATH"
+                    make ci-unit-test
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: '**/pytest-report*.xml, **/htmlcov/**', allowEmptyArchive: true
+        }
+    }
+}
