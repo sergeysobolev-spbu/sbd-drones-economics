@@ -24,7 +24,10 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
-                sh 'git submodule update --init --recursive'
+                sh '''
+                    git config --global --add safe.directory "${WORKSPACE}"
+                    git submodule update --init --recursive
+                '''
             }
         }
 
