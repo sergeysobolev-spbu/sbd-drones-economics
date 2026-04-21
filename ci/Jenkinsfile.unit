@@ -26,12 +26,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
-                // Git 2.35+: workspace owned by jenkins user, steps may run as root inside
-                // docker agent — "dubious ownership". Mark repo safe before submodules.
-                sh '''
-                    git config --global --add safe.directory "${WORKSPACE}"
-                    git submodule update --init --recursive
-                '''
+                sh 'git submodule update --init --recursive'
             }
         }
 
