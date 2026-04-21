@@ -21,9 +21,15 @@ pipeline {
         stage('Checkout') {
             agent any
             steps {
+                sh '''
+                    docker run --rm -v "${WORKSPACE}":/ws alpine sh -c 'chown -R 1000:1000 /ws' 2>/dev/null || true
+                '''
                 checkout scm
-                sh 'git submodule update --init --recursive'
-                stash name: 'source', excludes: 'venv/**, systems/deliverydron/**'
+                sh '''
+                    git config --global --add safe.directory "${WORKSPACE}"
+                    git submodule update --init --recursive
+                '''
+                stash name: 'source', excludes: 'venv/**, systems/deliverydron/**, **/.pytest_cache/**, **/__pycache__/**'
             }
         }
 
@@ -50,6 +56,7 @@ pipeline {
             }
             post {
                 always {
+                    sh 'chown -R 1000:1000 . || true'
                     archiveArtifacts artifacts: '**/pytest-report*.xml, **/htmlcov/**', allowEmptyArchive: true
                 }
             }
