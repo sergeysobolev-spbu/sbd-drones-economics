@@ -1,12 +1,7 @@
 // Unit-test pipeline: make ci-unit-test
 // Fast lane: pipenv + pytest в докер-агенте python:3.11, без Docker-in-Docker.
 pipeline {
-    agent {
-        docker {
-            image 'python:3.11'
-            args '-u root'
-        }
-    }
+    agent any
 
     options {
         timeout(time: 15, unit: 'MINUTES')
@@ -23,14 +18,37 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Cleanup workspace') {
             steps {
-                checkout scm
-                sh 'git submodule update --init --recursive'
+                sh '''
+                    docker run --rm -v "${WORKSPACE}":/ws alpine sh -c '
+                        chown -R 1000:1000 /ws 2>/dev/null || true
+                        rm -rf /ws/config/Pipfile.lock 2>/dev/null || true
+                        find /ws -type d -name .pytest_cache -prune -exec rm -rf {} + 2>/dev/null || true
+                        find /ws -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
+                    ' || true
+                '''
             }
         }
 
-        stage('Init') {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                sh '''
+                    git config --global --add safe.directory "${WORKSPACE}"
+                    git submodule update --init --recursive
+                '''
+            }
+        }
+
+        stage('Unit Tests') {
+            agent {
+                docker {
+                    image 'python:3.11'
+                    args '-u root'
+                    reuseNode true
+                }
+            }
             steps {
                 sh '''
                     set -eu
@@ -40,26 +58,16 @@ pipeline {
                         python3 -m pip install --user pipenv
                     fi
                     export PATH="$HOME/.local/bin:$PATH"
-                    pipenv --version
                     pipenv install --dev
-                '''
-            }
-        }
-
-        stage('Unit Tests') {
-            steps {
-                sh '''
-                    set -eu
-                    export PATH="$HOME/.local/bin:$PATH"
                     make ci-unit-test
                 '''
             }
-        }
-    }
-
-    post {
-        always {
-            archiveArtifacts artifacts: '**/pytest-report*.xml, **/htmlcov/**', allowEmptyArchive: true
+            post {
+                always {
+                    sh 'chown -R 1000:1000 . 2>/dev/null || true'
+                    archiveArtifacts artifacts: '**/pytest-report*.xml, **/htmlcov/**', allowEmptyArchive: true
+                }
+            }
         }
     }
 }

@@ -22,10 +22,27 @@ pipeline {
     }
 
     stages {
+        stage('Cleanup workspace') {
+            steps {
+                sh '''
+                    docker run --rm -v "${WORKSPACE}":/ws alpine sh -c '
+                        chown -R 1000:1000 /ws 2>/dev/null || true
+                        rm -rf /ws/config/Pipfile.lock 2>/dev/null || true
+                        find /ws -type d -name .pytest_cache -prune -exec rm -rf {} + 2>/dev/null || true
+                        find /ws -type d -name __pycache__ -prune -exec rm -rf {} + 2>/dev/null || true
+                        rm -rf /ws/.generated 2>/dev/null || true
+                    ' || true
+                '''
+            }
+        }
+
         stage('Checkout') {
             steps {
                 checkout scm
-                sh 'git submodule update --init --recursive'
+                sh '''
+                    git config --global --add safe.directory "${WORKSPACE}"
+                    git submodule update --init --recursive
+                '''
             }
         }
 
@@ -70,6 +87,7 @@ pipeline {
                 for sys in systems/*/; do
                     [ -f "$sys/Makefile" ] && make -C "$sys" docker-down PROJECT_ROOT="$(pwd)" 2>/dev/null || true
                 done
+                docker run --rm -v "${WORKSPACE}":/ws alpine sh -c 'chown -R 1000:1000 /ws' 2>/dev/null || true
             '''
             archiveArtifacts artifacts: 'e2e-logs.txt, .generated/e2e/**, **/pytest-report*.xml', allowEmptyArchive: true
         }
