@@ -114,6 +114,13 @@ make docker-up
 
 Подробнее: [docs/fabric_integration.md](fabric_integration.md)
 
+## Тесты 
+- make e2e-local/e2e-codespace (Запуск e2e тестов одной командой сразу включая клонирование репозиториев и установку зависимостей с ELK/без ELK)
+
+- make ci-unit-test Запускает все unit тесты систем
+
+- make ci-integration-test Запускает все интеграционные тесты систем (ищет в Makefile)
+
 ## Troubleshooting
 
 - Брокер недоступен: проверьте profile (kafka/mqtt) в docker-up
