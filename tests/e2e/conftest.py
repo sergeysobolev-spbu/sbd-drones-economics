@@ -24,6 +24,9 @@ ANALYTICS_PASSWORD = os.environ.get("ANALYTICS_PASSWORD", "admin1234")
 
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
+MQTT_BROKER = os.environ.get("MQTT_BROKER", "localhost")
+MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
+
 STARTUP_TIMEOUT = int(os.environ.get("E2E_STARTUP_TIMEOUT", "180"))
 SKIP_ANALYTICS = os.environ.get("E2E_SKIP_ANALYTICS", "0") not in ("0", "", "false", "False")
 
@@ -96,6 +99,29 @@ def kafka_bus():
 
     from broker.bus_factory import create_system_bus
     bus = create_system_bus(client_id="e2e_test_host")
+    bus.start()
+    yield bus
+    bus.stop()
+
+
+@pytest.fixture(scope="session")
+def mqtt_bus():
+    """Create an MQTT SystemBus for the test host to send bus messages.
+
+    Uses the same single-broker SystemBus API as kafka_bus — request/publish.
+    Requires mosquitto on localhost:1883 (docker profile=mqtt) and systems
+    running with BROKER_TYPE=mqtt.
+    """
+    os.environ.setdefault("MQTT_BROKER", MQTT_BROKER)
+    os.environ.setdefault("MQTT_PORT", str(MQTT_PORT))
+    os.environ.setdefault("BROKER_USER", os.environ.get("ADMIN_USER", "admin"))
+    os.environ.setdefault("BROKER_PASSWORD", os.environ.get("ADMIN_PASSWORD", "admin_secret_123"))
+
+    from broker.bus_factory import create_system_bus
+    bus = create_system_bus(
+        bus_type="mqtt",
+        client_id="e2e_test_host",
+    )
     bus.start()
     yield bus
     bus.stop()

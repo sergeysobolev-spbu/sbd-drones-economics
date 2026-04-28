@@ -287,15 +287,23 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
         if sys_name.lower() == "sitl-module":
             for infra_service in ("zookeeper", "kafka", "mosquitto", "redis"):
                 sys_services.pop(infra_service, None)
+            # Apstream SITL на ветке pure дублирует broker/ и sdk/, но не
+            # доложил половину файлов (system_bus, config, messages,
+            # base_component). Правильный подход — использовать монорепные
+            # broker/ и sdk/ как единый источник истины и не иметь
+            # дубликатов в сабмодуле. Пока SITL-команда не почистит свой
+            # sdk/broker, монтируем наши поверх.
+            monorepo_broker = rewrite_path("broker", root, output_dir)
+            monorepo_sdk = rewrite_path("sdk", root, output_dir)
             for sitl_service_name, sitl_service in sys_services.items():
                 if not sitl_service_name.startswith("sitl_"):
                     continue
-                # Upstream SITL compose references local-only images (sitl-module-*)
-                # that are not available in registry. In monorepo integration mode,
-                # run SITL components from a public Python base image and keep their
-                # existing runtime command/volumes.
-                sitl_service.pop("build", None)
-                sitl_service["image"] = "python:3.13-slim"
+                sitl_service.pop("healthcheck", None)
+                svc_volumes = sitl_service.setdefault("volumes", [])
+                svc_volumes.extend([
+                    f"{monorepo_broker}:/app/broker:ro",
+                    f"{monorepo_sdk}:/app/sdk:ro",
+                ])
 
         sys_volume_names = set()
         for vol_name, vol_cfg in (sys_compose.get("volumes") or {}).items():
@@ -365,12 +373,36 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
             # ----------------------------------------------------------------
             # System-specific env injections
             # ----------------------------------------------------------------
-            # agrodron: force Kafka broker and inject correct external topics.
+            # agrodron: force broker type (kafka by default; mqtt if E2E_BROKER=mqtt)
+            # and inject correct external topics.
             if sys_name.lower() == "agrodron":
-                env_dict["BROKER_TYPE"] = "kafka"
+                env_dict["BROKER_TYPE"] = os.getenv("E2E_BROKER", "kafka")
                 env_dict["NUS_TOPIC"] = "components.gcs.drone_manager"
                 env_dict["ORVD_TOPIC"] = "systems.orvd_system"
                 env_dict["DRONEPORT_TOPIC"] = "components.drone_port.drone_manager"
+                # AgroDron коммит 5223667 (fix autopilot) поменял импорт в
+                # autopilot.py с `from systems.agrodron.src.autopilot import config`
+                # на `from components.autopilot import config`, но саму структуру
+                # `components/autopilot/` не создал. Мы временно подмонтируем
+                # shim из .generated/agrodron-shim/, пока команда не поправит
+                # импорт обратно (см. autopilot.py:7).
+                if original_name == "autopilot":
+                    shim_path = rewrite_path(".generated/agrodron-shim/components", root, output_dir)
+                    svc_volumes = svc.setdefault("volumes", [])
+                    svc_volumes.append(f"{shim_path}:/app/components:ro")
+                # По умолчанию navigation опрашивает SITL 10 Гц, в e2e это
+                # блокирует очередь security_monitor и autopilot не доводит
+                # mission.START до конца (не успевает сделать request_takeoff).
+                env_dict["NAVIGATION_POLL_INTERVAL_S"] = "2.0"
+                # Autopilot по умолчанию ставит request-timeout 2s, но
+                # security_monitor ждёт ORVD до 10s — autopilot отваливается
+                # раньше и трактует resp=None как orvd_departure_denied.
+                env_dict["AUTOPILOT_REQUEST_TIMEOUT_S"] = "30"
+                # Security_monitor proxy_request timeout — по дефолту 10s.
+                # autopilot.cmd=START последовательно делает два request'а
+                # (ORVD + DronePort), каждый до 8s → handler > 10s, клиент
+                # (GCS drone_manager) получает 'no response from autopilot'.
+                env_dict["SECURITY_MONITOR_PROXY_REQUEST_TIMEOUT_S"] = "25"
                 # One shared drone_id across AgroDron, DronePort and SITL.
                 env_dict["INSTANCE_ID"] = "drone_001"
                 env_dict["SITL_TOPIC"] = "sitl.telemetry.request"
@@ -435,11 +467,31 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                 )
 
             if sys_name.lower() == "sitl-module":
-                env_dict["BROKER_BACKEND"] = "kafka"
+                env_dict["BROKER_BACKEND"] = os.getenv("E2E_BROKER", "kafka")
+                env_dict["BROKER_TYPE"] = os.getenv("E2E_BROKER", "kafka")
                 env_dict["KAFKA_SERVERS"] = "kafka:29092"
+                env_dict["KAFKA_BOOTSTRAP_SERVERS"] = "kafka:29092"
                 env_dict["MQTT_BROKER"] = "mosquitto"
                 env_dict["MQTT_PORT"] = "1883"
                 env_dict["REDIS_URL"] = "redis://redis:6379"
+                # Монорепный broker/ монтируется в /app/broker (см. выше) —
+                # он использует SASL_PLAINTEXT когда заданы BROKER_USER/PASSWORD.
+                env_dict["BROKER_USER"] = "${ADMIN_USER:-admin}"
+                env_dict["BROKER_PASSWORD"] = "${ADMIN_PASSWORD:-admin_secret_123}"
+
+            # Agregator (Go) всегда использует Kafka. Под MQTT-сценарий
+            # включаем OPERATOR_TRANSPORT=both, чтобы operator.* дублировались
+            # в MQTT и Python-Operator под BROKER_TYPE=mqtt смог их прочитать.
+            if sys_name.lower() == "agregator" and os.getenv("E2E_BROKER") == "mqtt":
+                if original_name == "aggregator":
+                    env_dict["OPERATOR_TRANSPORT"] = "both"
+                    env_dict["MQTT_BROKER"] = "mosquitto:1883"
+                    env_dict["MQTT_USERNAME"] = env_dict.get(
+                        "BROKER_USER", "${ADMIN_USER:-admin}"
+                    )
+                    env_dict["MQTT_PASSWORD"] = env_dict.get(
+                        "BROKER_PASSWORD", "${ADMIN_PASSWORD:-admin_secret_123}"
+                    )
             # Переписываем hostname'ы внутрисистемных сервисов в env значениях.
             # Например DATABASE_URL: ...@postgres:5432... → ...@agregator_postgres:5432...
             _NON_HOST_KEYS = {
