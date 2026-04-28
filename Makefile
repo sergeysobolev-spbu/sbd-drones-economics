@@ -1,4 +1,4 @@
-.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local
+.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local jenkins-up jenkins-down jenkins-restart jenkins-logs jenkins-ps jenkins-build-unit jenkins-build-integration jenkins-build-e2e
 
 PROJECT_ROOT := $(CURDIR)
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
@@ -6,6 +6,9 @@ LOAD_ENV = set -a && . docker/.env && set +a
 PIPENV_PIPFILE = config/Pipfile
 PYTEST_CONFIG = config/pyproject.toml
 REQUIREMENTS = config/requirements.txt
+
+JENKINS_DIR = ci/jenkins
+JENKINS_COMPOSE = docker compose -f $(JENKINS_DIR)/docker-compose.yml --env-file $(JENKINS_DIR)/.env
 
 help:
 	@echo "make init              - Установить pipenv и зависимости"
@@ -28,6 +31,14 @@ help:
 	@echo "make e2e               - e2e-up + e2e-test + e2e-logs + e2e-down"
 	@echo "make e2e-local         - Полный E2E локально (pip, со всеми системами и аналитикой)"
 	@echo "make e2e-codespace     - Полный E2E в GitHub Codespace (pip, без аналитики)"
+	@echo "make jenkins-up        - Поднять Jenkins (JCasC, авто-конфиг jobs)"
+	@echo "make jenkins-down      - Остановить Jenkins"
+	@echo "make jenkins-restart   - Перезапустить Jenkins"
+	@echo "make jenkins-logs      - Логи Jenkins"
+	@echo "make jenkins-ps        - Статус Jenkins"
+	@echo "make jenkins-build-unit         - Триггер job drone-unit"
+	@echo "make jenkins-build-integration  - Триггер job drone-integration"
+	@echo "make jenkins-build-e2e          - Триггер job drone-e2e"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
@@ -252,3 +263,35 @@ e2e-local:
 	@echo "=== Stopping E2E environment ==="
 	-$(E2E_COMPOSE) --profile $(E2E_PROFILE) down -v 2>/dev/null
 	@echo "=== Done ==="
+
+# --- Jenkins (JCasC) ---
+
+$(JENKINS_DIR)/.env:
+	@cp $(JENKINS_DIR)/.env.example $@
+	@echo "Created $@ from .env.example — отредактируй пароль/брэнч и перезапусти 'make jenkins-up'."
+
+jenkins-up: $(JENKINS_DIR)/.env
+	$(JENKINS_COMPOSE) up -d --build
+	@PORT=$$(grep '^JENKINS_HTTP_PORT=' $(JENKINS_DIR)/.env | cut -d= -f2); \
+	echo "Jenkins стартует на http://localhost:$${PORT:-8080}"
+
+jenkins-down:
+	-$(JENKINS_COMPOSE) down
+
+jenkins-restart:
+	$(JENKINS_COMPOSE) restart
+
+jenkins-logs:
+	$(JENKINS_COMPOSE) logs -f --tail=200
+
+jenkins-ps:
+	$(JENKINS_COMPOSE) ps
+
+jenkins-build-unit:
+	@$(JENKINS_DIR)/build.sh drone-unit $(if $(WAIT),--wait,)
+
+jenkins-build-integration:
+	@$(JENKINS_DIR)/build.sh drone-integration $(if $(WAIT),--wait,)
+
+jenkins-build-e2e:
+	@$(JENKINS_DIR)/build.sh drone-e2e $(if $(WAIT),--wait,)
