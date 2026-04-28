@@ -4,7 +4,7 @@ USER root
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl ca-certificates \
-        python3 python3-pip python3-venv \
+        python3 python3-pip python3-venv python-is-python3 \
         make git \
     && rm -rf /var/lib/apt/lists/* \
     && python3 -m pip install --break-system-packages --no-cache-dir pipenv
