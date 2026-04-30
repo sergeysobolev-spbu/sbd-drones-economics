@@ -2,10 +2,6 @@ jenkins:
   systemMessage: "sbd-drones-economics CI — managed by JCasC"
   numExecutors: 4
   mode: NORMAL
-  # Workspace путь идентичен на host и в Jenkins-контейнере, чтобы bind-mounts
-  # из docker-compose внутри пайплайнов резолвились корректно
-  # (Jenkins использует host-докер через /var/run/docker.sock).
-  rawWorkspaceDir: "/tmp/drones-jenkins-workspace/^${ITEM_FULLNAME}"
   securityRealm:
     local:
       allowsSignup: false
