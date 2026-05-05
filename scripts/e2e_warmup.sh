@@ -48,7 +48,44 @@ for t in \
   components.agregator.responses \
   components.agregator.operator.requests \
   components.agregator.operator.responses \
-  errors.dead_letters
+  errors.dead_letters \
+  components.Agrodron.security_monitor \
+  components.Agrodron.autopilot \
+  components.Agrodron.mission_handler \
+  components.Agrodron.navigation \
+  components.Agrodron.telemetry \
+  components.Agrodron.motors \
+  components.Agrodron.sprayer \
+  components.Agrodron.journal \
+  components.Agrodron.limiter \
+  components.Agrodron.emergensy \
+  components.Agrodron.system_monitor \
+  gcs.components.drone_manager \
+  gcs.components.orchestrator \
+  gcs.components.mission_converter \
+  gcs.components.path_planner \
+  gcs.components.mission_store \
+  gcs.components.drone_store \
+  drone_port.components.drone_registry \
+  drone_port.components.drone_manager \
+  drone_port.components.port_manager \
+  drone_port.components.charging_manager \
+  drone_port.components.state_store \
+  drone_port.components.orchestrator \
+  systems.orvd_system \
+  components.orvd_component \
+  systems.regulator \
+  components.regulator \
+  systems.insurer \
+  components.insurer_service \
+  systems.operator \
+  components.operator \
+  sitl.telemetry.request \
+  sitl.telemetry.response \
+  sitl.commands \
+  sitl.verified-commands \
+  sitl.verified-home \
+  sitl-drone-home
 do
   /opt/kafka/bin/kafka-topics.sh \
     --bootstrap-server localhost:29092 \

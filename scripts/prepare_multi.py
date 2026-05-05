@@ -283,19 +283,38 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
         sys_name = sys_path.name
 
         # SITL-module integration mode:
-        # use shared broker stack from monorepo and keep only SITL components.
+        # SITL upstream (ветка pure) больше не содержит дублей broker/ и sdk/
+        # (3dd798b/252d998 их удалили), поэтому монтируем монорепные broker/
+        # и sdk/ в build-образ через volumes — Dockerfile собирается из своего
+        # context, а runtime получает монорепный broker/sdk поверх /app.
         if sys_name.lower() == "sitl-module":
             for infra_service in ("zookeeper", "kafka", "mosquitto", "redis"):
                 sys_services.pop(infra_service, None)
+            monorepo_broker = rewrite_path("broker", root, output_dir)
+            monorepo_sdk = rewrite_path("sdk", root, output_dir)
             for sitl_service_name, sitl_service in sys_services.items():
                 if not sitl_service_name.startswith("sitl_"):
                     continue
-                # Upstream SITL compose references local-only images (sitl-module-*)
-                # that are not available in registry. In monorepo integration mode,
-                # run SITL components from a public Python base image and keep their
-                # existing runtime command/volumes.
-                sitl_service.pop("build", None)
-                sitl_service["image"] = "python:3.13-slim"
+                # Healthcheck в sitl_messaging обращается к redis:6379 — в общем
+                # compose alias есть, но ломается при rebalance. Убираем.
+                sitl_service.pop("healthcheck", None)
+                svc_volumes = sitl_service.setdefault("volumes", [])
+                svc_volumes.extend([
+                    f"{monorepo_broker}:/app/broker:ro",
+                    f"{monorepo_sdk}:/app/sdk:ro",
+                ])
+
+        # drones (deliverydron) integration mode:
+        # Go-система. Build context — monorepo root (rewrite_path сам прокинет).
+        # Apстрим параметризовал пути через ARG DELIVERYDRON_ROOT и
+        # TOPIC_SCHEME=components, поэтому достаточно прокинуть env. Для e2e
+        # подключаем только delivery_drone (один контейнер: ping/health),
+        # реальный заказ всё равно летит на agrodron.
+        if sys_name.lower() == "drones":
+            keep_services = {"delivery_drone"}
+            for s_name in list(sys_services.keys()):
+                if s_name not in keep_services:
+                    sys_services.pop(s_name)
 
         sys_volume_names = set()
         for vol_name, vol_cfg in (sys_compose.get("volumes") or {}).items():
@@ -365,12 +384,30 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
             # ----------------------------------------------------------------
             # System-specific env injections
             # ----------------------------------------------------------------
+            # drone_port / gcs: после template-fix топики стали flat
+            # (`components.drone_registry`, `components.orchestrator`,
+            # `components.drone_manager`) — у DronePort и GCS возникает
+            # коллизия по `components.drone_manager`. Применяем
+            # SYSTEM_NAMESPACE чтобы топики стали `<system>.components.*`.
+            if sys_name.lower() == "drone_port":
+                env_dict["SYSTEM_NAMESPACE"] = "drone_port"
+            if sys_name.lower() == "gcs":
+                env_dict["SYSTEM_NAMESPACE"] = "gcs"
+
             # agrodron: force Kafka broker and inject correct external topics.
             if sys_name.lower() == "agrodron":
                 env_dict["BROKER_TYPE"] = "kafka"
-                env_dict["NUS_TOPIC"] = "components.gcs.drone_manager"
+                env_dict["NUS_TOPIC"] = "gcs.components.drone_manager"
                 env_dict["ORVD_TOPIC"] = "systems.orvd_system"
-                env_dict["DRONEPORT_TOPIC"] = "components.drone_port.drone_manager"
+                env_dict["DRONEPORT_TOPIC"] = "drone_port.components.drone_manager"
+                # navigation по умолчанию опрашивает SITL 10 Гц (0.1s).
+                # В e2e это забивает security_monitor очередь и autopilot
+                # не получает ответы вовремя на cmd=START.
+                env_dict["NAVIGATION_POLL_INTERVAL_S"] = "1.0"
+                # security_monitor застревает на медленных целях (sitl.telemetry
+                # отвечает медленно либо пуст). Снизим timeout с 10s до 2s
+                # чтобы очередь не росла.
+                env_dict["SECURITY_MONITOR_PROXY_REQUEST_TIMEOUT_S"] = "2.0"
                 # One shared drone_id across AgroDron, DronePort and SITL.
                 env_dict["INSTANCE_ID"] = "drone_001"
                 env_dict["SITL_TOPIC"] = "sitl.telemetry.request"
@@ -421,25 +458,44 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
             if sys_name.lower() == "gcs" and original_name in (
                 "drone_manager", "mission_converter", "orchestrator",
             ):
-                env_dict.setdefault(
-                    "AGRODRON_SECURITY_MONITOR_TOPIC",
-                    "components.Agrodron.security_monitor",
-                )
-                env_dict.setdefault(
-                    "AGRODRON_MISSION_HANDLER_TOPIC",
-                    "components.Agrodron.mission_handler",
-                )
-                env_dict.setdefault(
-                    "AGRODRON_AUTOPILOT_TOPIC",
-                    "components.Agrodron.autopilot",
-                )
+                # Override compose-defaults `v1.Agrodron.Agrodron001.*`.
+                # AgroDron слушает на `components.Agrodron.*`.
+                env_dict["AGRODRON_SECURITY_MONITOR_TOPIC"] = "components.Agrodron.security_monitor"
+                env_dict["AGRODRON_MISSION_HANDLER_TOPIC"] = "components.Agrodron.mission_handler"
+                env_dict["AGRODRON_AUTOPILOT_TOPIC"] = "components.Agrodron.autopilot"
+                env_dict["AGRODRON_TELEMETRY_TOPIC"] = "components.Agrodron.telemetry"
 
             if sys_name.lower() == "sitl-module":
                 env_dict["BROKER_BACKEND"] = "kafka"
+                env_dict["BROKER_TYPE"] = "kafka"
                 env_dict["KAFKA_SERVERS"] = "kafka:29092"
+                env_dict["KAFKA_BOOTSTRAP_SERVERS"] = "kafka:29092"
                 env_dict["MQTT_BROKER"] = "mosquitto"
                 env_dict["MQTT_PORT"] = "1883"
                 env_dict["REDIS_URL"] = "redis://redis:6379"
+                # Монорепный broker/ (монтируется в /app/broker) использует
+                # SASL_PLAINTEXT когда заданы BROKER_USER/PASSWORD.
+                env_dict["BROKER_USER"] = "${ADMIN_USER:-admin}"
+                env_dict["BROKER_PASSWORD"] = "${ADMIN_PASSWORD:-admin_secret_123}"
+
+            if sys_name.lower() == "drones":
+                # Apстрим (extract/deliverydron-module-2) параметризовал пути.
+                # Указываем submodule path в монорепо и monorepo-scheme топиков.
+                env_dict["DELIVERYDRON_ROOT"] = "systems/drones"
+                env_dict["TOPIC_SCHEME"] = "components"
+                env_dict["SYSTEM_NAME"] = "deliverydron"
+                env_dict["INSTANCE_ID"] = "delivery_001"
+                env_dict["BROKER_TYPE"] = "kafka"
+                env_dict["KAFKA_BOOTSTRAP_SERVERS"] = "kafka:29092"
+                env_dict["MQTT_BROKER"] = "mosquitto"
+                env_dict["MQTT_PORT"] = "1883"
+                # Также прокинем DELIVERYDRON_ROOT в build.args, чтобы
+                # Dockerfile нашёл ./systems/drones/delivery_drone/cmd/...
+                build = svc.get("build")
+                if isinstance(build, dict):
+                    build_args = build.setdefault("args", {})
+                    if isinstance(build_args, dict):
+                        build_args["DELIVERYDRON_ROOT"] = "systems/drones"
             # Переписываем hostname'ы внутрисистемных сервисов в env значениях.
             # Например DATABASE_URL: ...@postgres:5432... → ...@agregator_postgres:5432...
             _NON_HOST_KEYS = {

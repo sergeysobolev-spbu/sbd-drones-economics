@@ -117,6 +117,9 @@ prepare-multi:
 # ---------------------------------------------------------------------------
 
 E2E_SYSTEMS = Agregator insurer operator orvd_system team1-regulator_operation_devsecops gcs drone_port agrodron SITL-module
+# drones (delivery_drone, Go) подключён в Test1b/Test5, но контейнер пока не
+# поднимается — апстрим Dockerfile делает `go build -mod=vendor` из /app, где
+# go.mod нет (он в /app/systems/drones/). Ждём fix в команде drones.
 E2E_OUTPUT = .generated/e2e
 E2E_COMPOSE = docker compose -f $(E2E_OUTPUT)/docker-compose.yml -f tests/e2e/analytics-compose.yml --env-file $(E2E_OUTPUT)/.env
 E2E_COMPOSE_NO_ANALYTICS = docker compose -f $(E2E_OUTPUT)/docker-compose.yml --env-file $(E2E_OUTPUT)/.env
@@ -134,6 +137,7 @@ e2e-up:
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
+	@echo "DELIVERYDRON_ROOT=systems/drones" >> $(E2E_OUTPUT)/.env
 	@echo "AGRODRON_GATEWAY_HOST_PORT=18081" >> $(E2E_OUTPUT)/.env
 	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env
 	@$(LOAD_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
