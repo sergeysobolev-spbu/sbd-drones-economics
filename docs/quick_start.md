@@ -112,7 +112,7 @@ make docker-up
 При `ENABLE_FABRIC=true` поднимаются `fabric-proxy` и `ledger-gateway`.
 Компоненты вызывают контракты через `bus.request("components.ledger", ...)`.
 
-Подробнее: [docs/fabric_integration.md](fabric_integration.md)
+Подробнее: [docs/smart_contracts.md](smart_contracts.md)
 
 ## Тесты 
 - make e2e-local/e2e-codespace (Запуск e2e тестов одной командой сразу включая клонирование репозиториев и установку зависимостей с ELK/без ELK)
