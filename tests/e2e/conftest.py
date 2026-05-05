@@ -28,6 +28,20 @@ STARTUP_TIMEOUT = int(os.environ.get("E2E_STARTUP_TIMEOUT", "180"))
 SKIP_ANALYTICS = os.environ.get("E2E_SKIP_ANALYTICS", "0") not in ("0", "", "false", "False")
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--alt-insurer",
+        action="store_true",
+        default=False,
+        help="E2E: использовать systems.alt_insurer вместо systems.insurer (выставляет E2E_ALT_INSURER).",
+    )
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    if getattr(config.option, "alt_insurer", False):
+        os.environ["E2E_ALT_INSURER"] = "1"
+
+
 def _wait_for_http(url: str, label: str, timeout: int = STARTUP_TIMEOUT) -> None:
     deadline = time.time() + timeout
     last_err = ""

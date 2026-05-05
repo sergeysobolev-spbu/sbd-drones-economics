@@ -13,9 +13,12 @@ class ComponentTopics:
         return [cls.OPERATOR_COMPONENT]
 
 
+_INSURER_ENV = os.environ.get("EXTERNAL_INSURER_TOPIC", "").strip()
+
+
 class ExternalTopics:
     """Топики внешних систем."""
-    INSURER = f"{_P}systems.insurer"
+    INSURER = _INSURER_ENV if _INSURER_ENV else f"{_P}systems.insurer"
     ORVD = f"{_P}systems.orvd_system"
     REGULATOR = f"{_P}systems.regulator"
     AGREGATOR_REQUESTS = f"{_P}components.agregator.operator.requests"

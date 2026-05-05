@@ -28,6 +28,7 @@ help:
 	@echo "make e2e               - e2e-up + e2e-test + e2e-logs + e2e-down"
 	@echo "make e2e-local         - Полный E2E локально (pip, со всеми системами и аналитикой)"
 	@echo "make e2e-codespace     - Полный E2E в GitHub Codespace (pip, без аналитики)"
+	@echo "make e2e-up E2E_ALT_INSURER=1 — подменить insurer на alt_insurer (prepare_multi --alt-insurer)"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
@@ -128,11 +129,15 @@ E2E_PROFILE = kafka
 # (Agregator, Operator, Regulator, ORVD, GCS и т.д.) вступить в consumer group,
 # иначе первые тесты нестабильны (гейтвеи ловят таймауты до первой ребалансировки).
 E2E_WARMUP_SECONDS ?= 100
+# Непустое значение (например 1): в compose вместо systems/insurer — alt_insurer; см. scripts/prepare_multi.py --alt-insurer
+E2E_ALT_INSURER ?=
+E2E_PREPARE_ALT_FLAG = $(if $(strip $(E2E_ALT_INSURER)),--alt-insurer,)
+E2E_PYTEST_ALT_FLAG = $(if $(strip $(E2E_ALT_INSURER)),--alt-insurer,)
 
 e2e-up:
 	@echo "=== Generating multi-system compose ==="
 	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py \
-		--systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+		--systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT) $(E2E_PREPARE_ALT_FLAG)
 	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
@@ -157,8 +162,8 @@ e2e-up:
 
 e2e-test:
 	@echo "=== Running E2E tests ==="
-	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest tests/e2e/test_e2e_scenario.py -v -s \
-		--tb=short 2>&1 || (echo "E2E tests failed"; exit 1)
+	@$(LOAD_ENV) && E2E_ALT_INSURER='$(E2E_ALT_INSURER)' PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest tests/e2e/test_e2e_scenario.py -v -s \
+		$(E2E_PYTEST_ALT_FLAG) --tb=short 2>&1 || (echo "E2E tests failed"; exit 1)
 
 e2e-logs:
 	@echo "=== Fetching events from DroneAnalytics ==="
@@ -190,7 +195,7 @@ e2e-codespace:
 	@echo "=== Cleaning leftover build artifacts ==="
 	@sudo rm -rf systems/Agregator/postgres_data 2>/dev/null || true
 	@echo "=== Generating multi-system compose ==="
-	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT) $(E2E_PREPARE_ALT_FLAG)
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
 	@echo "AGRODRON_GATEWAY_HOST_PORT=18081" >> $(E2E_OUTPUT)/.env
 	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env
@@ -208,7 +213,8 @@ e2e-codespace:
 	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
 	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== Running E2E tests ==="
-	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
+	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 E2E_ALT_INSURER='$(E2E_ALT_INSURER)' python -m pytest tests/e2e/test_e2e_scenario.py -v -s \
+		$(E2E_PYTEST_ALT_FLAG) --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
 	@echo "=== Stopping E2E environment ==="
 	-$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null
 	@echo "=== Done ==="
@@ -227,7 +233,7 @@ e2e-local:
 	@echo "=== Cleaning leftover build artifacts ==="
 	@sudo rm -rf systems/Agregator/postgres_data 2>/dev/null || true
 	@echo "=== Generating multi-system compose ==="
-	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT) $(E2E_PREPARE_ALT_FLAG)
 	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
@@ -250,7 +256,7 @@ e2e-local:
 	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
 	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== Running E2E tests ==="
-	@$(LOAD_ENV) && python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
+	@$(LOAD_ENV) && E2E_ALT_INSURER='$(E2E_ALT_INSURER)' python -m pytest tests/e2e/test_e2e_scenario.py -v -s $(E2E_PYTEST_ALT_FLAG) --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
 	@echo "=== Fetching events from DroneAnalytics ==="
 	@TOKEN=$$(curl -sf -X POST http://localhost:8090/auth/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin1234"}' | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])" 2>/dev/null) && curl -sf http://localhost:8090/log/event?limit=100 -H "Authorization: Bearer $$TOKEN" | python3 -m json.tool 2>/dev/null || echo "(DroneAnalytics not available or no events)"
 	@echo "=== Stopping E2E environment ==="

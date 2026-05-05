@@ -17,9 +17,15 @@ Full mission flow (from integration_systems reference):
 
   NOTE: GCS containers must have AGRODRON_SECURITY_MONITOR_TOPIC=components.Agrodron.security_monitor
   (GCS external_topics.py defaults to v1.Agrodron.Agrodron001.security_monitor which is the old scheme).
+
+  Страховая по умолчанию — systems/insurer. Переключение на alt_insurer:
+    pytest --alt-insurer и/или E2E_ALT_INSURER=1 в окружении;
+    для compose: scripts/prepare_multi.py --alt-insurer или make e2e-up E2E_ALT_INSURER=1
+    (Operator получает EXTERNAL_INSURER_TOPIC=systems.alt_insurer).
 """
 from __future__ import annotations
 
+import os
 import time
 from decimal import Decimal
 from typing import Any, Dict
@@ -27,11 +33,20 @@ from typing import Any, Dict
 import pytest
 import requests
 
+
+def _env_truthy(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes")
+
+
+_USE_ALT_INSURER = _env_truthy("E2E_ALT_INSURER")
+
 # ---- System-level topics (gateway) ----
 OPERATOR_TOPIC = "systems.operator"
 ORVD_TOPIC = "systems.orvd_system"
 REGULATOR_TOPIC = "systems.regulator"
-INSURER_TOPIC = "systems.insurer"
+INSURER_TOPIC = "systems.alt_insurer" if _USE_ALT_INSURER else "systems.insurer"
+INSURER_SYSTEM_ID = "alt_insurer" if _USE_ALT_INSURER else "insurer"
+INSURER_SYSTEM_TYPE = "alt_insurer" if _USE_ALT_INSURER else "insurer"
 
 # ---- GCS component topics ----
 GCS_ORCHESTRATOR_TOPIC = "gcs.components.orchestrator"
@@ -128,7 +143,7 @@ class Test0_SystemsInRegulator:
         for system_id, system_type in (
             ("agregator", "aggregator"),
             ("operator", "operator"),
-            ("insurer", "insurer"),
+            (INSURER_SYSTEM_ID, INSURER_SYSTEM_TYPE),
             ("orvd_system", "orvd"),
             ("gcs", "gcs"),
             ("drone_port", "drone_port"),
@@ -225,10 +240,13 @@ class Test1_DroneRegistration:
         # Insurer (Java) иногда отвечает с задержкой после старта контейнера
         # (rebalance consumer group) — несколько попыток с паузой.
         r = None
+        # drone_value: alt_insurer считает годовую премию от стоимости борта;
+        # классический insurer использует coverage_amount — лишнее поле не мешает.
         payload = {
             "order_id": "e2e-order-drone-001",
             "drone_id": self.DRONE_ID,
             "coverage_amount": self.COVERAGE_AMOUNT,
+            "drone_value": float(self.COVERAGE_AMOUNT),
         }
         for _ in range(5):
             r = kafka_bus.request(
@@ -240,8 +258,8 @@ class Test1_DroneRegistration:
                 break
             time.sleep(4)
         assert r is not None, (
-            "Timeout: annual_insurance -> systems.insurer — "
-            "проверьте логи insurer и Kafka (consumer group / SASL)"
+            f"Timeout: annual_insurance -> {INSURER_TOPIC} — "
+            "проверьте логи страховой и Kafka (consumer group / SASL)"
         )
         assert r.get("success") is True, f"annual_insurance failed: {r}"
         ins = r.get("payload") or {}

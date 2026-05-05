@@ -77,6 +77,7 @@ for t in \
   systems.regulator \
   components.regulator \
   systems.insurer \
+  systems.alt_insurer \
   components.insurer_service \
   systems.operator \
   components.operator \
