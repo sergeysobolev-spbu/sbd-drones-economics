@@ -29,7 +29,7 @@ help:
 	@echo "make e2e-local         - Полный E2E локально (pip, со всеми системами и аналитикой)"
 	@echo "make e2e-codespace     - Полный E2E в GitHub Codespace (pip, без аналитики)"
 	@echo "make e2e-mqtt-up       - Поднять E2E стенд на MQTT (Kafka + Mosquitto; Agregator OPERATOR_TRANSPORT=both)"
-	@echo "make e2e-mqtt-test     - Запустить E2E тесты по MQTT (pytest tests/e2e/test_e2e_scenario_mqtt.py)"
+	@echo "make e2e-mqtt-test     - Запустить те же E2E тесты (pytest tests/e2e/test_e2e_scenario.py), транспорт MQTT"
 	@echo "make e2e-mqtt-down     - Остановить MQTT E2E стенд"
 	@echo "make e2e-mqtt          - e2e-mqtt-up + e2e-mqtt-test + e2e-mqtt-down"
 
@@ -121,6 +121,9 @@ prepare-multi:
 # ---------------------------------------------------------------------------
 
 E2E_SYSTEMS = Agregator insurer operator orvd_system team1-regulator_operation_devsecops gcs drone_port agrodron SITL-module
+# drones (delivery_drone, Go) подключён в Test1b/Test5, но контейнер пока не
+# поднимается — апстрим Dockerfile делает `go build -mod=vendor` из /app, где
+# go.mod нет (он в /app/systems/drones/). Ждём fix в команде drones.
 E2E_OUTPUT = .generated/e2e
 E2E_COMPOSE = docker compose -f $(E2E_OUTPUT)/docker-compose.yml -f tests/e2e/analytics-compose.yml --env-file $(E2E_OUTPUT)/.env
 E2E_COMPOSE_NO_ANALYTICS = docker compose -f $(E2E_OUTPUT)/docker-compose.yml --env-file $(E2E_OUTPUT)/.env
@@ -138,6 +141,7 @@ e2e-up:
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
+	@echo "DELIVERYDRON_ROOT=systems/drones" >> $(E2E_OUTPUT)/.env
 	@echo "AGRODRON_GATEWAY_HOST_PORT=18081" >> $(E2E_OUTPUT)/.env
 	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env
 	@$(LOAD_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
@@ -276,6 +280,7 @@ e2e-mqtt-up:
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
+	@echo "DELIVERYDRON_ROOT=systems/drones" >> $(E2E_OUTPUT)/.env
 	@echo "AGRODRON_GATEWAY_HOST_PORT=18081" >> $(E2E_OUTPUT)/.env
 	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env
 	@echo "BROKER_TYPE=mqtt" >> $(E2E_OUTPUT)/.env
@@ -295,9 +300,9 @@ e2e-mqtt-up:
 	@echo "=== E2E MQTT environment is up ==="
 
 e2e-mqtt-test:
-	@echo "=== Running E2E MQTT tests ==="
+	@echo "=== Running E2E tests (MQTT transport, same suite as e2e-test) ==="
 	@$(LOAD_ENV) && BROKER_TYPE=mqtt MQTT_BROKER=localhost MQTT_PORT=1883 \
-		PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest tests/e2e/test_e2e_scenario_mqtt.py -v -s \
+		PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest tests/e2e/test_e2e_scenario.py -v -s \
 		--tb=short 2>&1 || (echo "E2E MQTT tests failed"; exit 1)
 
 e2e-mqtt-down:

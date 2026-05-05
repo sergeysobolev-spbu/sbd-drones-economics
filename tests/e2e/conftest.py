@@ -91,11 +91,20 @@ def analytics_bearer_token() -> str:
 
 @pytest.fixture(scope="session")
 def kafka_bus():
-    """Create a Kafka SystemBus for the test host to send bus messages."""
-    os.environ.setdefault("BROKER_TYPE", "kafka")
-    os.environ.setdefault("KAFKA_BOOTSTRAP_SERVERS", KAFKA_BOOTSTRAP)
+    """SystemBus для сценария e2e: Kafka или MQTT по BROKER_TYPE (совпадает с контейнерами).
+
+    Имя фикстуры историческое: при ``make e2e-mqtt-test`` задаётся ``BROKER_TYPE=mqtt``.
+    """
+    bt = os.environ.get("BROKER_TYPE", "kafka").strip().lower()
     os.environ.setdefault("BROKER_USER", os.environ.get("ADMIN_USER", "admin"))
     os.environ.setdefault("BROKER_PASSWORD", os.environ.get("ADMIN_PASSWORD", "admin_secret_123"))
+    if bt == "mqtt":
+        os.environ["BROKER_TYPE"] = "mqtt"
+        os.environ.setdefault("MQTT_BROKER", MQTT_BROKER)
+        os.environ.setdefault("MQTT_PORT", str(MQTT_PORT))
+    else:
+        os.environ.setdefault("BROKER_TYPE", "kafka")
+        os.environ.setdefault("KAFKA_BOOTSTRAP_SERVERS", KAFKA_BOOTSTRAP)
 
     from broker.bus_factory import create_system_bus
     bus = create_system_bus(client_id="e2e_test_host")

@@ -17,7 +17,7 @@
   {"sender": "${SYSTEM_NAME}.autopilot",       "topic": "${DRONEPORT_TOPIC}",              "action": "request_landing"},
   {"sender": "${SYSTEM_NAME}.autopilot",       "topic": "${DRONEPORT_TOPIC}",              "action": "request_charging"},
   {"sender": "${SYSTEM_NAME}.autopilot",       "topic": "${NUS_TOPIC}",                    "action": "mission_status"},
-  {"sender": "${SYSTEM_NAME}.navigation",      "topic": "${SITL_TELEMETRY_REQUEST_TOPIC}", "action": "__raw__"},
+  {"sender": "${SYSTEM_NAME}.navigation",      "topic": "${SITL_TELEMETRY_REQUEST_TOPIC}", "action": "request_position"},
   {"sender": "${SYSTEM_NAME}.navigation",      "topic": "${SYSTEM_NAME}.journal",           "action": "log_event"},
   {"sender": "${SYSTEM_NAME}.emergensy",       "topic": "${SYSTEM_NAME}.motors",            "action": "land"},
   {"sender": "${SYSTEM_NAME}.emergensy",       "topic": "${SYSTEM_NAME}.sprayer",           "action": "set_spray"},

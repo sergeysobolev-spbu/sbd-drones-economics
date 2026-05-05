@@ -131,18 +131,21 @@ class OperatorComponent(BaseComponent):
         drone_id = payload.get("drone_id", "")
         coverage_amount = payload.get("coverage_amount", 0)
         insurance_action = payload.get("insurance_action", "mission_insurance")
+        insurer_payload = {
+            "order_id": payload.get("order_id", ""),
+            "operator_id": self.component_id,
+            "drone_id": drone_id,
+            "coverage_amount": coverage_amount,
+        }
+        if isinstance(payload.get("incident"), dict):
+            insurer_payload["incident"] = payload["incident"]
 
         response = self.bus.request(
             ExternalTopics.INSURER,
             {
                 "action": insurance_action,
                 "sender": self.component_id,
-                "payload": {
-                    "order_id": payload.get("order_id", ""),
-                    "operator_id": self.component_id,
-                    "drone_id": drone_id,
-                    "coverage_amount": coverage_amount,
-                },
+                "payload": insurer_payload,
             },
             timeout=self.EXTERNAL_REQUEST_TIMEOUT,
         )
@@ -151,6 +154,11 @@ class OperatorComponent(BaseComponent):
             raise TimeoutError("insurer did not respond")
 
         if response.get("success"):
+            if insurance_action == "report_incident":
+                return {
+                    "status": "incident_processed",
+                    "claim": response.get("payload", {}),
+                }
             return {
                 "status": "insured",
                 "policy": response.get("payload", {}),
@@ -303,3 +311,104 @@ class OperatorComponent(BaseComponent):
             "order_id": order_id,
             "accepted_price": accepted_price,
         }
+
+    # ------------------------------------------------------------------
+    # Полётная миссия: автоматическая регистрация и авторизация в ORVD
+    # ------------------------------------------------------------------
+
+    def start(self):
+        """Подписывается на свой топик + канал GCS drone_manager."""
+        super().start()
+        # GCS публикует mission.upload в gcs.components.drone_manager при
+        # task.assign. Operator должен зарегистрировать миссию в ORVD под
+        # тем же mission_id, иначе autopilot.request_takeoff получит
+        # 'mission not found' и cmd=START завершится ABORTED.
+        ok = self.bus.subscribe(ExternalTopics.GCS_DRONE_MANAGER, self._on_gcs_drone_manager_event)
+        logger.info("[%s] subscribe %s: %s", self.component_id, ExternalTopics.GCS_DRONE_MANAGER, ok)
+
+    def _on_gcs_drone_manager_event(self, message: Dict[str, Any]) -> None:
+        action = message.get("action")
+        if action != "mission.upload":
+            return
+        payload = message.get("payload", {}) or {}
+        try:
+            self._register_and_authorize_flight_mission(payload)
+        except Exception as exc:
+            logger.warning(
+                "[%s] flight mission registration failed: %s",
+                self.component_id, exc,
+            )
+
+    def _register_and_authorize_flight_mission(self, payload: Dict[str, Any]) -> None:
+        mission_id = payload.get("mission_id")
+        drone_id = payload.get("drone_id")
+        if not mission_id or not drone_id:
+            return
+        wpl = payload.get("wpl_content") or payload.get("wpl") or ""
+        route = self._parse_wpl_route(wpl)
+        if not route:
+            logger.warning("[%s] flight mission %s has empty route from WPL",
+                           self.component_id, mission_id)
+            return
+
+        # Publish home to SITL: разрывает deadlock autopilot._step_control,
+        # который ждёт nav_state, а nav_state приходит только после DronePort
+        # takeoff (после home в SITL). Первая waypoint = home.
+        self.bus.publish(
+            "sitl-drone-home",
+            {
+                "drone_id": drone_id,
+                "home_lat": route[0]["lat"],
+                "home_lon": route[0]["lon"],
+                "home_alt": 50.0,
+            },
+        )
+
+        reg = self.bus.request(
+            ExternalTopics.ORVD,
+            {
+                "action": "register_mission",
+                "sender": self.topic,
+                "payload": {"mission_id": mission_id, "drone_id": drone_id, "route": route},
+            },
+            timeout=self.EXTERNAL_REQUEST_TIMEOUT,
+        )
+        reg_pl = (reg or {}).get("payload") or {}
+        if not reg or reg_pl.get("status") not in ("mission_registered", "registered"):
+            logger.warning(
+                "[%s] ORVD register_mission failed for %s: %s",
+                self.component_id, mission_id, reg,
+            )
+            return
+
+        auth = self.bus.request(
+            ExternalTopics.ORVD,
+            {
+                "action": "authorize_mission",
+                "sender": self.topic,
+                "payload": {"mission_id": mission_id},
+            },
+            timeout=self.EXTERNAL_REQUEST_TIMEOUT,
+        )
+        auth_pl = (auth or {}).get("payload") or {}
+        logger.info(
+            "[%s] flight mission %s ORVD reg=%s auth=%s drone=%s",
+            self.component_id, mission_id,
+            reg_pl.get("status"), auth_pl.get("status"), drone_id,
+        )
+
+    @staticmethod
+    def _parse_wpl_route(wpl: str) -> list:
+        """QGC WPL 110 → [{lat, lon}, ...]."""
+        route: list = []
+        for line in (wpl or "").splitlines():
+            parts = line.split("\t")
+            if len(parts) < 12:
+                continue
+            try:
+                lat = float(parts[8])
+                lon = float(parts[9])
+            except (ValueError, IndexError):
+                continue
+            route.append({"lat": lat, "lon": lon})
+        return route

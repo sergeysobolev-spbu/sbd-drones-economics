@@ -24,6 +24,11 @@ class ExternalTopics:
     # заставляет Агрегатор перевести заказ из 'pending' в 'searching' (через его Kafka-консьюмер),
     # после чего SetOperatorOffer принимает нашу price_offer.
     AGREGATOR_SYSTEM = f"{_P}systems.agregator"
+    # GCS drone_manager канал: при task.assign GCS публикует туда mission.upload
+    # с готовым mission_id, drone_id и WPL. Operator подписан, чтобы
+    # автоматически регистрировать и авторизовать миссию в ORVD под тем же
+    # mission_id, который потом autopilot предъявляет в request_takeoff.
+    GCS_DRONE_MANAGER = f"{_P}gcs.components.drone_manager"
 
 
 class OperatorActions:
