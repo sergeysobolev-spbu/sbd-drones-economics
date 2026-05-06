@@ -184,13 +184,13 @@ e2e-codespace:
 	@echo "=== Initializing git submodules ==="
 	git submodule update --init --recursive
 	@echo "=== Installing Python dependencies ==="
-	pip install -r $(REQUIREMENTS)
+	pipenv run pip install -r $(REQUIREMENTS)
 	@echo "=== Preparing docker/.env ==="
 	@test -f docker/.env || cp docker/example.env docker/.env
 	@echo "=== Cleaning leftover build artifacts ==="
 	@sudo rm -rf systems/Agregator/postgres_data 2>/dev/null || true
 	@echo "=== Generating multi-system compose ==="
-	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@$(LOAD_ENV) && pipenv run python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
 	@echo "AGRODRON_GATEWAY_HOST_PORT=18081" >> $(E2E_OUTPUT)/.env
 	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env
