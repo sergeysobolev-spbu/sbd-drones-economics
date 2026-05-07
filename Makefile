@@ -116,10 +116,7 @@ prepare-multi:
 # E2E: full-scenario Docker test (4 systems + broker + DroneAnalytics)
 # ---------------------------------------------------------------------------
 
-E2E_SYSTEMS = Agregator insurer operator orvd_system team1-regulator_operation_devsecops gcs drone_port agrodron SITL-module
-# drones (delivery_drone, Go) подключён в Test1b/Test5, но контейнер пока не
-# поднимается — апстрим Dockerfile делает `go build -mod=vendor` из /app, где
-# go.mod нет (он в /app/systems/drones/). Ждём fix в команде drones.
+E2E_SYSTEMS = Agregator insurer operator orvd_system team1-regulator_operation_devsecops gcs drone_port agrodron SITL-module drones
 E2E_OUTPUT = .generated/e2e
 E2E_COMPOSE = docker compose -f $(E2E_OUTPUT)/docker-compose.yml -f tests/e2e/analytics-compose.yml --env-file $(E2E_OUTPUT)/.env
 E2E_COMPOSE_NO_ANALYTICS = docker compose -f $(E2E_OUTPUT)/docker-compose.yml --env-file $(E2E_OUTPUT)/.env
