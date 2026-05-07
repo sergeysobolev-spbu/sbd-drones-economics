@@ -414,7 +414,8 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                     env_dict["SECURITY_MONITOR_PROXY_REQUEST_TIMEOUT_S"] = "25"
                 else:
                     env_dict["NAVIGATION_POLL_INTERVAL_S"] = "1.0"
-                    env_dict["SECURITY_MONITOR_PROXY_REQUEST_TIMEOUT_S"] = "2.0"
+                    env_dict["SECURITY_MONITOR_PROXY_REQUEST_TIMEOUT_S"] = "15.0"
+                    env_dict["AUTOPILOT_REQUEST_TIMEOUT_S"] = "20"
                 # One shared drone_id across AgroDron, DronePort and SITL.
                 env_dict["INSTANCE_ID"] = "drone_001"
                 env_dict["SITL_TOPIC"] = "sitl.telemetry.request"

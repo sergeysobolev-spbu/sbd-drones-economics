@@ -31,6 +31,29 @@ STARTUP_TIMEOUT = int(os.environ.get("E2E_STARTUP_TIMEOUT", "180"))
 SKIP_ANALYTICS = os.environ.get("E2E_SKIP_ANALYTICS", "0") not in ("0", "", "false", "False")
 
 
+def _warmup_orvd_component(bus) -> None:
+    """Drain OrvdComponent's Kafka consumer backlog before tests begin.
+
+    The OrvdComponent processes messages sequentially.  On a fresh-start with
+    auto_offset_reset='earliest' there may be messages already queued on
+    'components.orvd_component' from a previous (uncommitted) run.  We ping
+    OrvdComponent directly (bypassing the gateway) until it responds, which
+    confirms the backlog is cleared and the component is ready to handle
+    test requests within normal timeouts.
+    """
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        resp = bus.request(
+            "components.orvd_component",
+            {"action": "ping", "sender": "e2e_warmup", "payload": {}},
+            timeout=10,
+        )
+        if resp is not None and (resp.get("payload") or {}).get("pong"):
+            return
+        time.sleep(3)
+    # Non-fatal: ORVD may not be running; tests will skip/handle accordingly.
+
+
 def _wait_for_http(url: str, label: str, timeout: int = STARTUP_TIMEOUT) -> None:
     deadline = time.time() + timeout
     last_err = ""
@@ -109,6 +132,7 @@ def kafka_bus():
     from broker.bus_factory import create_system_bus
     bus = create_system_bus(client_id="e2e_test_host")
     bus.start()
+    _warmup_orvd_component(bus)
     yield bus
     bus.stop()
 
