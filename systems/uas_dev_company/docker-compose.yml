@@ -1,0 +1,255 @@
+# Только сервисы системы UAS Dev Company; брокер подмешивает prepare_system.py.
+services:
+  api_gateway:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/src/gateway/docker/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    environment:
+      - SYSTEM_NAME=uas_dev_company
+      - SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE:-}
+      - COMPONENT_ID=api_gateway
+      - UAS_GATEWAY_BACKEND=bus
+      - BACKEND_PORT=8081
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-/app/systems/uas_dev_company/resources/uas_dev_company.sqlite3}
+      - DRONE_ANALYTICS_ENABLED=${DRONE_ANALYTICS_ENABLED:-false}
+      - DRONE_ANALYTICS_URL=${DRONE_ANALYTICS_URL:-}
+      - UAS_EXTERNAL_SYSTEMS_TRANSPORT=${UAS_EXTERNAL_SYSTEMS_TRANSPORT:-none}
+      - JWT_SECRET=${JWT_SECRET:-uas_dev_company_dev_jwt_change_me_in_production}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${ADMIN_USER:-admin}
+      - BROKER_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+      - GATEWAY_MONITOR_REQUEST_TIMEOUT_S=${GATEWAY_MONITOR_REQUEST_TIMEOUT_S:-120}
+      - GATEWAY_AUTH_PROXY_TIMEOUT_S=${GATEWAY_AUTH_PROXY_TIMEOUT_S:-25}
+    volumes:
+      - uas_dev_company_data:/app/systems/uas_dev_company/resources
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  security_monitor:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/src/security_monitor/docker/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    environment:
+      - SYSTEM_NAME=uas_dev_company
+      - SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE:-}
+      - COMPONENT_ID=security_monitor
+      - POLICY_ADMIN_SENDER=${POLICY_ADMIN_SENDER:-components.api_gateway}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${ADMIN_USER:-admin}
+      - BROKER_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+      - SECURITY_MONITOR_PROXY_REQUEST_TIMEOUT_S=${SECURITY_MONITOR_PROXY_REQUEST_TIMEOUT_S:-120}
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  user_management_worker:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/src/user_management/docker/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    environment:
+      - SYSTEM_NAME=uas_dev_company
+      - COMPONENT_ID=user_management_worker
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-/app/systems/uas_dev_company/resources/uas_dev_company.sqlite3}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${ADMIN_USER:-admin}
+      - BROKER_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - uas_dev_company_data:/app/systems/uas_dev_company/resources
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  firmware_ingestion_worker:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/src/firmware_ingestion/docker/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    environment:
+      - SYSTEM_NAME=uas_dev_company
+      - COMPONENT_ID=firmware_ingestion_worker
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-/app/systems/uas_dev_company/resources/uas_dev_company.sqlite3}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${ADMIN_USER:-admin}
+      - BROKER_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - uas_dev_company_data:/app/systems/uas_dev_company/resources
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  certification_service_worker:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/src/certification_service/docker/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    environment:
+      - SYSTEM_NAME=uas_dev_company
+      - COMPONENT_ID=certification_worker
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-/app/systems/uas_dev_company/resources/uas_dev_company.sqlite3}
+      - DRONE_ANALYTICS_ENABLED=${DRONE_ANALYTICS_ENABLED:-false}
+      - UAS_EXTERNAL_SYSTEMS_TRANSPORT=${UAS_EXTERNAL_SYSTEMS_TRANSPORT:-none}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${ADMIN_USER:-admin}
+      - BROKER_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - uas_dev_company_data:/app/systems/uas_dev_company/resources
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  drone_registry_worker:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/src/drone_registry/docker/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    environment:
+      - SYSTEM_NAME=uas_dev_company
+      - COMPONENT_ID=drone_registry_worker
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-/app/systems/uas_dev_company/resources/uas_dev_company.sqlite3}
+      - DRONE_ANALYTICS_ENABLED=${DRONE_ANALYTICS_ENABLED:-false}
+      - UAS_EXTERNAL_SYSTEMS_TRANSPORT=${UAS_EXTERNAL_SYSTEMS_TRANSPORT:-none}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${ADMIN_USER:-admin}
+      - BROKER_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - uas_dev_company_data:/app/systems/uas_dev_company/resources
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  purchase_service_worker:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/src/purchase_service/docker/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    environment:
+      - SYSTEM_NAME=uas_dev_company
+      - COMPONENT_ID=purchase_service_worker
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-/app/systems/uas_dev_company/resources/uas_dev_company.sqlite3}
+      - DRONE_ANALYTICS_ENABLED=${DRONE_ANALYTICS_ENABLED:-false}
+      - UAS_EXTERNAL_SYSTEMS_TRANSPORT=${UAS_EXTERNAL_SYSTEMS_TRANSPORT:-none}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${ADMIN_USER:-admin}
+      - BROKER_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - uas_dev_company_data:/app/systems/uas_dev_company/resources
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  audit_log_worker:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/src/audit_log/docker/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    environment:
+      - SYSTEM_NAME=uas_dev_company
+      - COMPONENT_ID=audit_log_worker
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-/app/systems/uas_dev_company/resources/uas_dev_company.sqlite3}
+      - DRONE_ANALYTICS_ENABLED=${DRONE_ANALYTICS_ENABLED:-false}
+      - UAS_EXTERNAL_SYSTEMS_TRANSPORT=${UAS_EXTERNAL_SYSTEMS_TRANSPORT:-none}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${ADMIN_USER:-admin}
+      - BROKER_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - uas_dev_company_data:/app/systems/uas_dev_company/resources
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  analytics_adapter_worker:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/src/analytics_adapter/docker/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    environment:
+      - SYSTEM_NAME=uas_dev_company
+      - COMPONENT_ID=analytics_adapter_worker
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-/app/systems/uas_dev_company/resources/uas_dev_company.sqlite3}
+      - DRONE_ANALYTICS_ENABLED=${DRONE_ANALYTICS_ENABLED:-false}
+      - DRONE_ANALYTICS_URL=${DRONE_ANALYTICS_URL:-}
+      - DRONE_ANALYTICS_API_KEY=${DRONE_ANALYTICS_API_KEY:-}
+      - UAS_DRONE_ANALYTICS_TRANSPORT=${UAS_DRONE_ANALYTICS_TRANSPORT:-http}
+      - UAS_EXTERNAL_SYSTEMS_TRANSPORT=${UAS_EXTERNAL_SYSTEMS_TRANSPORT:-none}
+      - BROKER_TYPE=${BROKER_TYPE:-kafka}
+      - BROKER_USER=${ADMIN_USER:-admin}
+      - BROKER_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - uas_dev_company_data:/app/systems/uas_dev_company/resources
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  web_portal:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/web/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    environment:
+      - NUXT_HOST=0.0.0.0
+      - NUXT_PORT=3000
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+  nginx_reverse_proxy:
+    build:
+      context: ../..
+      dockerfile: systems/uas_dev_company/nginx/Dockerfile
+    profiles: ["kafka", "mqtt"]
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      - api_gateway
+      - web_portal
+    networks:
+      - drones_net
+    restart: unless-stopped
+
+volumes:
+  uas_dev_company_data:
+
+networks:
+  drones_net:
+    external: true
+    name: ${DOCKER_NETWORK:-drones_net}

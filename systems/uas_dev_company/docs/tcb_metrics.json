@@ -1,0 +1,1268 @@
+{
+  "baseline_tcb": {
+    "aggregate": {
+      "label": "baseline_tcb",
+      "generated_at": "2026-05-07T10:11:56.947798+00:00",
+      "file_count": 9,
+      "total_loc": 926,
+      "total_sloc": 760,
+      "total_functions": 54,
+      "sum_complexity": 136,
+      "max_complexity": 12,
+      "functions_over_10": 2,
+      "external_imports": [
+        "audit_log",
+        "broker",
+        "certification_service",
+        "drone_registry",
+        "firmware_ingestion",
+        "purchase_service",
+        "sdk",
+        "shared",
+        "user_management"
+      ],
+      "allow_policy_rules_count": 16
+    },
+    "files": [
+      {
+        "path": "src/shared/security_monitor.py",
+        "loc": 190,
+        "sloc": 166,
+        "functions": 15,
+        "sum_complexity": 56,
+        "max_complexity": 11,
+        "functions_over_10": 1,
+        "imports": [
+          "broker",
+          "sdk",
+          "shared"
+        ]
+      },
+      {
+        "path": "src/shared/security_policies.py",
+        "loc": 40,
+        "sloc": 31,
+        "functions": 3,
+        "sum_complexity": 3,
+        "max_complexity": 1,
+        "functions_over_10": 0,
+        "imports": [
+          "shared"
+        ]
+      },
+      {
+        "path": "src/shared/component_base.py",
+        "loc": 37,
+        "sloc": 28,
+        "functions": 4,
+        "sum_complexity": 9,
+        "max_complexity": 3,
+        "functions_over_10": 0,
+        "imports": [
+          "broker",
+          "sdk"
+        ]
+      },
+      {
+        "path": "src/shared/services.py",
+        "loc": 25,
+        "sloc": 22,
+        "functions": 0,
+        "sum_complexity": 0,
+        "max_complexity": 0,
+        "functions_over_10": 0,
+        "imports": [
+          "audit_log",
+          "certification_service",
+          "drone_registry",
+          "firmware_ingestion",
+          "purchase_service",
+          "shared",
+          "user_management"
+        ]
+      },
+      {
+        "path": "src/shared/models.py",
+        "loc": 163,
+        "sloc": 125,
+        "functions": 10,
+        "sum_complexity": 24,
+        "max_complexity": 8,
+        "functions_over_10": 0,
+        "imports": [
+          "shared"
+        ]
+      },
+      {
+        "path": "src/shared/storage.py",
+        "loc": 269,
+        "sloc": 239,
+        "functions": 7,
+        "sum_complexity": 20,
+        "max_complexity": 12,
+        "functions_over_10": 1,
+        "imports": []
+      },
+      {
+        "path": "src/shared/topics.py",
+        "loc": 80,
+        "sloc": 57,
+        "functions": 3,
+        "sum_complexity": 3,
+        "max_complexity": 1,
+        "functions_over_10": 0,
+        "imports": []
+      },
+      {
+        "path": "src/shared/integration_adapters.py",
+        "loc": 49,
+        "sloc": 31,
+        "functions": 8,
+        "sum_complexity": 8,
+        "max_complexity": 1,
+        "functions_over_10": 0,
+        "imports": []
+      },
+      {
+        "path": "src/shared/jwt_tokens.py",
+        "loc": 73,
+        "sloc": 61,
+        "functions": 4,
+        "sum_complexity": 13,
+        "max_complexity": 8,
+        "functions_over_10": 0,
+        "imports": []
+      }
+    ]
+  },
+  "delta_baseline_to_target": {
+    "file_count": {
+      "before": 9,
+      "after": 14,
+      "delta": 5
+    },
+    "total_loc": {
+      "before": 926,
+      "after": 834,
+      "delta": -92
+    },
+    "total_sloc": {
+      "before": 760,
+      "after": 680,
+      "delta": -80
+    },
+    "total_functions": {
+      "before": 54,
+      "after": 55,
+      "delta": 1
+    },
+    "sum_complexity": {
+      "before": 136,
+      "after": 165,
+      "delta": 29
+    },
+    "max_complexity": {
+      "before": 12,
+      "after": 11,
+      "delta": -1
+    },
+    "functions_over_10": {
+      "before": 2,
+      "after": 1,
+      "delta": -1
+    },
+    "allow_policy_rules_count": {
+      "before": 16,
+      "after": 35,
+      "delta": 19
+    },
+    "external_imports_added": [
+      "zlib"
+    ],
+    "external_imports_removed": [
+      "audit_log",
+      "certification_service",
+      "drone_registry",
+      "firmware_ingestion",
+      "purchase_service",
+      "user_management"
+    ]
+  },
+  "target_tcb": {
+    "aggregate": {
+      "label": "target_tcb",
+      "generated_at": "2026-05-07T12:52:47.188446+00:00",
+      "file_count": 14,
+      "total_loc": 834,
+      "total_sloc": 680,
+      "total_functions": 55,
+      "sum_complexity": 165,
+      "max_complexity": 11,
+      "functions_over_10": 1,
+      "external_imports": [
+        "broker",
+        "sdk",
+        "shared",
+        "zlib"
+      ],
+      "allow_policy_rules_count": 35
+    },
+    "files": [
+      {
+        "path": "src/shared/tcb/__init__.py",
+        "loc": 42,
+        "sloc": 40,
+        "functions": 0,
+        "sum_complexity": 0,
+        "max_complexity": 0,
+        "functions_over_10": 0,
+        "imports": [
+          "shared"
+        ]
+      },
+      {
+        "path": "src/shared/tcb/auth_policy.py",
+        "loc": 28,
+        "sloc": 22,
+        "functions": 2,
+        "sum_complexity": 6,
+        "max_complexity": 3,
+        "functions_over_10": 0,
+        "imports": []
+      },
+      {
+        "path": "src/shared/tcb/cb_constants.py",
+        "loc": 25,
+        "sloc": 19,
+        "functions": 1,
+        "sum_complexity": 4,
+        "max_complexity": 4,
+        "functions_over_10": 0,
+        "imports": []
+      },
+      {
+        "path": "src/shared/tcb/certification_policy.py",
+        "loc": 15,
+        "sloc": 8,
+        "functions": 3,
+        "sum_complexity": 6,
+        "max_complexity": 2,
+        "functions_over_10": 0,
+        "imports": []
+      },
+      {
+        "path": "src/shared/tcb/errors.py",
+        "loc": 5,
+        "sloc": 3,
+        "functions": 0,
+        "sum_complexity": 0,
+        "max_complexity": 0,
+        "functions_over_10": 0,
+        "imports": []
+      },
+      {
+        "path": "src/shared/tcb/journal_policy.py",
+        "loc": 105,
+        "sloc": 89,
+        "functions": 6,
+        "sum_complexity": 18,
+        "max_complexity": 10,
+        "functions_over_10": 0,
+        "imports": [
+          "zlib"
+        ]
+      },
+      {
+        "path": "src/shared/tcb/registry_policy.py",
+        "loc": 45,
+        "sloc": 36,
+        "functions": 4,
+        "sum_complexity": 18,
+        "max_complexity": 9,
+        "functions_over_10": 0,
+        "imports": []
+      },
+      {
+        "path": "src/shared/tcb/role_policy.py",
+        "loc": 16,
+        "sloc": 10,
+        "functions": 2,
+        "sum_complexity": 4,
+        "max_complexity": 2,
+        "functions_over_10": 0,
+        "imports": [
+          "shared"
+        ]
+      },
+      {
+        "path": "src/shared/tcb/vulnerability_policy.py",
+        "loc": 14,
+        "sloc": 10,
+        "functions": 1,
+        "sum_complexity": 1,
+        "max_complexity": 1,
+        "functions_over_10": 0,
+        "imports": []
+      },
+      {
+        "path": "src/shared/security_monitor.py",
+        "loc": 197,
+        "sloc": 173,
+        "functions": 15,
+        "sum_complexity": 57,
+        "max_complexity": 11,
+        "functions_over_10": 1,
+        "imports": [
+          "broker",
+          "sdk",
+          "shared"
+        ]
+      },
+      {
+        "path": "src/shared/security_policies.py",
+        "loc": 65,
+        "sloc": 52,
+        "functions": 3,
+        "sum_complexity": 5,
+        "max_complexity": 3,
+        "functions_over_10": 0,
+        "imports": [
+          "shared"
+        ]
+      },
+      {
+        "path": "src/shared/component_base.py",
+        "loc": 40,
+        "sloc": 31,
+        "functions": 4,
+        "sum_complexity": 10,
+        "max_complexity": 3,
+        "functions_over_10": 0,
+        "imports": [
+          "broker",
+          "sdk"
+        ]
+      },
+      {
+        "path": "src/shared/jwt_tokens.py",
+        "loc": 73,
+        "sloc": 61,
+        "functions": 4,
+        "sum_complexity": 13,
+        "max_complexity": 8,
+        "functions_over_10": 0,
+        "imports": []
+      },
+      {
+        "path": "src/shared/models.py",
+        "loc": 164,
+        "sloc": 126,
+        "functions": 10,
+        "sum_complexity": 23,
+        "max_complexity": 8,
+        "functions_over_10": 0,
+        "imports": [
+          "shared"
+        ]
+      }
+    ]
+  },
+  "container_isolation_tcb_task11": {
+    "task": "Задача 11 — изоляция ДБ в Docker и ДВБ по контейнеру",
+    "rule_ru": "Домены безопасности изолированы процессами контейнеров; у контейнера один уровень критичности; наличие ЦБ-критичной логики переводит весь домен в ДВБ. Обмен между Python-доменами в профилях kafka/mqtt идёт через брокер и security_monitor (шлюз не вызывает воркеры напрямую при UAS_GATEWAY_BACKEND=bus).",
+    "compose_services_observed": [
+      "api_gateway",
+      "security_monitor",
+      "user_management_worker",
+      "firmware_ingestion_worker",
+      "certification_service_worker",
+      "drone_registry_worker",
+      "purchase_service_worker",
+      "audit_log_worker",
+      "analytics_adapter_worker",
+      "web_portal",
+      "nginx_reverse_proxy"
+    ],
+    "compose_service_set_matches_model": true,
+    "non_python_domains": [
+      {
+        "compose_service": "web_portal",
+        "whole_domain_in_tcb": false,
+        "kind": "nuxt_frontend",
+        "note_ru": "Презентационный слой; принятие решений по ЦБ на сервере. Риски UI/UX вне ДВБ-метрик Python."
+      },
+      {
+        "compose_service": "nginx_reverse_proxy",
+        "whole_domain_in_tcb": false,
+        "kind": "reverse_proxy",
+        "note_ru": "Только маршрутизация HTTP; логика ЦБ не в образе приложения."
+      }
+    ],
+    "python_domains_tcb": [
+      {
+        "compose_service": "api_gateway",
+        "whole_domain_in_tcb": true,
+        "in_cb123_tcb_union": true,
+        "maps_to_cb": [
+          "ЦБ-1",
+          "ЦБ-2",
+          "ЦБ-3"
+        ],
+        "rationale_ru": "HTTP API, JWT, прокси к доменам реализации ЦБ-1…ЦБ-3 через security_monitor",
+        "python_path_specs": [
+          "src/gateway",
+          "src/shared/tcb",
+          "src/shared/security_monitor.py",
+          "src/shared/security_policies.py",
+          "src/shared/component_base.py",
+          "src/shared/worker_runtime.py",
+          "src/shared/worker_deps.py",
+          "src/shared/external_adapters_factory.py",
+          "src/shared/analytics_ipc.py",
+          "src/shared/models.py",
+          "src/shared/storage.py",
+          "src/shared/topics.py",
+          "src/shared/jwt_tokens.py",
+          "src/shared/integration_adapters.py",
+          "src/shared/bus_integration_adapters.py",
+          "src/shared/services.py"
+        ],
+        "aggregate": {
+          "file_count": 28,
+          "total_loc": 2216,
+          "total_sloc": 1828,
+          "total_functions": 151,
+          "sum_complexity": 367,
+          "max_complexity": 16,
+          "functions_over_10": 4,
+          "external_imports": [
+            "analytics_adapter",
+            "audit_log",
+            "broker",
+            "certification_service",
+            "drone_registry",
+            "firmware_ingestion",
+            "gateway",
+            "http",
+            "purchase_service",
+            "sdk",
+            "shared",
+            "user_management",
+            "zlib"
+          ]
+        }
+      },
+      {
+        "compose_service": "security_monitor",
+        "whole_domain_in_tcb": true,
+        "in_cb123_tcb_union": true,
+        "maps_to_cb": [
+          "ЦБ-1",
+          "ЦБ-2",
+          "ЦБ-3"
+        ],
+        "rationale_ru": "Единая точка allow/deny для внутреннего РКИВ (контроль доступа к ЦБ-операциям)",
+        "python_path_specs": [
+          "src/security_monitor",
+          "src/shared/tcb",
+          "src/shared/security_monitor.py",
+          "src/shared/security_policies.py",
+          "src/shared/component_base.py",
+          "src/shared/worker_runtime.py",
+          "src/shared/worker_deps.py",
+          "src/shared/external_adapters_factory.py",
+          "src/shared/analytics_ipc.py",
+          "src/shared/models.py",
+          "src/shared/storage.py",
+          "src/shared/topics.py",
+          "src/shared/jwt_tokens.py",
+          "src/shared/integration_adapters.py",
+          "src/shared/bus_integration_adapters.py",
+          "src/shared/services.py"
+        ],
+        "aggregate": {
+          "file_count": 25,
+          "total_loc": 1692,
+          "total_sloc": 1385,
+          "total_functions": 107,
+          "sum_complexity": 263,
+          "max_complexity": 12,
+          "functions_over_10": 2,
+          "external_imports": [
+            "analytics_adapter",
+            "audit_log",
+            "broker",
+            "certification_service",
+            "drone_registry",
+            "firmware_ingestion",
+            "purchase_service",
+            "sdk",
+            "shared",
+            "user_management",
+            "zlib"
+          ]
+        }
+      },
+      {
+        "compose_service": "user_management_worker",
+        "whole_domain_in_tcb": true,
+        "in_cb123_tcb_union": true,
+        "maps_to_cb": [
+          "ЦБ-2"
+        ],
+        "rationale_ru": "ЦБ-2: идентификация разработчика, инициирующего сертификацию и регистрацию",
+        "python_path_specs": [
+          "src/user_management",
+          "src/shared/tcb",
+          "src/shared/security_monitor.py",
+          "src/shared/security_policies.py",
+          "src/shared/component_base.py",
+          "src/shared/worker_runtime.py",
+          "src/shared/worker_deps.py",
+          "src/shared/external_adapters_factory.py",
+          "src/shared/analytics_ipc.py",
+          "src/shared/models.py",
+          "src/shared/storage.py",
+          "src/shared/topics.py",
+          "src/shared/jwt_tokens.py",
+          "src/shared/integration_adapters.py",
+          "src/shared/bus_integration_adapters.py",
+          "src/shared/services.py"
+        ],
+        "aggregate": {
+          "file_count": 27,
+          "total_loc": 1889,
+          "total_sloc": 1559,
+          "total_functions": 122,
+          "sum_complexity": 300,
+          "max_complexity": 12,
+          "functions_over_10": 2,
+          "external_imports": [
+            "analytics_adapter",
+            "audit_log",
+            "broker",
+            "certification_service",
+            "drone_registry",
+            "firmware_ingestion",
+            "purchase_service",
+            "sdk",
+            "shared",
+            "user_management",
+            "zlib"
+          ]
+        }
+      },
+      {
+        "compose_service": "firmware_ingestion_worker",
+        "whole_domain_in_tcb": true,
+        "in_cb123_tcb_union": true,
+        "maps_to_cb": [
+          "ЦБ-1"
+        ],
+        "rationale_ru": "ЦБ-1: приём только проверяемого артефакта прошивки (хеш или репозиторий+коммит)",
+        "python_path_specs": [
+          "src/firmware_ingestion",
+          "src/shared/tcb",
+          "src/shared/security_monitor.py",
+          "src/shared/security_policies.py",
+          "src/shared/component_base.py",
+          "src/shared/worker_runtime.py",
+          "src/shared/worker_deps.py",
+          "src/shared/external_adapters_factory.py",
+          "src/shared/analytics_ipc.py",
+          "src/shared/models.py",
+          "src/shared/storage.py",
+          "src/shared/topics.py",
+          "src/shared/jwt_tokens.py",
+          "src/shared/integration_adapters.py",
+          "src/shared/bus_integration_adapters.py",
+          "src/shared/services.py"
+        ],
+        "aggregate": {
+          "file_count": 27,
+          "total_loc": 1777,
+          "total_sloc": 1460,
+          "total_functions": 110,
+          "sum_complexity": 273,
+          "max_complexity": 12,
+          "functions_over_10": 2,
+          "external_imports": [
+            "analytics_adapter",
+            "audit_log",
+            "broker",
+            "certification_service",
+            "drone_registry",
+            "firmware_ingestion",
+            "purchase_service",
+            "sdk",
+            "shared",
+            "user_management",
+            "zlib"
+          ]
+        }
+      },
+      {
+        "compose_service": "certification_service_worker",
+        "whole_domain_in_tcb": true,
+        "in_cb123_tcb_union": true,
+        "maps_to_cb": [
+          "ЦБ-1"
+        ],
+        "rationale_ru": "ЦБ-1: перевод прошивки в сертифицированный контур по решению Регулятора",
+        "python_path_specs": [
+          "src/certification_service",
+          "src/shared/tcb",
+          "src/shared/security_monitor.py",
+          "src/shared/security_policies.py",
+          "src/shared/component_base.py",
+          "src/shared/worker_runtime.py",
+          "src/shared/worker_deps.py",
+          "src/shared/external_adapters_factory.py",
+          "src/shared/analytics_ipc.py",
+          "src/shared/models.py",
+          "src/shared/storage.py",
+          "src/shared/topics.py",
+          "src/shared/jwt_tokens.py",
+          "src/shared/integration_adapters.py",
+          "src/shared/bus_integration_adapters.py",
+          "src/shared/services.py"
+        ],
+        "aggregate": {
+          "file_count": 28,
+          "total_loc": 2056,
+          "total_sloc": 1723,
+          "total_functions": 116,
+          "sum_complexity": 305,
+          "max_complexity": 12,
+          "functions_over_10": 4,
+          "external_imports": [
+            "analytics_adapter",
+            "audit_log",
+            "broker",
+            "certification_service",
+            "drone_registry",
+            "firmware_ingestion",
+            "purchase_service",
+            "sdk",
+            "shared",
+            "user_management",
+            "zlib"
+          ]
+        }
+      },
+      {
+        "compose_service": "drone_registry_worker",
+        "whole_domain_in_tcb": true,
+        "in_cb123_tcb_union": true,
+        "maps_to_cb": [
+          "ЦБ-3"
+        ],
+        "rationale_ru": "ЦБ-3: витрина и карточка экземпляра только при действующей сертификации и регистрации",
+        "python_path_specs": [
+          "src/drone_registry",
+          "src/shared/tcb",
+          "src/shared/security_monitor.py",
+          "src/shared/security_policies.py",
+          "src/shared/component_base.py",
+          "src/shared/worker_runtime.py",
+          "src/shared/worker_deps.py",
+          "src/shared/external_adapters_factory.py",
+          "src/shared/analytics_ipc.py",
+          "src/shared/models.py",
+          "src/shared/storage.py",
+          "src/shared/topics.py",
+          "src/shared/jwt_tokens.py",
+          "src/shared/integration_adapters.py",
+          "src/shared/bus_integration_adapters.py",
+          "src/shared/services.py"
+        ],
+        "aggregate": {
+          "file_count": 27,
+          "total_loc": 1982,
+          "total_sloc": 1659,
+          "total_functions": 113,
+          "sum_complexity": 297,
+          "max_complexity": 26,
+          "functions_over_10": 3,
+          "external_imports": [
+            "analytics_adapter",
+            "audit_log",
+            "broker",
+            "certification_service",
+            "drone_registry",
+            "firmware_ingestion",
+            "purchase_service",
+            "sdk",
+            "shared",
+            "user_management",
+            "zlib"
+          ]
+        }
+      },
+      {
+        "compose_service": "purchase_service_worker",
+        "whole_domain_in_tcb": true,
+        "in_cb123_tcb_union": false,
+        "maps_to_cb": [],
+        "rationale_ru": "ТБ-1, ТБ-3: сделка, перерегистрация владения (вне официальных ЦБ-1…ЦБ-3)",
+        "python_path_specs": [
+          "src/purchase_service",
+          "src/shared/tcb",
+          "src/shared/security_monitor.py",
+          "src/shared/security_policies.py",
+          "src/shared/component_base.py",
+          "src/shared/worker_runtime.py",
+          "src/shared/worker_deps.py",
+          "src/shared/external_adapters_factory.py",
+          "src/shared/analytics_ipc.py",
+          "src/shared/models.py",
+          "src/shared/storage.py",
+          "src/shared/topics.py",
+          "src/shared/jwt_tokens.py",
+          "src/shared/integration_adapters.py",
+          "src/shared/bus_integration_adapters.py",
+          "src/shared/services.py"
+        ],
+        "aggregate": {
+          "file_count": 27,
+          "total_loc": 1972,
+          "total_sloc": 1647,
+          "total_functions": 110,
+          "sum_complexity": 292,
+          "max_complexity": 28,
+          "functions_over_10": 3,
+          "external_imports": [
+            "analytics_adapter",
+            "audit_log",
+            "broker",
+            "certification_service",
+            "drone_registry",
+            "firmware_ingestion",
+            "purchase_service",
+            "sdk",
+            "shared",
+            "user_management",
+            "zlib"
+          ]
+        }
+      },
+      {
+        "compose_service": "audit_log_worker",
+        "whole_domain_in_tcb": true,
+        "in_cb123_tcb_union": false,
+        "maps_to_cb": [],
+        "rationale_ru": "ТБ: системный журнал (SQLite) и при DRONE_ANALYTICS_ENABLED — дублирование в analytics_adapter → DroneAnalytics",
+        "python_path_specs": [
+          "src/audit_log",
+          "src/shared/tcb",
+          "src/shared/security_monitor.py",
+          "src/shared/security_policies.py",
+          "src/shared/component_base.py",
+          "src/shared/worker_runtime.py",
+          "src/shared/worker_deps.py",
+          "src/shared/external_adapters_factory.py",
+          "src/shared/analytics_ipc.py",
+          "src/shared/models.py",
+          "src/shared/storage.py",
+          "src/shared/topics.py",
+          "src/shared/jwt_tokens.py",
+          "src/shared/integration_adapters.py",
+          "src/shared/bus_integration_adapters.py",
+          "src/shared/services.py"
+        ],
+        "aggregate": {
+          "file_count": 27,
+          "total_loc": 1794,
+          "total_sloc": 1470,
+          "total_functions": 113,
+          "sum_complexity": 280,
+          "max_complexity": 12,
+          "functions_over_10": 2,
+          "external_imports": [
+            "analytics_adapter",
+            "audit_log",
+            "broker",
+            "certification_service",
+            "drone_registry",
+            "firmware_ingestion",
+            "purchase_service",
+            "sdk",
+            "shared",
+            "user_management",
+            "zlib"
+          ]
+        }
+      },
+      {
+        "compose_service": "analytics_adapter_worker",
+        "whole_domain_in_tcb": true,
+        "in_cb123_tcb_union": false,
+        "maps_to_cb": [],
+        "rationale_ru": "ТБ: граница доставки во внешний журнал DroneAnalytics (отдельный контур от audit_log)",
+        "python_path_specs": [
+          "src/analytics_adapter",
+          "src/shared/tcb",
+          "src/shared/security_monitor.py",
+          "src/shared/security_policies.py",
+          "src/shared/component_base.py",
+          "src/shared/worker_runtime.py",
+          "src/shared/worker_deps.py",
+          "src/shared/external_adapters_factory.py",
+          "src/shared/analytics_ipc.py",
+          "src/shared/models.py",
+          "src/shared/storage.py",
+          "src/shared/topics.py",
+          "src/shared/jwt_tokens.py",
+          "src/shared/integration_adapters.py",
+          "src/shared/bus_integration_adapters.py",
+          "src/shared/services.py"
+        ],
+        "aggregate": {
+          "file_count": 28,
+          "total_loc": 1871,
+          "total_sloc": 1542,
+          "total_functions": 115,
+          "sum_complexity": 295,
+          "max_complexity": 12,
+          "functions_over_10": 2,
+          "external_imports": [
+            "analytics_adapter",
+            "audit_log",
+            "broker",
+            "certification_service",
+            "drone_registry",
+            "firmware_ingestion",
+            "purchase_service",
+            "sdk",
+            "shared",
+            "user_management",
+            "zlib"
+          ]
+        }
+      }
+    ],
+    "union_unique_backend_python_scope": {
+      "deduped_path_specs": [
+        "src/gateway",
+        "src/shared/tcb",
+        "src/shared/security_monitor.py",
+        "src/shared/security_policies.py",
+        "src/shared/component_base.py",
+        "src/shared/worker_runtime.py",
+        "src/shared/worker_deps.py",
+        "src/shared/external_adapters_factory.py",
+        "src/shared/analytics_ipc.py",
+        "src/shared/models.py",
+        "src/shared/storage.py",
+        "src/shared/topics.py",
+        "src/shared/jwt_tokens.py",
+        "src/shared/integration_adapters.py",
+        "src/shared/bus_integration_adapters.py",
+        "src/shared/services.py",
+        "src/security_monitor",
+        "src/user_management",
+        "src/firmware_ingestion",
+        "src/certification_service",
+        "src/drone_registry",
+        "src/purchase_service",
+        "src/audit_log",
+        "src/analytics_adapter"
+      ],
+      "note_ru": "Объединение всех Python-доменов прототипа (операционный охват).",
+      "aggregate": {
+        "file_count": 60,
+        "total_loc": 3937,
+        "total_sloc": 3353,
+        "total_functions": 209,
+        "sum_complexity": 584,
+        "max_complexity": 28,
+        "functions_over_10": 8,
+        "external_imports": [
+          "analytics_adapter",
+          "audit_log",
+          "broker",
+          "certification_service",
+          "drone_registry",
+          "firmware_ingestion",
+          "gateway",
+          "http",
+          "purchase_service",
+          "sdk",
+          "shared",
+          "user_management",
+          "zlib"
+        ]
+      }
+    },
+    "union_cb123_python_scope": {
+      "deduped_path_specs": [
+        "src/gateway",
+        "src/shared/tcb",
+        "src/shared/security_monitor.py",
+        "src/shared/security_policies.py",
+        "src/shared/component_base.py",
+        "src/shared/worker_runtime.py",
+        "src/shared/worker_deps.py",
+        "src/shared/external_adapters_factory.py",
+        "src/shared/analytics_ipc.py",
+        "src/shared/models.py",
+        "src/shared/storage.py",
+        "src/shared/topics.py",
+        "src/shared/jwt_tokens.py",
+        "src/shared/integration_adapters.py",
+        "src/shared/bus_integration_adapters.py",
+        "src/shared/services.py",
+        "src/security_monitor",
+        "src/user_management",
+        "src/firmware_ingestion",
+        "src/certification_service",
+        "src/drone_registry"
+      ],
+      "note_ru": "Задача 15: объединение путей только доменов, отнесённых к реализации официальных ЦБ-1…ЦБ-3 для оценки стоимости ДВБ; домены «только ТБ» исключены.",
+      "aggregate": {
+        "file_count": 47,
+        "total_loc": 3292,
+        "total_sloc": 2789,
+        "total_functions": 189,
+        "sum_complexity": 500,
+        "max_complexity": 26,
+        "functions_over_10": 7,
+        "external_imports": [
+          "analytics_adapter",
+          "audit_log",
+          "broker",
+          "certification_service",
+          "drone_registry",
+          "firmware_ingestion",
+          "gateway",
+          "http",
+          "purchase_service",
+          "sdk",
+          "shared",
+          "user_management",
+          "zlib"
+        ]
+      }
+    },
+    "dockerfile_shared_note_ru": "Каждый образ копирует `systems/uas_dev_company` целиком; сертификационный анализ привязывает доверие к границе процесса и к фактически исполняемым модулям, но наличие общего `shared` в образе сохраняет общий объём кода для всех воркеров."
+  },
+  "tcb_cost_task12": {
+    "task": "Задача 12 — гранулярность политик, слабые связи доменов, методика стоимости ДВБ",
+    "formula_ru": "estimated_tcb_cost_score = 0.02 * union_backend_python_sloc + 0.35 * allow_rules_count + (12.0 если gateway/server.py импортирует пакеты доменов; иначе 0). **union_backend_python_sloc** после Задачи 15 — SLOC объединения **только** доменов `in_cb123_tcb_union` (реализация официальных ЦБ-1…ЦБ-3), без учёта доменов «только ТБ». Число allow-правил IPC включает нормативные политики Задачи 14. Штраф — связность шлюза с доменами в одном файле.",
+    "task12_baseline_snapshot": {
+      "label": "task12_baseline_before_refactor",
+      "description_ru": "Нормативная точка «до» Задачи 12: монолит сервисов в одном shared/services.py, 14 allow-правил (update_user, list_drones без отдельных узких действий), шлюз по умолчанию sqlite и прямой импорт всех доменных сервисов из gateway/server.py; метрика контейнеров использовала весь src/shared на домен.",
+      "allow_policy_rules_count": 14,
+      "distinct_gateway_proxy_actions": 13,
+      "gateway_server_default_backend": "sqlite",
+      "gateway_server_imported_domain_service_symbols": true,
+      "per_domain_metric_used_full_src_shared_tree": true
+    },
+    "task12_after_snapshot": {
+      "allow_rules_count": 35,
+      "gateway_proxy_target_rows": 15,
+      "distinct_topics_in_gateway_allow": 6,
+      "distinct_actions_in_gateway_allow": 15,
+      "narrow_action_tokens_present": [
+        "disable_user",
+        "enable_user",
+        "list_registered_drones",
+        "report_critical_vulnerability"
+      ],
+      "policy_granularity_index": 1.0,
+      "union_backend_python_sloc": 2789,
+      "union_all_system_backend_python_sloc": 3353,
+      "sum_per_domain_aggregate_sloc_cb123_only": 9614,
+      "gateway_direct_service_imports_in_server_py": false,
+      "gateway_default_backend": "bus",
+      "per_domain_python_path_model": "component_dir_plus_shared_core",
+      "tcb_cost_union_scope_ru": "Задача 15: union_backend_python_sloc — дедупликация по доменам с in_cb123_tcb_union; полный операционный объём — union_all_system_backend_python_sloc.",
+      "estimated_tcb_cost_score": 68.03
+    },
+    "task12_delta_baseline_to_after": {
+      "allow_rules_count_delta": 21,
+      "gateway_domain_imports_addressed": true
+    }
+  },
+  "tcb_ipc_topology_task14": {
+    "task": "Задача 14 — IPC-связи между доменами (дедуп по парам) и цели безопасности",
+    "methodology_ru": "Связь между доменами безопасности (сервисами compose) — это уникальная упорядоченная пара (отправитель, получатель), выведенная из allow-политик (sender, topic, …). Несколько правил с одной и той же парой доменов, отличающихся только действием или «ресурсом» запроса, дают одну связь. Фазы ответа по IPC отражены отдельными политиками ipc_response / ipc_inbound_request. Контроль доставки запроса от монитора к воркеру: проверка ipc_inbound_request в security_monitor.",
+    "deduped_directed_edge_count": 26,
+    "deduped_directed_edges": [
+      {
+        "from": "api_gateway",
+        "to": "audit_log_worker"
+      },
+      {
+        "from": "api_gateway",
+        "to": "certification_service_worker"
+      },
+      {
+        "from": "api_gateway",
+        "to": "drone_registry_worker"
+      },
+      {
+        "from": "api_gateway",
+        "to": "firmware_ingestion_worker"
+      },
+      {
+        "from": "api_gateway",
+        "to": "purchase_service_worker"
+      },
+      {
+        "from": "api_gateway",
+        "to": "security_monitor"
+      },
+      {
+        "from": "api_gateway",
+        "to": "user_management_worker"
+      },
+      {
+        "from": "audit_log_worker",
+        "to": "analytics_adapter_worker"
+      },
+      {
+        "from": "audit_log_worker",
+        "to": "security_monitor"
+      },
+      {
+        "from": "certification_service_worker",
+        "to": "audit_log_worker"
+      },
+      {
+        "from": "certification_service_worker",
+        "to": "security_monitor"
+      },
+      {
+        "from": "drone_registry_worker",
+        "to": "audit_log_worker"
+      },
+      {
+        "from": "drone_registry_worker",
+        "to": "security_monitor"
+      },
+      {
+        "from": "firmware_ingestion_worker",
+        "to": "audit_log_worker"
+      },
+      {
+        "from": "firmware_ingestion_worker",
+        "to": "security_monitor"
+      },
+      {
+        "from": "purchase_service_worker",
+        "to": "audit_log_worker"
+      },
+      {
+        "from": "purchase_service_worker",
+        "to": "security_monitor"
+      },
+      {
+        "from": "security_monitor",
+        "to": "api_gateway"
+      },
+      {
+        "from": "security_monitor",
+        "to": "audit_log_worker"
+      },
+      {
+        "from": "security_monitor",
+        "to": "certification_service_worker"
+      },
+      {
+        "from": "security_monitor",
+        "to": "drone_registry_worker"
+      },
+      {
+        "from": "security_monitor",
+        "to": "firmware_ingestion_worker"
+      },
+      {
+        "from": "security_monitor",
+        "to": "purchase_service_worker"
+      },
+      {
+        "from": "security_monitor",
+        "to": "user_management_worker"
+      },
+      {
+        "from": "user_management_worker",
+        "to": "audit_log_worker"
+      },
+      {
+        "from": "user_management_worker",
+        "to": "security_monitor"
+      }
+    ],
+    "per_domain": [
+      {
+        "compose_service": "api_gateway",
+        "inbound_distinct_peers": 1,
+        "outbound_distinct_peers": 7,
+        "inbound_peers_compose": [
+          "security_monitor"
+        ],
+        "outbound_peers_compose": [
+          "audit_log_worker",
+          "certification_service_worker",
+          "drone_registry_worker",
+          "firmware_ingestion_worker",
+          "purchase_service_worker",
+          "security_monitor",
+          "user_management_worker"
+        ],
+        "security_goals_ru": [
+          "ТБ: точка входа, привязка к ролям разработчика (ЦБ-2) для операций сертификации и реестра",
+          "ТБ: маршрутизация внутреннего IPC под политиками монитора (реализация всех трёх ЦБ)"
+        ]
+      },
+      {
+        "compose_service": "security_monitor",
+        "inbound_distinct_peers": 7,
+        "outbound_distinct_peers": 7,
+        "inbound_peers_compose": [
+          "api_gateway",
+          "audit_log_worker",
+          "certification_service_worker",
+          "drone_registry_worker",
+          "firmware_ingestion_worker",
+          "purchase_service_worker",
+          "user_management_worker"
+        ],
+        "outbound_peers_compose": [
+          "api_gateway",
+          "audit_log_worker",
+          "certification_service_worker",
+          "drone_registry_worker",
+          "firmware_ingestion_worker",
+          "purchase_service_worker",
+          "user_management_worker"
+        ],
+        "security_goals_ru": [
+          "ТБ: разграничение маршрутов IPC к воркерам ЦБ-1…ЦБ-3",
+          "ТБ: явные политики запроса и ответа по доменам (ipc_inbound_request / ipc_response)"
+        ]
+      },
+      {
+        "compose_service": "user_management_worker",
+        "inbound_distinct_peers": 2,
+        "outbound_distinct_peers": 2,
+        "inbound_peers_compose": [
+          "api_gateway",
+          "security_monitor"
+        ],
+        "outbound_peers_compose": [
+          "audit_log_worker",
+          "security_monitor"
+        ],
+        "security_goals_ru": [
+          "ЦБ-2: только авторизованный разработчик может запускать операции сертификации и реестра",
+          "ТБ: учётные записи, хэши паролей, роли (механизм достижения ЦБ-2)"
+        ]
+      },
+      {
+        "compose_service": "firmware_ingestion_worker",
+        "inbound_distinct_peers": 2,
+        "outbound_distinct_peers": 2,
+        "inbound_peers_compose": [
+          "api_gateway",
+          "security_monitor"
+        ],
+        "outbound_peers_compose": [
+          "audit_log_worker",
+          "security_monitor"
+        ],
+        "security_goals_ru": [
+          "ЦБ-1: фиксация подлинности и происхождения прошивки до решения о сертификации",
+          "ТБ: метаданные поставки, неизменяемые идентификаторы артефакта"
+        ]
+      },
+      {
+        "compose_service": "certification_service_worker",
+        "inbound_distinct_peers": 2,
+        "outbound_distinct_peers": 2,
+        "inbound_peers_compose": [
+          "api_gateway",
+          "security_monitor"
+        ],
+        "outbound_peers_compose": [
+          "audit_log_worker",
+          "security_monitor"
+        ],
+        "security_goals_ru": [
+          "ЦБ-1: связка прошивки с сертификатом; отказ при подделке целей или статуса",
+          "ТБ: сценарии отзыва и сужения заявленных целей (effective_security_goals)"
+        ]
+      },
+      {
+        "compose_service": "drone_registry_worker",
+        "inbound_distinct_peers": 2,
+        "outbound_distinct_peers": 2,
+        "inbound_peers_compose": [
+          "api_gateway",
+          "security_monitor"
+        ],
+        "outbound_peers_compose": [
+          "audit_log_worker",
+          "security_monitor"
+        ],
+        "security_goals_ru": [
+          "ЦБ-3: допуск в реестр/витрину по инвариантам сертификата и регистрации",
+          "ТБ: согласование заявленных целей экземпляра с сертификатом (множество ЦБ-1…ЦБ-3, ТБ-2)"
+        ]
+      },
+      {
+        "compose_service": "purchase_service_worker",
+        "inbound_distinct_peers": 2,
+        "outbound_distinct_peers": 2,
+        "inbound_peers_compose": [
+          "api_gateway",
+          "security_monitor"
+        ],
+        "outbound_peers_compose": [
+          "audit_log_worker",
+          "security_monitor"
+        ],
+        "security_goals_ru": [
+          "ТБ-1: исключение повторной продажи, согласованность статуса владения",
+          "ТБ-3: фиксация передачи до разрешённой эксплуатации у Эксплуатанта"
+        ]
+      },
+      {
+        "compose_service": "audit_log_worker",
+        "inbound_distinct_peers": 7,
+        "outbound_distinct_peers": 2,
+        "inbound_peers_compose": [
+          "api_gateway",
+          "certification_service_worker",
+          "drone_registry_worker",
+          "firmware_ingestion_worker",
+          "purchase_service_worker",
+          "security_monitor",
+          "user_management_worker"
+        ],
+        "outbound_peers_compose": [
+          "analytics_adapter_worker",
+          "security_monitor"
+        ],
+        "security_goals_ru": [
+          "ТБ: аудируемость операций для расследований и демонстрации контроля",
+          "ТБ: полезная нагрузка событий без утечки избыточных данных (journal_policy)"
+        ]
+      },
+      {
+        "compose_service": "analytics_adapter_worker",
+        "inbound_distinct_peers": 1,
+        "outbound_distinct_peers": 0,
+        "inbound_peers_compose": [
+          "audit_log_worker"
+        ],
+        "outbound_peers_compose": [],
+        "security_goals_ru": [
+          "ТБ: изоляция сетевого исхода к системным.drone_analytics от доменов ЦБ",
+          "ТБ: приём только доверенных отправителей (домены ЦБ и audit_log) на IPC"
+        ]
+      }
+    ]
+  }
+}
