@@ -1,0 +1,39 @@
+@startuml readme_functional_internal
+title Внутренняя функциональная архитектура
+
+skinparam defaultFontName "SansSerif"
+skinparam packageStyle rectangle
+
+[api_gateway] as GW
+
+package "Доменные воркеры" #LightGreen {
+  [user_management] as UM
+  [firmware_ingestion] as FW
+  [certification_service] as CS
+  [drone_registry] as DR
+  [purchase_service] as PS
+  [audit_log] as AL
+}
+
+database "SQLite" as DB
+[regulator_adapter] as RAD
+note bottom of RAD : целевой адаптер\n(в разработке)
+
+GW --> UM
+GW --> FW
+GW --> CS
+GW --> DR
+GW --> PS
+GW --> AL
+
+FW --> DB
+CS --> DB
+DR --> DB
+PS --> DB
+AL --> DB
+
+CS ..> RAD : целевая интеграция
+DR ..> RAD : целевая регистрация
+PS ..> RAD : целевая перерегистрация
+
+@enduml

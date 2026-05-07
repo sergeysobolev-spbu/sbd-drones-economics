@@ -11,3 +11,4 @@ __pycache__
 fabric/
 .DS_Store
 **/postgres_data/
+*.tmp

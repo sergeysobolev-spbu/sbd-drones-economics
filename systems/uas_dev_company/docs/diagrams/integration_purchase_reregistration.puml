@@ -1,0 +1,35 @@
+@startuml integration_purchase_reregistration
+title Покупка Эксплуатантом и перерегистрация владельца
+
+autonumber
+actor "Эксплуатант" as Op
+box "Домены безопасности Разработчика БАС" #LightBlue
+    participant "Разработчик БАС" as UAS
+    participant "purchase_service" as Purchase
+    database "SQLite UAS\nзаказы и локальная проекция" as UDB
+end box
+
+box "Домены безопасности Регулятора" #LightGreen
+    participant "Регулятор\nAPI/consumer" as REG
+    database "Реестр Регулятора\nвладельцы и версии" as REGDB
+end box
+
+box "Домены безопасности Эксплуатанта" #LightYellow
+    participant "Система Эксплуатанта" as OPS
+    database "Реестр Эксплуатанта\nлокальный парк" as ODB
+end box
+
+Op -> UAS : GET /api/drones
+UAS --> Op : only registered_by_regulator\n[INT-FR-6]
+Op -> UAS : POST /api/purchase\nserial_number
+UAS -> Purchase : purchase_drone
+Purchase -> UDB : assert status=registered_by_regulator\nsave order
+Purchase -> REG : reregister_drone_instance\nownership_transfer\n[INT-FR-7]
+Purchase -> UDB : status=sold_pending_reregistration
+REG -> REG : verify owner, operator,\ncertificate, idempotency\n[INT-NFR-3]
+REG -> REGDB : create new registration version\nowner=operator
+REG --> Purchase : reregistered\nregistration_version=2
+REG -> OPS : drone_reregistered event\n[INT-FR-8]
+OPS -> ODB : import purchased drone\nregistration_status=active
+OPS --> Op : drone visible, not ready until local checks pass\n[INT-FR-10]
+@enduml

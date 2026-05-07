@@ -1,0 +1,45 @@
+@startuml integration_agrodrone_e2e
+title E2E: сертификация прошивки агродрона и регистрация экземпляра
+
+autonumber
+actor "Разработчик dev-agro" as Dev
+actor "Эксплуатант op-agro" as Op
+box "Домены безопасности Разработчика БАС" #LightBlue
+    participant "Разработчик БАС" as UAS
+    database "SQLite UAS\nпрошивки, заказы, проекции" as UASDB
+end box
+
+box "Домены безопасности Регулятора" #LightGreen
+    participant "Регулятор\nAPI/consumer" as REG
+    database "Реестр Регулятора\nсертификаты и регистрации" as REGDB
+end box
+
+box "Домены безопасности Эксплуатанта" #LightYellow
+    participant "Система Эксплуатанта" as OPS
+    database "Реестр Эксплуатанта\nлокальный парк" as ODB
+end box
+
+Dev -> UAS : POST /api/firmware\nrepo=https://gitflic.ru/project/itmoniks/cyber_drons/commit?branch=master\ncommit=4c6ed55bfcf34b84a0ac669100b1bf8835785d98\n[INT-FR-11]
+UAS -> UASDB : save firmware metadata
+Dev -> UAS : POST /api/certify
+UAS -> REG : certify_firmware
+REG -> REGDB : save firmware certificate
+REG --> UAS : certificate_id
+UAS -> UASDB : save local certificate projection
+Dev -> UAS : POST /api/register-drone\nAGRO-4C6ED55-001, agrodrone,\nsecurity_goals=["ЦБ-1"], price=750000
+UAS -> REG : register_drone_instance
+REG -> REGDB : create drone registration
+REG --> UAS : registered, registration_id
+UAS -> UASDB : save registration projection
+Op -> UAS : GET /api/drones
+UAS --> Op : AGRO-4C6ED55-001 available
+Op -> UAS : POST /api/purchase
+UAS -> UASDB : save purchase order\nstatus=sold_pending_reregistration
+UAS -> REG : reregister_drone_instance
+REG -> REGDB : create owner version
+REG -> OPS : drone_reregistered
+OPS -> ODB : import purchased drone
+OPS --> Op : imported to operator registry
+Op -> UAS : POST /api/purchase again
+UAS --> Op : error: available certified drone is required
+@enduml

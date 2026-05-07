@@ -1,0 +1,7 @@
+"""Точка входа контейнера api_gateway / gateway."""
+
+from gateway.server import run
+
+
+if __name__ == "__main__":
+    run()

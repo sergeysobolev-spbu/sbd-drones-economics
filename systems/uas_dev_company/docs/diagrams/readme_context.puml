@@ -1,0 +1,35 @@
+@startuml readme_context
+title Контекст: роли и внешние системы
+
+skinparam defaultFontName "SansSerif"
+skinparam packageStyle rectangle
+
+actor "Разработчик БАС" as Dev
+actor "Эксплуатант" as Op
+actor "Администратор" as Adm
+
+package "Система UAS Dev Company" #LightBlue {
+  [Web UI /\nREST API] as UI
+  [api_gateway] as GW
+  [Доменные сервисы] as Dom
+  database "SQLite" as DB
+}
+
+cloud "Внешний контур" #White {
+  [Регулятор] as Reg
+  [Система\nэксплуатанта] as ExtOp
+  [ОрВД / НУС /\nстрахование] as Orvd
+}
+
+Dev --> UI
+Op --> UI
+Adm --> UI
+UI --> GW
+GW --> Dom
+Dom --> DB
+
+Dom ..> Reg : целевой контракт\nрегистрации
+Reg ..> ExtOp : событие\nперерегистрации
+ExtOp ..> Orvd : миссии /\nэксплуатация
+
+@enduml

@@ -1,0 +1,59 @@
+@startuml deployment_containers
+!theme plain
+title Развёртывание: контейнеры системы UAS Dev Company (профиль Kafka)
+
+skinparam shadowing false
+skinparam linetype ortho
+
+package "Периметр HTTP" {
+  component [nginx_reverse_proxy] as nginx <<container>>
+  component [web_portal\n(Nuxt)] as web <<container>>
+  component [api_gateway\n(Python gateway)] as gw <<container>>
+}
+
+package "Безопасность и данные" {
+  component [security_monitor] as mon <<container>>
+  database "SQLite\n(общий volume)" as sql <<container>>
+}
+
+package "Доменные воркеры" {
+  component [user_management] as um <<container>>
+  component [firmware_ingestion] as fi <<container>>
+  component [certification_service] as cs <<container>>
+  component [drone_registry] as dr <<container>>
+  component [purchase_service] as ps <<container>>
+  component [audit_log] as al <<container>>
+}
+
+cloud "Инфраструктура брокера" {
+  component [Kafka / Mosquitto\n(профиль compose)] as broker <<infra>>
+}
+
+nginx -down-> web : GET /\nстатика UI
+nginx -down-> gw : /api/*\nJSON API
+
+gw -right-> sql : режим **sqlite**\nпрямой доступ
+gw -down-> broker : режим **bus**\nUAS_GATEWAY_BACKEND=bus
+
+mon -up-> broker : подписка\ncomponents.security_monitor\n(+ SYSTEM_NAMESPACE)
+um -up-> broker
+fi -up-> broker
+cs -up-> broker
+dr -up-> broker
+ps -up-> broker
+al -up-> broker
+
+um -down-> sql
+fi -down-> sql
+cs -down-> sql
+dr -down-> sql
+ps -down-> sql
+al -down-> sql
+
+note right of gw
+  В Docker по умолчанию **bus**:
+  каждый вызов API к домену идёт
+  через монитор (политики).
+end note
+
+@enduml

@@ -1,6 +1,6 @@
 # Сводный отчёт ДВБ (последний `make tcb-test`)
 
-- **Сформирован:** 2026-05-07 12:52:47 UTC
+- **Сформирован:** 2026-05-07 13:11:46 UTC
 - **Cobertura:** `docs/tcb_coverage.xml`
 - **Метрики:** `docs/tcb_metrics.json` (`tcb_cost_task12`, `tcb_ipc_topology_task14`)
 

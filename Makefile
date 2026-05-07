@@ -188,7 +188,7 @@ e2e-codespace:
 	@echo "=== Preparing docker/.env ==="
 	@test -f docker/.env || cp docker/example.env docker/.env
 	@echo "=== Cleaning leftover build artifacts ==="
-	@sudo rm -rf systems/Agregator/postgres_data 2>/dev/null || true
+	@rm -rf systems/Agregator/postgres_data 2>/dev/null || true
 	@echo "=== Generating multi-system compose ==="
 	@$(LOAD_ENV) && pipenv run python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
@@ -208,7 +208,7 @@ e2e-codespace:
 	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
 	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== Running E2E tests ==="
-	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
+	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 pipenv run python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
 	@echo "=== Stopping E2E environment ==="
 	-$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null
 	@echo "=== Done ==="
@@ -225,7 +225,7 @@ e2e-local:
 	@echo "=== Preparing docker/.env ==="
 	@test -f docker/.env || cp docker/example.env docker/.env
 	@echo "=== Cleaning leftover build artifacts ==="
-	@sudo rm -rf systems/Agregator/postgres_data 2>/dev/null || true
+	@rm -rf systems/Agregator/postgres_data 2>/dev/null || true
 	@echo "=== Generating multi-system compose ==="
 	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
 	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env

@@ -1,0 +1,143 @@
+# UAS Dev Company — примеры для REST Client / VS Code Thunder Client
+# @base в настройках клиента задайте базовый URL, например http://127.0.0.1:8080
+
+@base = http://127.0.0.1:8080
+@json = Content-Type: application/json
+
+###
+# Health
+GET {{base}}/health
+
+###
+# Первый администратор (один раз, при пустой БД SQLite)
+POST {{base}}/api/bootstrap-admin
+{{json}}
+
+{
+  "username": "admin",
+  "password": "change-me-secure"
+}
+
+###
+# Логин
+# @name login
+POST {{base}}/api/login
+{{json}}
+
+{
+  "username": "admin",
+  "password": "change-me-secure"
+}
+
+###
+# Получите access_token из ответа login и подставьте:
+@token = <paste_access_token_here>
+
+###
+# Создать разработчика
+POST {{base}}/api/users
+Authorization: Bearer {{token}}
+{{json}}
+
+{
+  "username": "developer1",
+  "role": "разработчик",
+  "password": "dev-pass"
+}
+
+###
+# Создать эксплуатанта
+POST {{base}}/api/users
+Authorization: Bearer {{token}}
+{{json}}
+
+{
+  "username": "operator1",
+  "role": "эксплуатант",
+  "password": "op-pass"
+}
+
+###
+# Список пользователей
+GET {{base}}/api/users
+Authorization: Bearer {{token}}
+
+###
+# Подача прошивки — хеш локального образа или Git (регулятор собирает по коммиту)
+# Подставьте Bearer разработчика вместо администратора
+POST {{base}}/api/firmware
+Authorization: Bearer {{token}}
+{{json}}
+
+{
+  "supplier": "contractor",
+  "drone_type": "delivery",
+  "version": "1.0",
+  "firmware_hash": "sha256:abcdef…",
+  "security_goals": ["ЦБ-1", "ЦБ-2", "ЦБ-3"],
+  "authenticity_proof": "delivery-contract-2026",
+  "source_repo_url": "",
+  "source_commit": ""
+}
+
+###
+# То же через репозиторий + коммит (firmware_hash может быть пустым)
+POST {{base}}/api/firmware
+Authorization: Bearer {{token}}
+{{json}}
+
+{
+  "supplier": "contractor",
+  "drone_type": "delivery",
+  "version": "branch-main",
+  "firmware_hash": "",
+  "source_repo_url": "https://example.com/fw.git",
+  "source_commit": "a1b2c3d4e5f6",
+  "security_goals": ["ЦБ-1", "ЦБ-3"],
+  "authenticity_proof": "source-repo-submit"
+}
+
+###
+# Сертификация (JWT разработчика)
+POST {{base}}/api/certify
+Authorization: Bearer {{token}}
+{{json}}
+
+{
+  "firmware_id": "fw-xxxx"
+}
+
+###
+# Сертификаты
+GET {{base}}/api/certificates
+Authorization: Bearer {{token}}
+
+###
+# Регистрация дрона: ЦБ дрона — непустое подмножество ЦБ сертификата
+POST {{base}}/api/register-drone
+Authorization: Bearer {{token}}
+{{json}}
+
+{
+  "serial_number": "SN-1001",
+  "drone_type": "delivery",
+  "firmware_id": "fw-xxxx",
+  "certificate_id": "cert-drone-fw-xxxx",
+  "security_goals": ["ЦБ-1", "ЦБ-3"],
+  "price": 50000
+}
+
+###
+# Реестр дронов (разработчик / эксплуатант)
+GET {{base}}/api/drones
+Authorization: Bearer {{token}}
+
+###
+# Покупка (JWT эксплуатанта)
+POST {{base}}/api/purchase
+Authorization: Bearer {{token}}
+{{json}}
+
+{
+  "serial_number": "SN-1001"
+}

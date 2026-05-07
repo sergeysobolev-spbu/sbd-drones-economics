@@ -1,0 +1,37 @@
+@startuml integration_rejection_revocation_goals
+title Отказ Регулятора, отзыв регистрации и пустой набор ЦБ
+
+autonumber
+box "Домены безопасности Разработчика БАС" #LightBlue
+    participant "Разработчик БАС" as UAS
+    database "SQLite UAS\nлокальные статусы" as UASDB
+end box
+
+box "Домены безопасности Регулятора" #LightGreen
+    participant "Регулятор\nAPI/consumer" as REG
+    database "Реестр Регулятора\nрешения и отзывы" as REGDB
+end box
+
+box "Домены безопасности Эксплуатанта" #LightYellow
+    participant "Система Эксплуатанта" as OPS
+    database "Реестр Эксплуатанта\nлокальный парк" as ODB
+end box
+
+UAS -> REG : register_drone_instance\nsecurity_goals=["ЦБ-2"]\n[INT-FR-3]
+REG -> REGDB : save rejected decision\nreason_code
+REG --> UAS : rejected\nreason_code=security_goals_mismatch\n[INT-FR-5]
+UAS -> UASDB : status=registration_rejected\naudit event\n[INT-NFR-5]
+
+UAS -> REG : register_drone_instance\nsecurity_goals=[]\n[INT-FR-3]
+REG -> REGDB : create registration\nwithout security goals
+REG --> UAS : registered\nregistration_id
+UAS -> OPS : drone_reregistered after purchase
+OPS -> ODB : import drone with security_goals=[]
+OPS -> OPS : exclude from mission selection\nwhen required_goals not empty\n[INT-FR-3]
+
+REG -> REGDB : mark registration revoked
+REG -> UAS : registration_revoked\nreason=certificate_revoked\n[INT-FR-9]
+REG -> OPS : registration_revoked
+UAS -> UASDB : block sale/use\n[INT-NFR-4]
+OPS -> ODB : block mission assignment\n[INT-NFR-4]
+@enduml

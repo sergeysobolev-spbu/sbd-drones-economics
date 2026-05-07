@@ -1,43 +1,37 @@
 # Система «UAS Dev Company» (прототип)
 
-Документ соответствует ожиданиям РФ1 из общего [`docs/requirements_spec.md`](../../../docs/requirements_spec.md): у системы собственная папка `docs/`, код под `src/`, доменные исполняемые части как отдельные компоненты с Docker по аналогии с [`systems/dummy_system`](../dummy_system). Диаграммы взаимодействия — PlantUML в [`docs/diagrams/`](diagrams/), растровые копии для просмотра в GitHub/IDE — **`make diagrams`**.
+Кратко о документе:
+
+- Соответствует ожиданиям **РФ1** из [`docs/requirements_spec.md`](../../../docs/requirements_spec.md).
+- У системы своя папка **`docs/`**, код в **`src/`**, компоненты с Docker по образцу [`systems/dummy_system`](../dummy_system).
+- Диаграммы: **PlantUML** в [`docs/diagrams/`](diagrams/); PNG для просмотра в GitHub/IDE — команда **`make diagrams`** (Docker).
 
 ## 0. Контекст и функциональная архитектура
 
-Система «UAS Dev Company» моделирует Разработчика БАС: принимает сведения о прошивке, инициирует сертификацию, ведёт реестр произведённых дронов и предоставляет Эксплуатанту витрину для закупки. В текущем прототипе сертификат Регулятора создаётся локальной заглушкой; целевой контур выносит регистрацию и перерегистрацию БАС к внешнему Регулятору и связывает покупку с реестром Эксплуатанта.
+Роль системы в модели «Разработчик БАС»:
 
-```mermaid
-flowchart LR
-    Dev[Разработчик БАС] --> UI[Web UI / REST API]
-    Op[Эксплуатант] --> UI
-    Admin[Администратор] --> UI
-    UI --> Gw[api_gateway]
-    Gw --> Domain[Доменные сервисы UAS Dev Company]
-    Domain --> Db[(SQLite)]
-    Domain -. целевой контракт регистрации .-> Reg[Регулятор]
-    Reg -. событие перерегистрации .-> Operator[Система Эксплуатанта]
-    Operator -. миссии и эксплуатация .-> ORVD[ОрВД / НУС / страхование]
-```
+- Приём сведений о прошивке и запуск сертификации.
+- Ведение реестра произведённых дронов.
+- Витрина для закупки эксплуатантом.
 
-Функциональная архитектура внутри системы:
+В прототипе сертификат Регулятора создаётся локальной заглушкой.
 
-```mermaid
-flowchart TB
-    Gateway[api_gateway] --> Users[user_management]
-    Gateway --> Firmware[firmware_ingestion]
-    Gateway --> Cert[certification_service]
-    Gateway --> Registry[drone_registry]
-    Gateway --> Purchase[purchase_service]
-    Gateway --> Audit[audit_log]
-    Firmware --> Store[(SQLite)]
-    Cert --> Store
-    Registry --> Store
-    Purchase --> Store
-    Audit --> Store
-    Cert -. целевая интеграция .-> RegAdapter[regulator_adapter]
-    Registry -. целевая регистрация .-> RegAdapter
-    Purchase -. целевая перерегистрация .-> RegAdapter
-```
+Целевой контур (вне текущего репозитория):
+
+- Регистрация и перерегистрация БАС у внешнего **Регулятора**.
+- Связь покупки с реестром **Эксплуатанта**.
+
+### Контекст: роли и внешние системы
+
+Источник: [`diagrams/readme_context.puml`](diagrams/readme_context.puml).
+
+![Контекст системы](diagrams/readme_context.png)
+
+### Внутренняя функциональная схема
+
+Источник: [`diagrams/readme_functional_internal.puml`](diagrams/readme_functional_internal.puml).
+
+![Домены и хранилище](diagrams/readme_functional_internal.png)
 
 ## 1. ЦПБ
 
@@ -57,29 +51,28 @@ flowchart TB
 
 ## Требования по безопасности
 
+| ID | Требование безопасности | Что защищается |
+|----|------------------------------|----------------|
 | ТБ-1 | Эксплуатант покупает только доступный дрон и не может повторно купить проданный экземпляр. | Заказы на закупку, статус владения, экономические показатели. |
 | ТБ-2 | Заявленные на экземпляре БАС цели — подмножество целей, закреплённых в сертификате прошивки. Допустимы только идентификаторы **ЦБ-1, ЦБ-2, ЦБ-3**; пустой набор на экземпляре допустим (см. витрину/отбор в ТБ), но непустой набор должен быть ⊆ целей сертификата. | Соответствие прошивки, экземпляра БАС и критериев миссии. |
 | ТБ-3 | Перерегистрация владельца у Регулятора должна предшествовать использованию купленного дрона в миссионном контуре Эксплуатанта. | Правовой статус эксплуатации, связь с ОрВД/НУС. |
 
-
-
 ## 2. Архитектура политики
 
-Архитектура политики разделяет внутренний IPC системы и межсистемные контракты. Security-monitor контролирует только внутренний обмен `api_gateway` с доменными компонентами `uas_dev_company`; он не является общим межсистемным контролёром Регулятора, Эксплуатанта и Разработчика БАС.
+Разделение ответственности:
 
-```mermaid
-flowchart LR
-    subgraph UAS["UAS Dev Company"]
-        Gateway[api_gateway\nограниченно доверенный]
-        Monitor[security_monitor\nдоверенный для внутреннего IPC]
-        Services[доменные сервисы\nменее доверенные]
-        Gateway --> Monitor --> Services
-    end
-    UAS -. брокер/API контракт .-> Reg[Регулятор\nвнешняя система]
-    Reg -. событие/ответ .-> Op[Эксплуатант\nвнешняя система]
-```
+- **Внутренний IPC** — обмен `api_gateway` с доменами внутри `uas_dev_company`.
+- **Межсистемные контракты** — Регулятор, Эксплуатант и др.; оформляются отдельно от монитора.
 
-Обоснование уровней доверия:
+**Security monitor** не является «общим» контролёром для Регулятора и Эксплуатанта.
+
+Он принимает решения только по маршрутизации **внутренних** запросов шлюза к доменным воркерам.
+
+### Схема доверия и границ (нотация как в [`tcb_decomposition.puml`](diagrams/tcb_decomposition.puml))
+
+Источник: [`diagrams/readme_policy_trust_boundary.puml`](diagrams/readme_policy_trust_boundary.puml).
+
+![Архитектура политики и границы доверия](diagrams/readme_policy_trust_boundary.png)
 
 | Домен | Уровень доверия | Размер/сложность | Обоснование |
 |-------|-----------------|------------------|-------------|
@@ -101,14 +94,27 @@ flowchart LR
 
 ### Системный журнал и центральный журнал
 
-Значимые события безопасности из доменов (`user_management`, `firmware_ingestion`, `certification_service`, `drone_registry`, `purchase_service`) записываются в таблицу `security_events` через IPC `RECORD_AUDIT` на топик `audit_log` (режим шины, `shared/audit_log_ipc.py`, fire-and-forget с подавлением сбоев транспорта) или через общий `AuditLogService` в учебном режиме `UAS_GATEWAY_BACKEND=sqlite` (`LocalAuditJournalPort` в [`sqlite_context.py`](../src/gateway/sqlite_context.py)). Воркер `audit_log` после успешной записи в SQLite при включённом `DRONE_ANALYTICS_ENABLED` отправляет то же событие в `analytics_adapter` (`send_analytics`), откуда оно может уйти в DroneAnalytics (HTTP или шина). Отключить доменный RPC в системный журнал: `UAS_SECURITY_JOURNAL_IPC=false`. Политики security-monitor допускают `(отправитель_домена, audit_log, record_audit)`; воркер `audit_log` принимает сообщения с `sender` из множества доверенных доменов и `security_monitor`.
+**Локальная запись (`security_events`):**
 
-Сообщения в **центральный журнал** (контракт в `shared.tcb.journal_policy`) содержат:
+- Домены: `user_management`, `firmware_ingestion`, `certification_service`, `drone_registry`, `purchase_service`.
+- Режим **шина:** IPC `RECORD_AUDIT` → топик `audit_log` (`shared/audit_log_ipc.py`), fire-and-forget, ошибки транспорта подавляются.
+- Режим **sqlite:** общий `AuditLogService`, обёртка `LocalAuditJournalPort` в [`sqlite_context.py`](../src/gateway/sqlite_context.py).
 
-- поле **`timestamp`** (unix) и в тексте **`message`** — **`ts_utc=…`** (UTC ISO-8601);
-- **`instance_id=…`** из переменной окружения **`COMPONENT_ID`** (в compose задаётся для каждого воркера; без неё используется запасной идентификатор процесса);
-- поля **`service`** и **`service_id`**, согласованные с допустимыми типами DroneAnalytics и стабильно выводимые из пары экземпляр + домен;
-- при старте процесса: событие **`worker_started`** с топиком/режимом в деталях (воркеры через `shared/worker_runtime.py`, шлюз и монитор — в своих точках входа).
+**Дублирование во внешний журнал:**
+
+- Воркер `audit_log` после записи в SQLite при `DRONE_ANALYTICS_ENABLED` шлёт событие в `analytics_adapter` (`send_analytics`).
+- Далее — HTTP или шина до DroneAnalytics.
+
+**Отключить доменный IPC в системный журнал:** переменная `UAS_SECURITY_JOURNAL_IPC=false`.
+
+**Security monitor:** допускается тройка `(отправитель_домена, audit_log, record_audit)`; воркер `audit_log` принимает `sender` из доверенных доменов и `security_monitor`.
+
+**Центральный журнал** (контракт `shared.tcb.journal_policy`):
+
+- Поле **`timestamp`** (unix) и в **`message`** — **`ts_utc=…`** (UTC ISO-8601).
+- **`instance_id=…`** из **`COMPONENT_ID`** (в compose для воркеров); иначе запасной идентификатор процесса.
+- **`service`** / **`service_id`** — согласованы с типами DroneAnalytics.
+- При старте процесса: **`worker_started`** (см. `shared/worker_runtime.py`, шлюз, монитор).
 
 ### Интеграционный тест с развёрнутым DroneAnalytics
 
@@ -121,13 +127,32 @@ flowchart LR
 3. Ожидается готовность HTTP; выставляются `UAS_DRONE_ANALYTICS_STACK_INTEGRATION=1`, `UAS_DRONE_ANALYTICS_TRANSPORT=http`, `DRONE_ANALYTICS_ENABLED=true`, URL API, ключ, `ELASTIC_URL`.
 4. Запускается только этот pytest-файл.
 
-**Порты по умолчанию:** backend **`http://127.0.0.1:28080`**, Elasticsearch **`http://127.0.0.1:19200`**. Другие порты:  
-`make DA_BACKEND_HOST_PORT=18080 DA_ELASTIC_HOST_PORT=9200 drone-analytics-integration-test`.  
-API-ключ по умолчанию после `make secrets`: `change-me-api-key` (или `DRONE_ANALYTICS_API_KEY`). Проект compose: **`uas-da-integration`**.
+**Порты по умолчанию:**
 
-**Уже поднятый стек:** `DA_USE_EXISTING_STACK=1 make drone-analytics-integration-test` — compose не вызывается; задайте **`DRONE_ANALYTICS_URL`**, **`DRONE_ANALYTICS_API_KEY`**, **`ELASTIC_URL`** (при необходимости **`ELASTICSEARCH_USER`** / **`ELASTICSEARCH_PASSWORD`**). Публичный прокси отдаёт API под префиксом `/api` (база вида `https://хост/api`); для самоподписанного сертификата удобен пройденный в override прямой backend.
+- Backend: `http://127.0.0.1:28080`
+- Elasticsearch: `http://127.0.0.1:19200`
 
-**Веб-интерфейс DroneAnalytics:** контейнер **`proxy`** — **`http://127.0.0.1:80`** (редирект на HTTPS) и **`https://127.0.0.1:443`**. Удобно открыть **[`https://localhost`](https://localhost)** (сертификат на `localhost`, фронт с `VITE_BACKEND_URL=https://localhost/api`). После стандартного **`make -C ../DroneAnalytics secrets`**: логин **`user`**, пароль **`password`**.
+Другие порты:
+
+```bash
+make DA_BACKEND_HOST_PORT=18080 DA_ELASTIC_HOST_PORT=9200 drone-analytics-integration-test
+```
+
+- API-ключ по умолчанию после `make secrets`: `change-me-api-key` (или задайте `DRONE_ANALYTICS_API_KEY`).
+- Проект compose: **`uas-da-integration`**.
+
+**Уже поднятый стек:** `DA_USE_EXISTING_STACK=1 make drone-analytics-integration-test`.
+
+- Compose не вызывается.
+- Нужны: `DRONE_ANALYTICS_URL`, `DRONE_ANALYTICS_API_KEY`, `ELASTIC_URL`.
+- При необходимости: `ELASTICSEARCH_USER`, `ELASTICSEARCH_PASSWORD`.
+- Публичный прокси: API под `/api` (база `https://хост/api`). Для самоподписанного сертификата удобен backend из override.
+
+**Веб-интерфейс DroneAnalytics**
+
+- Контейнер **proxy:** `http://127.0.0.1:80` → редирект на HTTPS; `https://127.0.0.1:443`.
+- Рекомендуется **`https://localhost`** (сертификат на `localhost`, фронт: `VITE_BACKEND_URL=https://localhost/api`).
+- Тестовая учётка после `make -C ../DroneAnalytics secrets`: логин **`user`**, пароль **`password`**.
 
 | Потеря трассировки экономических событий | Локальный audit-log и целевая отправка событий в DroneAnalytics. |
 
@@ -145,24 +170,52 @@ API-ключ по умолчанию после `make secrets`: `change-me-api-k
 
 Чистое ядро политик без I/O: каталог **`src/shared/tcb/`** (ограничения импорта — `tests/unit/test_tcb_dependency_budget.py`).
 
-**Метрики и отчёты:** [`docs/tcb_metrics.json`](tcb_metrics.json) (`baseline_tcb`, `target_tcb`, `delta_baseline_to_target`, `tcb_cost_task12`, `tcb_ipc_topology_task14`), текстовый отчёт [`docs/tcb_assessment.md`](tcb_assessment.md). **Пересчёт артефакта** из каталога системы:
+**Метрики и отчёты**
 
-1. **`make tcb-metrics`** — целевой срез (или **`make tcb-metrics-full`**, если нужно обновить `baseline_tcb`).
-2. Вручную из корня репозитория: `PYTHONPATH=src python scripts/tcb_metrics.py --target --out docs/tcb_metrics.json`.
+- Файл: [`docs/tcb_metrics.json`](tcb_metrics.json) — ключи `baseline_tcb`, `target_tcb`, `delta_baseline_to_target`, `tcb_cost_task12`, `tcb_ipc_topology_task14`.
+- Текст: [`docs/tcb_assessment.md`](tcb_assessment.md).
+
+**Пересчёт:**
+
+1. `make tcb-metrics` — целевой срез (или `make tcb-metrics-full` для обновления `baseline_tcb`).
+2. Вручную из корня репозитория:  
+   `PYTHONPATH=src python scripts/tcb_metrics.py --target --out docs/tcb_metrics.json`
 
 Скрипты: `scripts/tcb_metrics.py`, `scripts/tcb_ipc_topology.py`.
 
-**Allow-политики:** **29** явных triple в `canonical_allow_rule_tuples()` (16 маршрутов шлюза и **13** правил фаз IPC: доставка монитором и ответы); трассировка — `tests/unit/test_tcb_allow_policy_traceability.py`.
+**Allow-политики:** 29 triple в `canonical_allow_rule_tuples()`:
 
-**Покрытие:** `make tcb-test` — pytest + `pytest-cov` по перечню модулей ДВБ и доменным пакетам (`gateway`, воркеры) с `--cov-fail-under=70`; в конце прогона обновляются [`docs/tcb_metrics.json`](tcb_metrics.json), Cobertura [`docs/tcb_coverage.xml`](tcb_coverage.xml) (в `.gitignore`) и сводный отчёт **[`docs/tcb_summary_report.md`](tcb_summary_report.md)** (покрытие, **IPC-связи и цели безопасности** по доменам + `estimated_tcb_cost_score`).
+- 16 маршрутов шлюза;
+- 13 правил фаз IPC (доставка монитором и ответы).
 
-**Диаграмма декомпозиции:** [`docs/diagrams/tcb_decomposition.puml`](diagrams/tcb_decomposition.puml) (входит в `make diagrams`).
+Трассировка: `tests/unit/test_tcb_allow_policy_traceability.py`.
 
-**Контейнер как граница домена:** сервисы `docker-compose.yml` запускаются в отдельных контейнерах; для Python-доменов с ЦБ-операциями в метриках ДВБ считается **весь** домен (каталог компонента + минимальный `src/shared`). Внутренний обмен при `UAS_GATEWAY_BACKEND=bus` идёт через брокер и **`security_monitor`**, без обхода монитора. Подробно: [`docs/tcb_assessment.md`](tcb_assessment.md), в JSON — ключ `container_isolation_tcb_task11` в [`docs/tcb_metrics.json`](tcb_metrics.json).
+**Покрытие (`make tcb-test`):**
 
-**Шлюз и доверие:** целевой режим — **`UAS_GATEWAY_BACKEND=bus`** (по умолчанию в `gateway.server.run` и в compose). Тогда `gateway/server.py` **не** подключает доменные сервисы в процесс: HTTP идёт в `BusApiContext` → монитор → воркеры. Режим **`UAS_GATEWAY_BACKEND=sqlite`** включает `gateway/sqlite_context.ApiContext` (все домены в одном процессе с HTTP) — учебный fallback с более высокой связностью; [`tests/integration/test_http_api.py`](../tests/integration/test_http_api.py) используют sqlite для полного REST без брокера.
+- pytest + pytest-cov по перечню модулей ДВБ и доменам;
+- порог `--cov-fail-under=70`;
+- обновляются `docs/tcb_metrics.json`, `docs/tcb_coverage.xml` (в `.gitignore`), [`docs/tcb_summary_report.md`](tcb_summary_report.md).
 
-Стоимость сертификации в учебной модели прямо связана с размером/сложностью ДВБ, числом allow-правил и доказуемостью покрытия тестами: сокращение `target_tcb` относительно `baseline_tcb` снижает объём доказательств для Регулятора при неизменном внешнем поведении.
+**Диаграмма декомпозиции ДВБ:** [`diagrams/tcb_decomposition.puml`](diagrams/tcb_decomposition.puml) → `make diagrams`.
+
+**Контейнер как граница домена**
+
+- Сервисы в `docker-compose.yml` — в отдельных контейнерах.
+- Для Python-доменов с ЦБ-операциями в метриках ДВБ считается каталог компонента + минимальный `src/shared`.
+- Режим `UAS_GATEWAY_BACKEND=bus`: обмен через брокер и `security_monitor`.
+
+Подробнее: [`docs/tcb_assessment.md`](tcb_assessment.md), в JSON — `container_isolation_tcb_task11`.
+
+**Шлюз**
+
+- Целевой режим: **`UAS_GATEWAY_BACKEND=bus`** (по умолчанию).
+- `gateway/server.py` не встраивает домены в процесс HTTP: только `BusApiContext` → монитор → воркеры.
+- **`UAS_GATEWAY_BACKEND=sqlite`:** `ApiContext` — учебный режим с более высокой связностью; см. [`tests/integration/test_http_api.py`](../tests/integration/test_http_api.py).
+
+**Стоимость сертификации (учебная модель)**
+
+- Зависит от размера ДВБ, числа allow-правил и покрытия тестами.
+- Снижение `target_tcb` относительно `baseline_tcb` уменьшает объём доказательств при том же внешнем поведении.
 
 ## 3. Внедрённые шаблоны СКИБ
 
@@ -200,33 +253,50 @@ systems/uas_dev_company/
 
 ## Для разработчика
 
-- **Сборка compose / запуск:** из `systems/uas_dev_company` — `make prepare`, `make docker-up`; логи — `make docker-logs`.
-- **Локальные тесты без полного стека:** `make tests` (unit + integration с локальной SQLite и заглушками шины там, где это заложено в тестах).
-- **Оценка ДВБ и стоимости сертификационного контура (артефакт для Регулятора / отчёта):**
-  - `make tcb-metrics` — пересчитывает [`docs/tcb_metrics.json`](tcb_metrics.json): `target_tcb`, `delta_baseline_to_target` (если в файле уже был baseline), `container_isolation_tcb_task11`, блок **`tcb_cost_task12`** с полем **`task12_after_snapshot.estimated_tcb_cost_score`**, блок **`tcb_ipc_topology_task14`** (связи IPC и цели безопасности по доменам) и пояснением формулы в `formula_ru`.
-  - `make tcb-metrics-full` — то же, плюс обновление **`baseline_tcb`** (нужно реже — после смены набора файлов в `scripts/tcb_metrics.py` → `BASELINE_PATHS`).
-  - Другой путь вывода: `make tcb-metrics TCB_METRICS_OUT=docs/мой_отчёт.json`.
-  - **`make tcb-test`** — полный прогон тестов ДВБ с покрытием; при успехе обновляет метрики и **[`docs/tcb_summary_report.md`](tcb_summary_report.md)** (сводка по доменам и стоимости).
-- **Текстовая методика:** [`docs/tcb_assessment.md`](tcb_assessment.md) (трактовка `estimated_tcb_cost_score` и контейнерной модели).
+| Действие | Команда / ссылка |
+|----------|------------------|
+| Сборка compose, запуск | `make prepare`, `make docker-up` |
+| Логи контейнеров | `make docker-logs` |
+| Локальные тесты без полного стека | `make tests` (unit + integration, SQLite и моки шины где заложено) |
+| Метрики ДВБ (без полного pytest) | `make tcb-metrics` |
+| Метрики + обновление `baseline_tcb` | `make tcb-metrics-full` (редко) |
+| Другой файл вывода | `make tcb-metrics TCB_METRICS_OUT=docs/мой_отчёт.json` |
+| Тесты ДВБ + покрытие + отчёты | `make tcb-test` |
+
+Текстовая методика: [`docs/tcb_assessment.md`](tcb_assessment.md).
+
+**Детали `make tcb-metrics`:** пересчитываются `target_tcb`, при наличии baseline — `delta_baseline_to_target`, блоки `container_isolation_tcb_task11`, `tcb_cost_task12` (в т.ч. `task12_after_snapshot.estimated_tcb_cost_score`), `tcb_ipc_topology_task14`, поле `formula_ru`.
 
 ## Для тестировщика
 
-- **Регрессия доменов и API:** `make tests` — быстрая проверка без Docker-брокера для большинства сценариев; полный HTTP-флоу с локальным сервером — `tests/integration/test_http_api.py` (режим `sqlite_context`).
-- **Контур ДВБ (покрытие ≥70% по перечисленным модулям и доменам):** `make tcb-test` — unit + module + integration; в консоли детальный отчёт, порог **70%** по сумме покрытых строк; после успешного прогона автоматически пишутся [`docs/tcb_metrics.json`](tcb_metrics.json), machine-readable Cobertura `docs/tcb_coverage.xml` (не коммитится) и человекочитаемый **[`docs/tcb_summary_report.md`](tcb_summary_report.md)** — таблица доменов: **покрытие строк, входящие/исходящие IPC-связи (дедуп по парам), влияние на цели безопасности** и блок оценки стоимости (`estimated_tcb_cost_score`). Отдельно только метрики без полного pytest: `make tcb-metrics`.
-- **Политики и маршруты шлюза:** `tests/unit/test_security_policies.py`, `tests/unit/test_tcb_allow_policy_traceability.py`, `tests/integration/test_security_monitor_proxy_routes.py`.
-- **Модель контейнеров и встроенный JSON:** при наличии актуального [`docs/tcb_metrics.json`](tcb_metrics.json) выполняется `tests/unit/test_tcb_container_domains.py` (в т.ч. smoke и блок **`tcb_cost_task12`**); перед прогоном при изменении кода/политик имеет смысл выполнить **`make tcb-metrics`** или убедиться, что артефакт в репозитории обновлён разработчиком.
-- **Живой стек:** `make test-all-docker` (compose + интеграционные тесты с `UAS_HTTP_INTEGRATION_BASE`); E2E UI — `make e2e-test` при уже поднятом compose.
+| Задача | Как пройти |
+|--------|------------|
+| Регрессия доменов и API | `make tests`; полный HTTP в sqlite — `tests/integration/test_http_api.py` |
+| Контур ДВБ (покрытие ≥ 70 %) | `make tcb-test`; затем смотреть [`docs/tcb_summary_report.md`](tcb_summary_report.md), Cobertura `docs/tcb_coverage.xml` (не в git) |
+| Политики и маршруты шлюза | `tests/unit/test_security_policies.py`, `tests/unit/test_tcb_allow_policy_traceability.py`, `tests/integration/test_security_monitor_proxy_routes.py` |
+| Модель контейнеров | `tests/unit/test_tcb_container_domains.py` при актуальном `docs/tcb_metrics.json` |
+| Живой стек | `make test-all-docker`; E2E — `make e2e-test` при поднятом compose |
 
 ## Диаграммы взаимодействия
 
-Исходники PlantUML — в каталоге [`diagrams/`](diagrams/). Растровые версии для встраивания в документацию собираются командой **`make diagrams`** в корне [`systems/uas_dev_company`](../) (нужен Docker; образ `plantuml/plantuml`). Требование **Д3**: логика взаимодействия компонентов отражена диаграммами последовательности и развёртывания.
+**Сборка PNG:** в каталоге `systems/uas_dev_company` выполнить **`make diagrams`** (Docker, образ `plantuml/plantuml`).
 
-| Файл | Назначение |
-|------|------------|
-| [`diagrams/deployment_containers.puml`](diagrams/deployment_containers.puml) | Контейнеры Docker, nginx, UI, gateway, монитор, воркеры, брокер, общий volume SQLite |
-| [`diagrams/sequence_local_sqlite.puml`](diagrams/sequence_local_sqlite.puml) | Последовательность HTTP при **sqlite** |
-| [`diagrams/sequence_broker_proxy.puml`](diagrams/sequence_broker_proxy.puml) | Последовательность при **bus** |
-| [`diagrams/sequence_scenario_certify_and_purchase.puml`](diagrams/sequence_scenario_certify_and_purchase.puml) | Сквозной сценарий ролей |
+**Требование Д3:** логика взаимодействия отражена диаграммами последовательности и развёртывания.
+
+### Обзор исходников (PlantUML)
+
+| Файл `.puml` | Назначение |
+|--------------|------------|
+| [`readme_context.puml`](diagrams/readme_context.puml) | Контекст: роли, шлюз, внешние системы |
+| [`readme_functional_internal.puml`](diagrams/readme_functional_internal.puml) | Внутренние домены и SQLite |
+| [`readme_policy_trust_boundary.puml`](diagrams/readme_policy_trust_boundary.puml) | Архитектура политики и границы доверия |
+| [`tcb_decomposition.puml`](diagrams/tcb_decomposition.puml) | Декомпозиция ДВБ (ядро `shared.tcb`) |
+| [`deployment_containers.puml`](diagrams/deployment_containers.puml) | Docker: nginx, UI, gateway, воркеры, брокер, volume |
+| [`sequence_local_sqlite.puml`](diagrams/sequence_local_sqlite.puml) | Последовательность при режиме **sqlite** |
+| [`sequence_broker_proxy.puml`](diagrams/sequence_broker_proxy.puml) | Последовательность при режиме **bus** |
+| [`sequence_scenario_certify_and_purchase.puml`](diagrams/sequence_scenario_certify_and_purchase.puml) | Сквозной сценарий ролей |
+
+Файлы `integration_*.puml` в том же каталоге — сценарии интеграции; при `make diagrams` для них тоже создаются PNG.
 
 ### Развёртывание контейнеров
 
@@ -281,7 +351,17 @@ systems/uas_dev_company/
 
 ## Краткий справочник HTTP API (ручные проверки)
 
-Базовый URL за nginx: `http://127.0.0.1:${HTTP_PORT:-8080}`. Тело запросов — JSON, `Content-Type: application/json`. Ответы — JSON; при ошибках авторизации обычно **401**, при ошибках валидации/бизнес-правил — **400**, при сбое шины в режиме **bus** — **502**. Готовые запросы для **REST Client** (VS Code): [`docs/api.requests.rest`](api.requests.rest).
+**Базовый URL** (за nginx): `http://127.0.0.1:${HTTP_PORT:-8080}`.
+
+**Формат:** JSON, заголовок `Content-Type: application/json`.
+
+**Типичные коды ответа:**
+
+- **401** — ошибки авторизации;
+- **400** — валидация или бизнес-правила;
+- **502** — сбой шины в режиме **bus**.
+
+Готовые запросы для **REST Client** (VS Code): [`docs/api.requests.rest`](api.requests.rest).
 
 | Метод | Путь | Авторизация | Назначение |
 |-------|------|-------------|------------|

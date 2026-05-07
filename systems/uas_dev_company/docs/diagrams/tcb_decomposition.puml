@@ -1,0 +1,57 @@
+@startuml tcb_decomposition
+title ДВБ UAS Dev Company — декомпозиция доверенной базы
+
+package "Недоверенный контур" {
+  [HTTP / api_gateway] as GW
+  [Thin handlers] as TH
+}
+
+package "ДВБ: security_monitor" #LightBlue {
+  [security_monitor\n+ security_policies] as MON
+}
+
+package "ДВБ: чистое ядро политик" #LightGreen {
+  folder shared.tcb as TCB {
+    [auth / roles] as POL1
+    [registry / purchase] as POL2
+    [certification statuses] as POL3
+    [vulnerability goals] as POL4
+    [journal payload] as POL5
+  }
+}
+
+package "ДВБ: типы и IPC-утилиты" #LightYellow {
+  [models (нормализация ЦБ)] as MOD
+  [jwt_tokens] as JWT
+  [component_base] as CB
+}
+
+package "Оркестрация и I/O (вне target-набора метрик)" #White {
+  [services.py] as SVC
+  [storage / adapters] as STO
+}
+
+package "Граница системного журнала" #LightCoral {
+  [AnalyticsAdapterService\n→ DroneAnalytics] as AN
+}
+
+GW --> MON : proxy_request\n(internal IPC)
+MON --> TH : allow-list
+TH --> TCB : вызовы policy
+TH --> SVC
+SVC --> TCB
+SVC --> STO
+SVC --> AN
+TCB ..> MOD : локальные типы/\nинварианты (при необходимости)
+
+note right of MON
+  14 allow-правил;
+  трассировка к доменам ДВБ — см. test_tcb_allow_policy_traceability
+end note
+
+note bottom of TCB
+  Запрет: broker, urllib, sqlite3, HTTP SDK;
+  см. test_tcb_dependency_budget
+end note
+
+@enduml

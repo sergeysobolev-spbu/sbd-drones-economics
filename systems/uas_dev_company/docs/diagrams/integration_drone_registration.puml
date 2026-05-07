@@ -1,0 +1,32 @@
+@startuml integration_drone_registration
+title Первичная регистрация экземпляра БАС у Регулятора
+
+autonumber
+actor "Разработчик" as Dev
+box "Домены безопасности Разработчика БАС" #LightBlue
+    participant "Компания-разработчик\nБАС" as UAS
+    participant "drone_registry" as Registry
+    database "SQLite UAS\nлокальная проекция заявки" as UASDB
+end box
+
+box "Домены безопасности Регулятора" #LightGreen
+    participant "Регулятор\nAPI/consumer" as REG
+    database "Реестр Регулятора\nрегистрации БАС" as REGDB
+end box
+
+Dev -> UAS : POST /api/register-drone\nserial, firmware_id, certificate_id,\nsecurity_goals, price\n[INT-FR-2]
+UAS -> Registry : validate local invariants
+Registry -> UASDB : save status=pending_regulator\ncorrelation_id\n[INT-NFR-3]
+Registry -> REG : register_drone_instance\n[INT-FR-1, INT-NFR-1]
+alt Регистрация подтверждена
+    REG -> REGDB : create registration/version\ninternal regulator write
+    REG --> Registry : registered\nregistration_id, version\n[INT-FR-5]
+    Registry -> UASDB : save registration_id\nstatus=registered_by_regulator
+    Registry --> UAS : available for storefront\n[INT-FR-6]
+else Регистрация отклонена
+    REG -> REGDB : save rejected decision\nreason_code
+    REG --> Registry : rejected\nreason_code\n[INT-FR-5]
+    Registry -> UASDB : status=registration_rejected\nregulator_reason
+    Registry --> UAS : show reason in UI\n[INT-FR-10]
+end
+@enduml

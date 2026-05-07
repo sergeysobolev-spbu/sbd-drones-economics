@@ -1,0 +1,39 @@
+@startuml sequence_broker_proxy
+!theme plain
+title Последовательность: вызов домена через брокер и security_monitor (режим bus)
+
+actor "Клиент" as U
+participant "nginx" as N
+participant "api_gateway" as G
+queue "Kafka:\nтопик монитора" as K1
+participant "security_monitor" as M
+queue "Kafka:\nтопик воркера\n(напр. user_management)" as K2
+participant "domain_worker" as W
+database "SQLite" as DB
+
+U -> N : POST /api/…\nBearer (если нужно)
+N -> G
+G -> G : маршрут обработчика\nBusApiContext._proxy(...)
+
+G -> K1 : request(SECURITY_MONITOR,\naction=proxy_request,\ntarget=user_management / …)
+K1 -> M : сообщение
+M -> M : политика\n(sender, topic, action)
+M -> K2 : request(USER_MANAGEMENT,\nsender=SECURITY_MONITOR,\naction=…)
+K2 -> W
+W -> W : ServiceComponent:\nдоверенный sender
+W -> DB : бизнес-логика
+DB --> W
+W --> K2 : ответ (payload)
+K2 --> M
+M --> K1 : target_response
+K1 --> G : развёрнутый ответ
+G --> N
+N --> U : JSON HTTP
+
+note over M
+  Deny-all по умолчанию;
+  канонические правила в
+  **shared.security_policies**
+end note
+
+@enduml

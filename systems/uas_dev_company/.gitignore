@@ -1,0 +1,2 @@
+# Временный Cobertura от pytest-cov (регенерируется `make tcb-test`)
+docs/tcb_coverage.xml

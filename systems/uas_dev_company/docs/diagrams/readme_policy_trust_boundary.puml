@@ -1,0 +1,45 @@
+@startuml readme_policy_trust_boundary
+title Архитектура политики: доверие и границы (нотация как в tcb_decomposition.puml)
+
+skinparam defaultFontName "SansSerif"
+skinparam packageStyle rectangle
+
+package "Недоверенный периферийный контур" #LightGray {
+  [HTTP /\napi_gateway] as GW
+}
+
+package "ДВБ: security_monitor" #LightBlue {
+  [security_monitor\n+ security_policies] as MON
+}
+
+package "Прикладной контур\n(менее доверенный)" #LightYellow {
+  [доменные сервисы\n(user_management, …)] as SVC
+}
+
+package "Доверенное хранилище\nпрототипа" #LightGreen {
+  database "SQLite" as DB
+}
+
+package "Граница системного журнала" #LightCoral {
+  [audit_log →\nanalytics_adapter] as JOURNAL
+}
+
+package "Вне границ UAS" #White {
+  [Регулятор] as REG
+  [Эксплуатант] as OP
+}
+
+GW --> MON : proxy_request\n(internal IPC,\nрешение по allow-list)
+MON --> SVC : доставка при\nразрешении политики
+SVC --> DB
+SVC --> JOURNAL : события\nбезопасности
+
+MON ..> REG : **не** является\nмежсистемным\nконтролёром
+REG ..> OP : контракты\nмежду внешними\nсторонами
+
+note right of MON
+  Монитор проверяет только обмен
+  api_gateway ↔ домены uas_dev_company
+end note
+
+@enduml
