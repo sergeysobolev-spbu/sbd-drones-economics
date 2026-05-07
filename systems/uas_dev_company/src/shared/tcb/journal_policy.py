@@ -35,8 +35,12 @@ def domain_to_log_service(source: str) -> str:
 
 
 def stable_service_id(instance_id: str) -> int:
-    """Стабильный числовой service_id >= 1 для пары экземпляра и домена."""
-    raw = zlib.crc32(instance_id.encode("utf-8")) & 0x7FFFFFFF
+    """Стабильный числовой service_id >= 1 для пары экземпляра и домена.
+
+    Индекс `event` в DroneAnalytics задаёт `service_id` как signed short (≤ 32767);
+    большее значение даёт ошибку _bulk и событие не попадает в Elasticsearch.
+    """
+    raw = zlib.crc32(instance_id.encode("utf-8")) & 0x7FFF
     return raw if raw > 0 else 1
 
 

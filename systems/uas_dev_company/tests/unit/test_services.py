@@ -294,6 +294,7 @@ def test_security_event_to_analytics_payload_shape() -> None:
     payload = security_event_to_analytics_payload(ev, instance_id_override="inst-a")
     assert payload["severity"] == "warning"
     assert payload["service"] == "operator"
+    assert 1 <= int(payload["service_id"]) <= 32767
     assert "t1" in payload["message"] and "sub" in payload["message"]
     assert "ts_utc=" in payload["message"] and "instance_id=inst-a" in payload["message"]
 

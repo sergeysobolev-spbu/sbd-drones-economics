@@ -167,7 +167,7 @@ def test_build_analytics_event_payload_shape() -> None:
 def test_stable_service_id_stable_and_positive() -> None:
     a = stable_service_id("user_management_worker")
     b = stable_service_id("user_management_worker")
-    assert a == b and a >= 1
+    assert a == b and 1 <= a <= 32767
 
 
 def test_security_event_to_analytics_includes_ts_and_instance() -> None:
