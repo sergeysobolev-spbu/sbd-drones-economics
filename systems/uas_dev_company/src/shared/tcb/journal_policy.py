@@ -58,7 +58,9 @@ def build_analytics_event_payload(
     event_kind: str | None = "event",
     now: float | None = None,
 ) -> dict[str, Any]:
-    ts = int((now if now is not None else time.time()))
+    t = float(now if now is not None else time.time())
+    # Индекс event в DroneAnalytics: mapping timestamp как epoch_millis (не секунды).
+    ts = int(t * 1000)
     return {
         "apiVersion": "v1.0.0",
         "timestamp": ts,

@@ -178,7 +178,7 @@ def test_security_event_to_analytics_includes_ts_and_instance() -> None:
     assert "ts_utc=" in p["message"]
     assert "instance_id=um-1" in p["message"]
     assert "t1" in p["message"] and "subj" in p["message"]
-    assert p["timestamp"] == 1_700_000_000
+    assert p["timestamp"] == 1_700_000_000_000
     assert p["service_id"] == stable_service_id("um-1:user_management")
 
 
