@@ -1,4 +1,4 @@
-"""Парсер Cobertura для сводного отчёта ДВБ (Задача 13)."""
+"""Парсер Cobertura для сводного отчёта ДВБ."""
 
 from __future__ import annotations
 

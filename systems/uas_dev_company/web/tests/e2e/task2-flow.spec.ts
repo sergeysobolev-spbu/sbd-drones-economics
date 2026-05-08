@@ -132,10 +132,10 @@ test.describe("Задача 2 — полный поток UI", () => {
     await login(page, adminUser, adminPass)
     await page.getByTestId("settings-open").click({ force: true })
     const lightCheckbox = page.locator('label:has-text("Светлая тема") input[type="checkbox"]')
-    await lightCheckbox.check()
+    await lightCheckbox.check({ force: true })
     const cls = await page.evaluate(() => document.documentElement.className)
     expect(cls.includes("theme-light")).toBeTruthy()
-    await lightCheckbox.uncheck()
+    await lightCheckbox.uncheck({ force: true })
     const clsDark = await page.evaluate(() => document.documentElement.className)
     expect(clsDark.includes("theme-light")).toBeFalsy()
   })
@@ -179,7 +179,7 @@ test.describe("Задача 2 — полный поток UI", () => {
     await page.getByTestId("drone-cert-select").selectOption({ value: cert })
 
     await page.getByTestId("drone-goals-none").click({ force: true })
-    await page.getByTestId("drone-goal-0").check()
+    await page.getByTestId("drone-goal-0").check({ force: true })
 
     await page.getByTestId("drone-serial").fill(`SN-G-${id}`)
     await page.getByTestId("drone-type").fill("test")

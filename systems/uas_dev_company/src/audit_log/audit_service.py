@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from analytics_adapter.protocol import SupportsAnalyticsEmit
+from shared.protocols import SupportsAnalyticsEmit
 
 from shared.models import SecurityEvent
 from shared.storage import SQLiteStorage

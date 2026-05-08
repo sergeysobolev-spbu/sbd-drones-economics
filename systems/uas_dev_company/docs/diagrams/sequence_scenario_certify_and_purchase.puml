@@ -1,6 +1,8 @@
 @startuml sequence_scenario_certify_and_purchase
 !theme plain
-title Функциональный сценарий: прошивка → сертификат → дрон в реестре → покупка
+title Функциональный сценарий: прошивка → сертификат → дрон → покупка
+
+skinparam ArrowThickness 2
 
 actor "Администратор" as A
 actor "Разработчик" as D
@@ -31,10 +33,9 @@ API -> DOM : список дронов
 O -> API : POST /api/purchase\nserial_number, …\n[Bearer operator]
 API -> DOM : PurchaseService.purchase
 
-note over DOM
-  Реальные межсервисные вызовы
-  зависят от **UAS_GATEWAY_BACKEND**
-  (прямые сервисы или bus+monitor).
+note over API, DOM
+  **DOM** — воркеры доменов за HTTP API.
+  В режиме **bus** каждый вызов к воркеру идёт через монитор и брокер.
 end note
 
 @enduml

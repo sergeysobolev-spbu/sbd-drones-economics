@@ -165,3 +165,54 @@ def test_proxy_denied_without_monitor_inbound_policy():
     )
     assert result.get("error") == "monitor_inbound_denied"
     assert monitor.bus.requests == []
+
+
+def test_builtin_policy_denies_unrelated_worker_cross_call():
+    from shared.security_policies import full_policy_json
+
+    monitor = SecurityMonitorComponent(
+        component_id="pol_cross",
+        bus=DummyBus(),
+        policy_admin_sender=ComponentTopics.API_GATEWAY,
+        security_policies=full_policy_json(),
+        topic=ComponentTopics.SECURITY_MONITOR,
+    )
+    bad = monitor._handle_proxy_request(
+        {
+            "sender": ComponentTopics.USER_MANAGEMENT,
+            "payload": {
+                "target": {
+                    "topic": ComponentTopics.CERTIFICATION_SERVICE,
+                    "action": Actions.CERTIFY_FIRMWARE,
+                },
+                "data": {},
+            },
+        }
+    )
+    assert bad.get("error") == "policy_denied"
+
+
+def test_builtin_policy_allows_drone_to_firmware_get_row():
+    from shared.security_policies import full_policy_json
+
+    monitor = SecurityMonitorComponent(
+        component_id="pol_fw_row",
+        bus=DummyBus(),
+        policy_admin_sender=ComponentTopics.API_GATEWAY,
+        security_policies=full_policy_json(),
+        topic=ComponentTopics.SECURITY_MONITOR,
+    )
+    ok = monitor._handle_proxy_request(
+        {
+            "sender": ComponentTopics.DRONE_REGISTRY,
+            "payload": {
+                "target": {
+                    "topic": ComponentTopics.FIRMWARE_INGESTION,
+                    "action": Actions.GET_FIRMWARE_ROW,
+                },
+                "data": {"firmware_id": "fw-x"},
+            },
+        }
+    )
+    assert ok.get("error") != "policy_denied"
+    assert monitor.bus.requests

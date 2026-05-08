@@ -19,6 +19,75 @@ from tcb_container_domains import CONTAINER_TCB_PYTHON_DOMAINS  # noqa: E402
 from tcb_metrics import _iter_py_files  # noqa: E402
 
 
+def _task24_ndb_carrier_markdown(metrics: dict, by_file: dict[str, tuple[int, int]]) -> list[str]:
+    c11 = metrics.get("container_isolation_tcb_task11") or {}
+    t24 = c11.get("task24_copy_ndb_carrier") or {}
+    rows = c11.get("python_domains_tcb") or []
+    lines = ["", "## НДБ-носители (COPY ↔ `tcb_module_roles.json`)", ""]
+    if not t24:
+        lines.append("Блок `task24_copy_ndb_carrier` отсутствует в JSON (пересчёт: `make tcb-metrics`).")
+        return lines
+    union_paths = list(t24.get("union_ndb_carrier_files_in_cb123_images") or [])
+    cov = tot = 0
+    for rel in union_paths:
+        c_hit, t_meas = by_file.get(rel, (0, 0))
+        cov += c_hit
+        tot += t_meas
+    pct = (100.0 * cov / tot) if tot else None
+    prc = f"{pct:.1f}%" if pct is not None else "—"
+
+    lines.append(
+        f"- **Dockerfile vs `python_path_specs`:** совпадение множеств файлов — **`{t24.get('docker_derived_specs_match_manual_all')}`** "
+        f"(ослабление drift: `{t24.get('relax_docker_drift_used')}`)."
+    )
+    manifest = t24.get("role_manifest_relative") or "scripts/tcb_module_roles.json"
+    lines.append(f"- **Манифест ролей:** `{manifest}`")
+    lines.append(
+        f"- **Union файлов НДБ-носителей в доменах с ЦБ-1…ЦБ-3 ({len(union_paths)} файлов):** "
+        f"покрытие измеренных строк Cobertura **{prc}** ({cov} / {tot}); "
+        f"совокупный SLOC (статический подсчёт в метриках) **{t24.get('union_ndb_carrier_total_sloc_in_cb123')}**."
+    )
+    if union_paths:
+        lines.append("")
+        lines.append("Список union-файлов:")
+        for p in union_paths:
+            lines.append(f"- `{p}`")
+
+    cb_rows: list[tuple[str, int, int | str, int, int, str]] = []
+    for r in rows:
+        if not r.get("in_cb123_tcb_union"):
+            continue
+        nf = r.get("ndb_carrier_files_in_image") or []
+        if not nf:
+            continue
+        svc = str(r["compose_service"])
+        c_svc = t_svc = 0
+        for rel in nf:
+            c_hit, t_meas = by_file.get(rel, (0, 0))
+            c_svc += c_hit
+            t_svc += t_meas
+        pct_svc = (100.0 * c_svc / t_svc) if t_svc else None
+        pr_svc = f"{pct_svc:.1f}%" if pct_svc is not None else "—"
+        agg = r.get("ndb_carrier_in_image_aggregate") or {}
+        sloc_c: int | str = agg.get("total_sloc", "—")
+        cb_rows.append((svc, len(nf), sloc_c, c_svc, t_svc, pr_svc))
+
+    if cb_rows:
+        lines.extend(
+            [
+                "",
+                "### По сервисам compose (фрагмент в образе)",
+                "",
+                "| compose | файлов носителей | SLOC метрики | cov / всего строк | % |",
+                "|---|---:|---:|---:|---:|",
+            ]
+        )
+        for svc, n_fc, sloc_c, c_svc, t_svc, pr_svc in cb_rows:
+            lines.append(f"| `{svc}` | {n_fc} | {sloc_c} | {c_svc} / {t_svc} | {pr_svc} |")
+
+    return lines
+
+
 def _normalize_rel(path_str: str) -> str | None:
     ps = path_str.replace("\\", "/")
     if ps.startswith("src/"):
@@ -152,7 +221,12 @@ def main() -> int:
             "проценты по строкам просуммированы по всем файлам спецификации домена. "
             "IPC: соседи по дедуплицированным парам доменов из политик (`ipc_inbound_request`, ответы `ipc_response`, запросы шлюза).",
             "",
-            "## Оценка стоимости текущей реализации ДВБ (Задача 12)",
+        ]
+    )
+    lines.extend(_task24_ndb_carrier_markdown(metrics, by_file))
+    lines.extend(
+        [
+            "## Оценка стоимости текущей реализации ДВБ",
             "",
         ]
     )

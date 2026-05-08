@@ -1,0 +1,13 @@
+{
+  "note_ru": "Относительные пути общих модулей, по учебному смыслу ТБ/наблюдаемость или внешние IPC-хвосты (НДБ в терминологии docs/README §2); при наличии в образе узкого воркера или шлюза/монитора попадают в пересечение «НДБ-носитель в контейнере ЦБ» и должны быть в покрытии tcb-test.",
+  "tb_ndb_carrier_paths_relative": [
+    "src/shared/analytics_ipc.py",
+    "src/shared/audit_log_ipc.py",
+    "src/shared/journal_startup.py",
+    "src/shared/journal_bootstrap.py",
+    "src/shared/external_adapters_factory.py",
+    "src/shared/integration_adapters.py",
+    "src/shared/bus_integration_adapters.py",
+    "src/shared/monitor_client.py"
+  ]
+}

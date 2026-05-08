@@ -1,4 +1,4 @@
-.PHONY: help prepare diagrams diagrams-png unit-test integration-test tcb-test tcb-metrics tcb-metrics-full test-all-docker bus-adjacent-test drone-analytics-integration-test e2e-test tests docker-up docker-down docker-logs
+.PHONY: help prepare init-data diagrams diagrams-png unit-test integration-test tcb-test tcb-metrics tcb-metrics-full test-all-docker bus-adjacent-test drone-analytics-integration-test e2e-test tests docker-up docker-down docker-logs
 
 PIPENV_PIPFILE = ../../config/Pipfile
 PYTEST_CONFIG = ../../config/pyproject.toml
@@ -16,6 +16,7 @@ DIAGRAM_PUML = docs/diagrams/deployment_containers.puml docs/diagrams/sequence_l
 
 help:
 	@echo "make prepare          - Собрать docker-compose + .env из компонентов"
+	@echo "make init-data        - Создать каталоги UAS_DOMAIN_DATA_ROOT/<domain>/ (чистая виртуальная ФС)"
 	@echo "make docker-up        - Запустить систему"
 	@echo "make docker-down      - Остановить систему"
 	@echo "make diagrams          - PNG из docs/diagrams/*.puml (PlantUML в Docker)"
@@ -48,6 +49,9 @@ diagrams: $(DIAGRAM_PUML)
 prepare:
 	@cd ../.. && PIPENV_PIPFILE=config/Pipfile pipenv run python scripts/prepare_system.py systems/uas_dev_company
 
+init-data:
+	@cd . && PYTHONPATH=$(PYTHONPATH) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/init_domain_data.py
+
 docker-up: prepare
 	@set -a && . $(GENERATED)/.env && set +a && \
 		profiles="--profile $${BROKER_TYPE:-kafka}"; \
@@ -64,11 +68,12 @@ docker-logs:
 		$(DOCKER_COMPOSE) $$profiles logs -f
 
 unit-test:
-	@PYTHONPATH=$(PYTHONPATH) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/unit tests/module -v
+	@UAS_ADJACENT_BUS_INTEGRATION= UAS_HTTP_INTEGRATION_BASE= PYTHONPATH=$(PYTHONPATH) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/unit tests/module -v
 
 # Сертификационный контур ДВБ: pytest-cov, затем метрики стоимости и сводный отчёт (Задача 13)
 tcb-test:
-	@PYTHONPATH=$(PYTHONPATH) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/unit tests/module tests/integration -v \
+	@UAS_ADJACENT_BUS_INTEGRATION= UAS_HTTP_INTEGRATION_BASE= PYTHONPATH=$(PYTHONPATH) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/unit tests/module tests/integration -v \
+		--cov-config=.coveragerc-tcb \
 		--cov=shared.tcb \
 		--cov=shared.security_monitor \
 		--cov=shared.security_policies \
@@ -84,7 +89,16 @@ tcb-test:
 		--cov=shared.storage \
 		--cov=shared.integration_adapters \
 		--cov=shared.bus_integration_adapters \
+		--cov=shared \
+		--cov=shared.protocols \
+		--cov=shared.domain_storage \
+		--cov=shared.audit_log_ipc \
+		--cov=shared.monitor_client \
+		--cov=shared.monitor_proxy_unwrap \
+		--cov=shared.journal_startup \
+		--cov=shared.journal_bootstrap \
 		--cov=gateway \
+		--cov=security_monitor \
 		--cov=user_management \
 		--cov=firmware_ingestion \
 		--cov=certification_service \
@@ -100,13 +114,13 @@ tcb-test:
 
 # Оценка ДВБ и «стоимости» для отчёта: scripts/tcb_metrics.py (ключ tcb_cost_task12 → estimated_tcb_cost_score)
 tcb-metrics:
-	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run bash -c 'PYTHONPATH=src python scripts/tcb_metrics.py --target --out $(TCB_METRICS_OUT)'
+	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run bash -c 'PYTHONPATH=src python3 scripts/tcb_metrics.py --target --out $(TCB_METRICS_OUT)'
 
 tcb-metrics-full:
-	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run bash -c 'PYTHONPATH=src python scripts/tcb_metrics.py --baseline --target --out $(TCB_METRICS_OUT)'
+	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run bash -c 'PYTHONPATH=src python3 scripts/tcb_metrics.py --baseline --target --out $(TCB_METRICS_OUT)'
 
 integration-test:
-	@PYTHONPATH=$(PYTHONPATH) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/integration -v
+	@UAS_ADJACENT_BUS_INTEGRATION= UAS_HTTP_INTEGRATION_BASE= PYTHONPATH=$(PYTHONPATH) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/integration -v
 
 test-all-docker: docker-up
 	@echo "Waiting for broker and components..."
@@ -128,7 +142,7 @@ bus-adjacent-test: prepare
 	@echo "=== Kafka + Mosquitto для pytest смежных систем (шина) ==="
 	@set -a && . "$(GENERATED)/.env" 2>/dev/null && set +a && \
 		profiles="--profile kafka --profile mqtt"; \
-		$(DOCKER_COMPOSE) $$profiles up -d kafka mosquitto && \
+		$(DOCKER_COMPOSE) $$profiles up -d --force-recreate kafka mosquitto && \
 		sleep 40 && \
 		export UAS_ADJACENT_BUS_INTEGRATION=1 && \
 		export UAS_ADJACENT_BROKER_TYPES="$${UAS_ADJACENT_BROKER_TYPES:-kafka,mqtt}" && \
@@ -185,14 +199,16 @@ drone-analytics-integration-test:
 	PYTHONPATH=$(PYTHONPATH) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) \
 		tests/integration/test_drone_analytics_central_journal.py -v
 
-tests: unit-test integration-test
+tests: unit-test integration-test 
+
+tests-complete: tests e2e-test drone-analytics-integration-test bus-adjacent-test test-all-docker tcb-metrics tcb-metrics-full
 
 HTTP_PORT ?= 8080
 
 e2e-test:
 	@command -v node >/dev/null 2>&1 || { echo "node required for Playwright"; exit 1; }
 	@cd web && npm install && npx playwright install chromium
-	@echo "Ensure docker compose is running (nginx on port $(HTTP_PORT))"
+	@echo "Ensure docker compose is running (nginx on port $(HTTP_PORT)); full kafka profile rebuild if IPC topics/gateway drifted."
 	@set -a && HTTP_PORT="$(HTTP_PORT)" && . "$(GENERATED)/.env" 2>/dev/null; set +a; \
 	cd web && \
 		E2E_BASE_URL="$${E2E_BASE_URL:-http://127.0.0.1:$(HTTP_PORT)}" npm run test:e2e

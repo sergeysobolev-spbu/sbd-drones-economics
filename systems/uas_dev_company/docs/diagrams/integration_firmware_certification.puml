@@ -1,29 +1,25 @@
 @startuml integration_firmware_certification
-title Сертификация прошивки: Разработчик БАС -> Регулятор
+title Сертификация прошивки
+
+skinparam ArrowThickness 2
 
 autonumber
 actor "Разработчик" as Dev
-box "Домены безопасности Разработчика БАС" #LightBlue
-    participant "Разработчик БАС\napi_gateway" as UAS
-    participant "firmware_ingestion" as FW
-    participant "certification_service" as CERT
-    database "SQLite UAS\nлокальная проекция" as UASDB
-end box
+participant "api_gateway" as GW #FFCDD2
+participant "firmware_ingestion" as FW #FFF9C4
+participant "certification_service" as CERT #FFF9C4
+database "SQLite" as UASDB #C8E6C9
+participant "Регулятор\nAPI/consumer" as REG #E8F5E9
+database "Реестр Регулятора" as REGDB #C8E6C9
 
-box "Домены безопасности Регулятора" #LightGreen
-    participant "Регулятор\nAPI/consumer" as REG
-    database "Реестр Регулятора\nсертификаты и решения" as REGDB
-end box
-
-Dev -> UAS : POST /api/firmware\nsource_repo_url + source_commit\n[INT-FR-2]
-UAS -> FW : submit_firmware\n[INT-NFR-2]
-FW -> UASDB : save firmware metadata
-Dev -> UAS : POST /api/certify\nfirmware_id
-UAS -> CERT : certify_firmware
-CERT -> REG : certify_firmware\nschema_version, correlation_id\n[INT-FR-1, INT-NFR-1]
-REG -> REGDB : create/check firmware certificate\ninternal regulator state
-REG --> CERT : certified | rejected\ncertificate_id, reason_code\n[INT-FR-4]
-CERT -> UASDB : save local certificate projection/status
-CERT -> UASDB : audit certification decision\n[INT-NFR-5]
-UAS --> Dev : certificate_id/status/reason
+Dev -> GW : POST /api/firmware\n[INT-FR-2]
+GW -> FW : submit_firmware\n[INT-NFR-2]
+FW -> UASDB : save firmware metadata\n(высокоцелостная запись)
+Dev -> GW : POST /api/certify
+GW -> CERT : certify_firmware
+CERT -> REG : certify_firmware\n[INT-FR-1, INT-NFR-1]
+REG -> REGDB : certificate state
+REG -> CERT : certified | rejected\n[INT-FR-4]
+CERT -> UASDB : projection / audit\n[INT-NFR-5]
+GW -> Dev : certificate_id/status/reason
 @enduml

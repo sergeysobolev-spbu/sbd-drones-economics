@@ -30,7 +30,7 @@ async function login() {
         username: username.value.trim(),
         password: password.value,
       },
-      timeout: 30_000,
+      timeout: 90_000,
     })
     setToken(res.access_token)
     navigateTo("/")
@@ -52,7 +52,7 @@ async function bootstrap() {
         username: bootstrapUser.value.trim(),
         password: bootstrapPass.value,
       },
-      timeout: 30_000,
+      timeout: 90_000,
     })
     showBootstrap.value = false
     username.value = bootstrapUser.value.trim()

@@ -94,6 +94,11 @@ class Actions:
     LOG_EVENT = "log_event"
     RECORD_AUDIT = "record_audit"
     SEND_ANALYTICS = "send_analytics"
+    GET_FIRMWARE_ROW = "get_firmware_row"
+    GET_CERTIFICATE_SNAPSHOT = "get_certificate_snapshot"
+    APPLY_FIRMWARE_CERT_DECISION = "apply_firmware_cert_decision"
+    GET_DRONE_PURCHASE_ROW = "get_drone_purchase_row"
+    UPDATE_DRONE_PURCHASE = "update_drone_purchase"
     # Явные разрешения на фазы IPC под контролем security_monitor (Задача 14).
     IPC_INBOUND_REQUEST = "ipc_inbound_request"
     IPC_RESPONSE = "ipc_response"

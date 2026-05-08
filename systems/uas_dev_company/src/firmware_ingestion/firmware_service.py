@@ -67,3 +67,14 @@ class FirmwareService:
                 )
             )
         return {"firmware_id": firmware.firmware_id, "accepted": True}
+
+    def get_row_dict(self, firmware_id: str) -> dict[str, Any] | None:
+        """Чтение строки прошивки для междоменных вызовов (только локальная БД домена)."""
+        with self.storage.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM firmware_versions WHERE firmware_id = ?",
+                (firmware_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            return dict(row)

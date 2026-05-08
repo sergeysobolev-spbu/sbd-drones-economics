@@ -42,6 +42,19 @@ def _bearer_principal(handler: BaseHTTPRequestHandler, ctx: Any) -> tuple[str, s
     return username, role
 
 
+def _http_status_for_login_bus_error(exc: BusInvocationError) -> int:
+    """Ошибка входа по шине: отказ в авторизации — не 502; транспортные сбои оставляем для прокси-домена."""
+    msg = str(exc).lower()
+    transient = (
+        msg == "security_monitor_request_timeout"
+        or "timeout" in msg
+        or msg == "invalid_monitor_payload"
+        or msg == "missing_target_response"
+        or "monitor_transport" in msg
+    )
+    return 502 if transient else 401
+
+
 class ApiHandler(BaseHTTPRequestHandler):
     """JSON API для веб-интерфейса и интеграционных проверок."""
 
@@ -201,7 +214,11 @@ class ApiHandler(BaseHTTPRequestHandler):
                 self._send({"error": str(exc)}, status=401)
         except BusInvocationError as exc:
             self._audit_err(path, exc)
-            self._send({"error": str(exc)}, status=502)
+            if path == "/api/login":
+                st = _http_status_for_login_bus_error(exc)
+            else:
+                st = 502
+            self._send({"error": str(exc)}, status=st)
         except Exception as exc:
             self._audit_err(path, exc)
             self._send({"error": str(exc)}, status=400)
@@ -233,16 +250,15 @@ def run() -> None:
     if mode == "bus":
         ctx = BusApiContext()
         ctx.start()
-        from shared.journal_startup import emit_api_gateway_bus_started
+        from shared.journal_bootstrap import emit_api_gateway_bus_started
 
         emit_api_gateway_bus_started(ctx.backend.bus)
         ApiHandler.context = ctx
     else:
         from gateway.sqlite_context import ApiContext
         from shared.journal_startup import emit_api_gateway_sqlite_started
-        from shared.storage import SQLiteStorage
 
-        ctx = ApiContext(SQLiteStorage())
+        ctx = ApiContext()
         emit_api_gateway_sqlite_started(ctx.audit)
         ApiHandler.context = ctx
     port = int(os.environ.get("BACKEND_PORT", "8081"))

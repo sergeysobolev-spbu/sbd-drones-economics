@@ -6,7 +6,7 @@ import asyncio
 import os
 from typing import Callable, Dict, Any, Optional
 from uuid import uuid4
-from concurrent.futures import Future
+from concurrent.futures import Future, ThreadPoolExecutor
 
 try:
     from kafka import KafkaProducer, KafkaConsumer
@@ -46,6 +46,7 @@ class KafkaSystemBus(SystemBus):
         self._running: Dict[str, bool] = {}
         self._pending_requests: Dict[str, Future] = {}
         self._pending_lock = threading.Lock()
+        self._callback_executor = ThreadPoolExecutor(max_workers=32, thread_name_prefix="kafka_cb")
         self._reply_topic = f"replies.{client_id}.{uuid4().hex[:8]}"
         self._started = False
 
@@ -107,7 +108,8 @@ class KafkaSystemBus(SystemBus):
                 self._producer.close()
             except Exception:
                 pass
-        
+
+        self._callback_executor.shutdown(wait=True)
         self._consumers.clear()
         self._callbacks.clear()
         self._consumer_threads.clear()
@@ -115,6 +117,12 @@ class KafkaSystemBus(SystemBus):
         self._started = False
         
         print("KafkaSystemBus stopped")
+
+    def _safe_dispatch_callback(self, topic: str, callback: Callable[[Dict[str, Any]], None], message: Dict[str, Any]) -> None:
+        try:
+            callback(message)
+        except Exception as e:
+            print(f"Error processing message from {topic}: {e}")
 
     def publish(self, topic: str, message: Dict[str, Any]) -> bool:
         """Публикует сообщение в топик."""
@@ -131,7 +139,12 @@ class KafkaSystemBus(SystemBus):
             return False
 
     def _consumer_loop(self, topic: str):
-        """Цикл чтения сообщений из топика и вызова callback."""
+        """Цикл чтения сообщений из топика и вызова callback.
+
+        Callback выполняется в ThreadPoolExecutor, чтобы потребитель мог продолжать
+        poll (и обрабатывать вложенные RPC), пока обработчик синхронно вызывает
+        bus.request (например security_monitor → воркер → снова monitor).
+        """
         consumer = self._consumers.get(topic)
         callback = self._callbacks.get(topic)
         
@@ -145,11 +158,10 @@ class KafkaSystemBus(SystemBus):
                 messages = consumer.poll(timeout_ms=1000)
                 for topic_partition, records in messages.items():
                     for record in records:
-                        try:
-                            message = record.value
-                            callback(message)
-                        except Exception as e:
-                            print(f"Error processing message from {topic}: {e}")
+                        message = record.value
+                        self._callback_executor.submit(
+                            self._safe_dispatch_callback, topic, callback, message
+                        )
             except Exception as e:
                 if self._running.get(topic, False):
                     print(f"Error in consumer loop for {topic}: {e}")

@@ -10,6 +10,11 @@ M = ComponentTopics.SECURITY_MONITOR
 
 
 def _rule_tcb_domain_map() -> dict[tuple[str, str, str], str]:
+    drn = ComponentTopics.DRONE_REGISTRY
+    ctf = ComponentTopics.CERTIFICATION_SERVICE
+    ffm = ComponentTopics.FIRMWARE_INGESTION
+    pur = ComponentTopics.PURCHASE_SERVICE
+    mon = ComponentTopics.SECURITY_MONITOR
     d: dict[tuple[str, str, str], str] = {
         (G, M, Actions.PROXY_REQUEST): "security_monitor_ipc",
         (G, ComponentTopics.USER_MANAGEMENT, Actions.BOOTSTRAP_ADMIN): "identity_auth",
@@ -27,6 +32,15 @@ def _rule_tcb_domain_map() -> dict[tuple[str, str, str], str]:
         (G, ComponentTopics.DRONE_REGISTRY, Actions.LIST_REGISTERED_DRONES): "registry_purchase_policy",
         (G, ComponentTopics.PURCHASE_SERVICE, Actions.PURCHASE_DRONE): "registry_purchase_policy",
         (G, ComponentTopics.AUDIT_LOG, Actions.RECORD_AUDIT): "system_journal_boundary",
+        (drn, mon, Actions.PROXY_REQUEST): "partitioned_domain_access",
+        (pur, mon, Actions.PROXY_REQUEST): "partitioned_domain_access",
+        (ctf, mon, Actions.PROXY_REQUEST): "partitioned_domain_access",
+        (drn, ctf, Actions.GET_CERTIFICATE_SNAPSHOT): "partitioned_domain_access",
+        (drn, ffm, Actions.GET_FIRMWARE_ROW): "partitioned_domain_access",
+        (ctf, ffm, Actions.GET_FIRMWARE_ROW): "partitioned_domain_access",
+        (pur, drn, Actions.GET_DRONE_PURCHASE_ROW): "partitioned_domain_access",
+        (pur, drn, Actions.UPDATE_DRONE_PURCHASE): "partitioned_domain_access",
+        (ctf, drn, Actions.APPLY_FIRMWARE_CERT_DECISION): "partitioned_domain_access",
         (
             ComponentTopics.USER_MANAGEMENT,
             ComponentTopics.AUDIT_LOG,
@@ -86,4 +100,5 @@ def test_reported_tcb_domain_labels_stable() -> None:
         "ipc_monitor_deliver",
         "ipc_worker_reply",
         "ipc_monitor_to_gateway",
+        "partitioned_domain_access",
     }

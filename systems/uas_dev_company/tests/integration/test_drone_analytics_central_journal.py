@@ -16,8 +16,11 @@ import requests
 from analytics_adapter import AnalyticsAdapterService
 from audit_log.audit_service import AuditLogService, LocalAuditJournalPort
 from fakes import FakeRegulator
-from shared.services import CertificationService, DroneRegistryService, FirmwareService, UserService
-from shared.storage import SQLiteStorage
+from certification_service.certification_service import CertificationService
+from drone_registry.registry_service import DroneRegistryService
+from firmware_ingestion.firmware_service import FirmwareService
+from user_management.user_service import UserService
+from shared.storage import MONOLITH, SQLiteStorage
 from shared.topics import Roles
 
 requires_drone_analytics_stack = pytest.mark.skipif(
@@ -98,7 +101,7 @@ def test_certify_and_register_events_reach_drone_analytics_event_index(tmp_path)
     firmware_id = f"fw-{token}"
     serial = f"SN-{token}"
 
-    storage = SQLiteStorage(tmp_path / "da19.sqlite3")
+    storage = SQLiteStorage(MONOLITH, db_path=tmp_path / "da19.sqlite3")
     analytics = AnalyticsAdapterService(
         storage,
         enabled=True,
@@ -172,7 +175,7 @@ def test_registration_error_reaches_drone_analytics_event_index(tmp_path) -> Non
     token = f"da19err-{uuid.uuid4().hex[:12]}"
     firmware_id = f"fw-{token}"
 
-    storage = SQLiteStorage(tmp_path / "da19err.sqlite3")
+    storage = SQLiteStorage(MONOLITH, db_path=tmp_path / "da19err.sqlite3")
     analytics = AnalyticsAdapterService(
         storage,
         enabled=True,

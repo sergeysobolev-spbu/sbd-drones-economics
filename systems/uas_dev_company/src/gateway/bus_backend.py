@@ -10,15 +10,12 @@ from broker.bus_factory import create_system_bus
 from broker.system_bus import SystemBus
 
 from shared.models import SecurityEvent
+from shared.monitor_proxy_unwrap import BusInvocationError, unwrap_monitor_proxy_result
 from shared.tcb import AuthorizationError
 from shared.topics import Actions, ComponentTopics, Roles
 
 # Короткий таймаут для логина/bootstrap по шине — не ждать полный GATEWAY_MONITOR_REQUEST_TIMEOUT_S.
 _AUTH_USER_MGMT_ACTIONS = frozenset({Actions.AUTHENTICATE, Actions.BOOTSTRAP_ADMIN})
-
-
-class BusInvocationError(RuntimeError):
-    """Raised when the monitor or a backend rejects a proxied RPC."""
 
 
 class GatewayBusBackend:
@@ -28,7 +25,8 @@ class GatewayBusBackend:
         self._owns_bus = bus is None
         self._bus = bus or create_system_bus(client_id="uas_dev_company_api_gateway")
         self._timeout = float(os.environ.get("GATEWAY_MONITOR_REQUEST_TIMEOUT_S", "30"))
-        self._auth_timeout = float(os.environ.get("GATEWAY_AUTH_PROXY_TIMEOUT_S", "25"))
+        # Не ниже типичного round-trip шины при холодном старте (e2e / CI); см. docker-compose.
+        self._auth_timeout = float(os.environ.get("GATEWAY_AUTH_PROXY_TIMEOUT_S", "60"))
 
     @property
     def bus(self) -> SystemBus:
@@ -62,28 +60,6 @@ class GatewayBusBackend:
             timeout=self._request_timeout(target_topic, target_action),
         )
         return unwrap_monitor_proxy_result(raw)
-
-
-def unwrap_monitor_proxy_result(raw: dict[str, Any] | None) -> dict[str, Any]:
-    if raw is None:
-        raise BusInvocationError("security_monitor_request_timeout")
-    if not raw.get("success"):
-        raise BusInvocationError(str(raw.get("error") or "monitor_transport_error"))
-    mp = raw.get("payload")
-    if not isinstance(mp, dict):
-        raise BusInvocationError("invalid_monitor_payload")
-    if mp.get("ok") is False:
-        err = str(mp.get("error") or "policy_or_routing_error")
-        raise BusInvocationError(err)
-    target = mp.get("target_response")
-    if not isinstance(target, dict):
-        raise BusInvocationError("missing_target_response")
-    if not target.get("success"):
-        raise BusInvocationError(str(target.get("error") or "backend_error"))
-    inner = target.get("payload")
-    if not isinstance(inner, dict):
-        return {}
-    return inner
 
 
 class BusApiContext:

@@ -10,6 +10,7 @@ from typing import Any, Callable
 from broker.bus_factory import create_system_bus
 
 from shared.component_base import ServiceComponent
+from shared.domain_storage import domain_id_for_worker_topic
 from shared.storage import SQLiteStorage
 from shared.topics import ComponentTopics
 from shared.journal_startup import emit_worker_process_startup
@@ -26,7 +27,7 @@ def run_service_worker(
     ],
     trusted_sender: str | frozenset[str] | None = None,
 ) -> None:
-    storage = SQLiteStorage()
+    storage = SQLiteStorage(domain_id_for_worker_topic(topic))
     bus = create_system_bus(client_id=component_id)
     deps = build_worker_service_deps(bus, topic, component_id)
     handlers = build_handlers(storage, deps)

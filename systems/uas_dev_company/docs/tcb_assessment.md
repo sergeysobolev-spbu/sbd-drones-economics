@@ -10,7 +10,7 @@ make tcb-metrics        # target + контейнеры + tcb_cost_task12 (об�
 
 # вручную:
 PYTHONPATH=src python scripts/tcb_metrics.py --baseline --target --out docs/tcb_metrics.json   # полный снимок
-PYTHONPATH=src python scripts/tcb_metrics.py --target --out docs/tcb_metrics.json             # только target и отчёт Задачи 12
+PYTHONPATH=src python scripts/tcb_metrics.py --target --relax-docker-drift --out docs/tcb_metrics.json  # ослабить проверку drift COPY
 ```
 
 ## Состав измеряемых контуров
@@ -20,7 +20,7 @@ PYTHONPATH=src python scripts/tcb_metrics.py --target --out docs/tcb_metrics.jso
 | **baseline_tcb** | Полный доверенный baseline до выделения ядра: `security_monitor`, `security_policies`, `component_base`, `services`, `models`, `storage`, `topics`, `integration_adapters`, `jwt_tokens`. |
 | **target_tcb** | Условное «ядро» после выноса чистых политик: каталог `src/shared/tcb/`, плюс монитор, политики IPC, `component_base`, `jwt_tokens`, `models` (типы и нормализация целей). |
 
-Оркестрация (`services.py`), хранилище и адаптеры остаются вне **target**-набора, но входят в общий функциональный ДВБ до полного разделения доверенного и недоверенного кода (правило «общий код для доверенных и недоверенных доменов»).
+Оркестрация (`services.py`), **физически разделённые файлы SQLite по доменам** (см. `shared.domain_storage` и `docs/architecture_variants.md`) и адаптеры остаются вне **target**-набора, но входят в общий функциональный ДВБ до полного разделения доверенного и недоверенного кода (правило «общий код для доверенных и недоверенных доменов»).
 
 ## Агрегированная дельта (из `tcb_metrics.json`)
 
@@ -33,8 +33,7 @@ PYTHONPATH=src python scripts/tcb_metrics.py --target --out docs/tcb_metrics.jso
 
 ## Allow-политики и трассировка к ЦБ
 
-- Канонический набор: `shared.security_policies.canonical_allow_rule_tuples()` — **29** правил: узкие маршруты шлюза к воркерам плюс явные политики **запроса/ответа** между доменами (`ipc_inbound_request`, `ipc_response`, Задача 14). Нижняя граница ≥14 по сценариям шлюза сохранена.
-- Каждое правило трассируется к домену ДВБ в `tests/unit/test_tcb_allow_policy_traceability.py` (`_rule_tcb_domain_map`).
+- Канонический набор: `shared.security_policies.canonical_allow_rule_tuples()` — **44** правила: маршруты шлюза, **запрос/ответ** монитор ↔ воркеры (`ipc_inbound_request`, `ipc_response`), запись аудита доверенными воркерами, отправка из `audit_log` в `analytics_adapter`, а также **междоменный доступ по политике** (`proxy_request` от воркеров к монитору и логические пары `sender → целевой топик` для чтения снимков прошивки/сертификата и обновления реестра; трассировка ДВБ — метка `partitioned_domain_access` в `tests/unit/test_tcb_allow_policy_traceability.py`).
 
 ## Бюджет зависимостей `shared.tcb`
 
@@ -42,44 +41,49 @@ PYTHONPATH=src python scripts/tcb_metrics.py --target --out docs/tcb_metrics.jso
 
 ## Покрытие тестами ДВБ
 
-Команда `make tcb-test` запускает unit/module/integration с `pytest-cov` по модулям ДВБ (см. `Makefile`) с **`--cov-fail-under=70`** по суммарному покрытию перечисленных пакетов.
+Команда `make tcb-test` запускает unit/module/integration с `pytest-cov` по модулям ДВБ (см. `Makefile`) с **`--cov-fail-under=70`** по суммарному покрытию перечисленных пакетов. Состав `--cov=` согласован с union файлов `*.py`, попадающих в узкие образы доменов с **ЦБ-1…ЦБ-3** по **COPY** в Dockerfile (проверка `tests/unit/test_tcb_makefile_cov_completeness.py`).
 
 Последний замер (локально): **~84%** суммарно по перечню в `tcb-test` (см. вывод `make tcb-test`).
 
 ## Диаграмма декомпозиции
 
-Источник PlantUML: [`diagrams/tcb_decomposition.puml`](diagrams/tcb_decomposition.puml); PNG — `make diagrams`.
+Источник PlantUML: [`diagrams/tcb_decomposition.puml`](diagrams/tcb_decomposition.puml); PNG — `make diagrams`. На схеме **монитор** — инфраструктура политик. Цвета периметра и доверия на логических схемах — [`README.md`](README.md), §2.
 
-## Задача 11 — домены в Docker и ДВБ «целиком по контейнеру»
+## Домены в Docker и ДВБ «целиком по контейнеру»
 
 Вводные: каждый **домен безопасности** в учебном развёртывании соответствует **сервису** в `docker-compose.yml` (отдельный контейнер); у процесса **один** уровень критичности; если в домене есть **хотя бы одна** ЦБ-критичная операция, **весь** домен относится к ДВБ. Обмен между Python-доменами в профилях `kafka`/`mqtt` идёт через брокер и **`security_monitor`** (шлюз не обходит монитор при `UAS_GATEWAY_BACKEND=bus`).
 
 В [`tcb_metrics.json`](tcb_metrics.json) ключ **`container_isolation_tcb_task11`** содержит:
 
 - соответствие имён сервисов compose модели доменов;
-- по каждому Python-домену — объём кода **каталог компонента + согласованное ядро `shared`** (в скрипте — `SHARED_CORE`, см. Задачу 12); образы по-прежнему копируют всё дерево репозитория;
-- **объединение без двойного счёта файлов**: `union_unique_backend_python_scope` — весь операционный backend; **`union_cb123_python_scope`** (Задача 15) — только домены реализации ЦБ-1…ЦБ-3.
+- по каждому Python-домену — объём кода **каталог компонента + whitelist `shared`**, отражённый в `python_path_specs` (`SHARED_WORKER_SCOPE`, `SHARED_GATEWAY_BUS_SCOPE`, `SHARED_SECURITY_MONITOR_SCOPE`); опциональный сервис **`api_gateway_sqlite`** вынесен в `CONTAINER_NON_PYTHON`, чтобы не дублировать union с узким шлюзом;
+- **объединение без двойного счёта файлов**: `union_unique_backend_python_scope` — весь операционный backend; **`union_cb123_python_scope`** — только домены реализации ЦБ-1…ЦБ-3.
 
-Исходные правила соответствия сервис ↔ пути: `scripts/tcb_container_domains.py` (после Задачи 12 в метриках домена — **`component_dir_plus_shared_core`**, а не целиком `src/shared/`). Проверки: `tests/unit/test_tcb_container_domains.py`.
+Исходные правила соответствия сервис ↔ пути: `scripts/tcb_container_domains.py` (в метриках домена используется **`component_dir_plus_shared_core`**, а не целиком `src/shared/`). Парсинг **фактического** `COPY` (`scripts/parse_uas_docker_copy.py`) дополняет поля `docker_derived_path_specs` / `docker_derived_specs_match_manual` в `python_domains_tcb` и блок **`task24_copy_ndb_carrier`** (пересечение с манифестом **НДБ-носителей** `scripts/tcb_module_roles.json`). При несовпадении множеств `*.py` между Dockerfile и `python_path_specs` скрипт **`tcb_metrics.py --target`** завершается кодом **2** (ослабление: `--relax-docker-drift`). Плюсы/минусы вариантов — [`architecture_variants.md`](architecture_variants.md) (раздел «Метрики ДВБ по фактическому COPY»). Проверки: `tests/unit/test_tcb_container_domains.py`, `tests/unit/test_tcb_docker_specs_drift.py`.
 
-## Задача 12 — методика стоимости ДВБ (`tcb_cost_task12`)
+## Метрики по COPY и учёт модулей ТБ в образах ЦБ
+
+- **Цель:** граница кода образа задаётся `COPY` в Dockerfile; множества `*.py`, используемые в `union_cb123_python_scope` и per-domain объёме, **должны** совпадать с результатом парсера (`docker_derived_specs_match_manual` в каждой строке `python_domains_tcb`; агрегат `docker_derived_specs_match_manual_all` — внутри **`task24_copy_ndb_carrier`**).
+- **НДБ-носители:** пересечение путей из `scripts/tcb_module_roles.json` с файлами COPY; для сервисов с `in_cb123_tcb_union` union перечислен в `union_ndb_carrier_files_in_cb123_images` — эти строки включаются в отчёт `docs/tcb_summary_report.md` и должны находиться под покрытием `--cov=` в `Makefile` (тест полноты выше).
+
+## Методика стоимости ДВБ (`tcb_cost_task12`)
 
 В [`tcb_metrics.json`](tcb_metrics.json) ключ **`tcb_cost_task12`** дополняет отчёт:
 
 - **`task12_baseline_snapshot`** — нормативная точка «до» (14 правил, монолит `shared/services.py`, шлюз с прямым импортом сервисов и режим sqlite по умолчанию, полный `src/shared` в per-domain метриках).
-- **`task12_after_snapshot`** — текущие `allow_rules_count` (≥14), маркеры узких действий, признак отсутствия импортов доменов в `gateway/server.py`, **`union_backend_python_sloc`** (после Задачи 15 — только домены `in_cb123_tcb_union`), **`union_all_system_backend_python_sloc`** (полный операционный охват), **`estimated_tcb_cost_score`**.
+- **`task12_after_snapshot`** — текущие `allow_rules_count` (≥14), маркеры узких действий, признак отсутствия импортов доменов в `gateway/server.py`, **`union_backend_python_sloc`** (только домены `in_cb123_tcb_union`), **`union_all_system_backend_python_sloc`** (полный операционный охват), **`estimated_tcb_cost_score`**.
 
 Формула `estimated_tcb_cost_score` (в том же JSON, поле `formula_ru`): линейная комбинация **SLOC объединения доменов ЦБ-1…ЦБ-3** (`union_backend_python_sloc`), числа allow-правил и штрафа за прямые импорты доменных пакетов из `gateway/server.py`. Штраф отражает повышенный риск и стоимость обоснования при связности **недоверенный шлюз → доверенные сервисы** в одном процессе; в режиме **bus** шлюз загружает только `BusApiContext`.
 
 Обновление блока: `PYTHONPATH=src python scripts/tcb_metrics.py --target --out docs/tcb_metrics.json`.
 
-## Задача 15 — только ЦБ-1…ЦБ-3 в цели ДВБ и в API
+## Только ЦБ-1…ЦБ-3 в цели ДВБ и в API
 
 - Официальные цели системы — **только** три строки **«ЦБ-1»**, **«ЦБ-2»**, **«ЦБ-3»** (см. `docs/README.md`, §1). Иные обозначения в `security_goals` отклоняются (`shared.tcb.cb_constants.normalize_canonical_security_goals`).
 - Прикладные требования (витрина, сделка, журнал…) описываются как **ТБ** в README; домены **purchase** и **audit** в [`scripts/tcb_container_domains.py`](../scripts/tcb_container_domains.py) имеют **`in_cb123_tcb_union: false`** и не входят в SLOC-часть оценки стоимости ДВБ.
 - В [`tcb_metrics.json`](tcb_metrics.json) ключ **`container_isolation_tcb_task11`** дополняется **`union_cb123_python_scope`**; полный охват остаётся в **`union_unique_backend_python_scope`**.
 
-## Задача 14 — IPC-топология и цели безопасности по доменам
+## IPC-топология и цели безопасности по доменам
 
 В [`tcb_metrics.json`](tcb_metrics.json) ключ **`tcb_ipc_topology_task14`** (скрипт [`scripts/tcb_ipc_topology.py`](../scripts/tcb_ipc_topology.py)) задаёт:
 

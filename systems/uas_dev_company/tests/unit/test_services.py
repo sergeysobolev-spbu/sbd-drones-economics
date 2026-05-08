@@ -7,17 +7,15 @@ import sqlite3
 import pytest
 
 from shared.models import SecurityEvent
-from shared.services import (
-    AnalyticsAdapterService,
-    AuthorizationError,
-    AuditLogService,
-    CertificationService,
-    DroneRegistryService,
-    FirmwareService,
-    PurchaseService,
-    UserService,
-)
-from shared.storage import SQLiteStorage
+from analytics_adapter import AnalyticsAdapterService
+from audit_log.audit_service import AuditLogService
+from certification_service.certification_service import CertificationService
+from drone_registry.registry_service import DroneRegistryService
+from firmware_ingestion.firmware_service import FirmwareService
+from purchase_service.purchase_core import PurchaseService
+from shared.services import AuthorizationError
+from user_management.user_service import UserService
+from shared.storage import MONOLITH, SQLiteStorage
 from shared.topics import ComponentTopics, Roles
 from shared.tcb import security_event_to_analytics_payload
 from shared.audit_log_ipc import make_security_journal_ipc_forwarder
@@ -25,7 +23,7 @@ from shared.audit_log_ipc import make_security_journal_ipc_forwarder
 
 @pytest.fixture()
 def storage(tmp_path):
-    return SQLiteStorage(tmp_path / "test.sqlite3")
+    return SQLiteStorage(MONOLITH, db_path=tmp_path / "test.sqlite3")
 
 
 def test_admin_crud_and_password_hash(storage):
@@ -170,7 +168,7 @@ def test_certified_drone_purchase_flow_persists(storage):
         },
     )
 
-    purchase = PurchaseService(storage)
+    purchase = PurchaseService(storage, registry=registry)
     order = purchase.purchase(Roles.OPERATOR, "operator", "DRONE-1")
     assert order["purchased"] is True
 

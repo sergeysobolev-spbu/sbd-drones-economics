@@ -13,16 +13,14 @@ if __package__ is None or __package__ == "":
 from fakes import FakeDroneAnalytics, FakeDronePort, FakeOperatorRegistry, FakeRegulator
 
 from audit_log.audit_service import AuditLogService, LocalAuditJournalPort
-from shared.services import (
-    AnalyticsAdapterService,
-    CertificationService,
-    CriticalVulnerabilityService,
-    DroneRegistryService,
-    FirmwareService,
-    PurchaseService,
-    UserService,
-)
-from shared.storage import SQLiteStorage
+from analytics_adapter import AnalyticsAdapterService
+from certification_service.certification_service import CertificationService
+from certification_service.critical_vulnerability_service import CriticalVulnerabilityService
+from drone_registry.registry_service import DroneRegistryService
+from firmware_ingestion.firmware_service import FirmwareService
+from purchase_service.purchase_core import PurchaseService
+from user_management.user_service import UserService
+from shared.storage import MONOLITH, SQLiteStorage
 from shared.topics import Roles
 
 
@@ -33,7 +31,7 @@ def _journal_sink(storage: SQLiteStorage, client: FakeDroneAnalytics) -> LocalAu
 
 @pytest.fixture()
 def storage(tmp_path: Path) -> SQLiteStorage:
-    return SQLiteStorage(tmp_path / "integration.sqlite3")
+    return SQLiteStorage(MONOLITH, db_path=tmp_path / "integration.sqlite3")
 
 
 def _bootstrap_dev_op(storage: SQLiteStorage) -> tuple[UserService, dict, dict]:
@@ -90,6 +88,7 @@ def test_agro_gitflic_certify_register_purchase_reregister_import(storage: SQLit
         security_journal=sink,
         operator_fleet=fake_op,
         drone_port=None,
+        registry=reg_svc,
     )
     order = purchase.purchase(Roles.OPERATOR, op["username"], "AGRO-4C6ED55-001")
     assert order["purchased"] is True
@@ -135,7 +134,7 @@ def test_delivery_to_droneport_transfers_physical_responsibility(storage: SQLite
             "price": 1,
         },
     )
-    purchase = PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op, drone_port=port)
+    purchase = PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op, drone_port=port, registry=reg_svc)
     out = purchase.purchase(Roles.OPERATOR, op["username"], "DLV-1", destination_droneport_id="DP-01")
     assert out["delivery_status"] == "delivered"
     with storage.connect() as connection:
@@ -176,7 +175,7 @@ def test_broker_payload_to_fake_drone_port_contains_port_id(storage: SQLiteStora
             "price": 1,
         },
     )
-    PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op, drone_port=port).purchase(
+    PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op, drone_port=port, registry=reg_svc).purchase(
         Roles.OPERATOR, op["username"], "BR-1", destination_droneport_id="P9"
     )
     assert len(port.envelopes) == 1
@@ -216,7 +215,7 @@ def test_negative_unknown_droneport_keeps_developer_physical_responsibility(stor
             "price": 1,
         },
     )
-    purchase = PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op, drone_port=port)
+    purchase = PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op, drone_port=port, registry=reg_svc)
     out = purchase.purchase(Roles.OPERATOR, op["username"], "NEG-1", destination_droneport_id="MISSING")
     assert out["delivery_status"] == "delivery_failed"
     with storage.connect() as connection:
@@ -301,7 +300,7 @@ def test_empty_drone_security_goals_allowed_and_excluded_from_mission(storage: S
             "price": 1,
         },
     )
-    PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op).purchase(
+    PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op, registry=reg_svc).purchase(
         Roles.OPERATOR, op["username"], "EMPTY-G"
     )
     assert fake_op.select_for_mission(["ЦБ-1"]) == []
@@ -339,7 +338,13 @@ def test_critical_vulnerability_revokes_certificate_and_blocks_fleet(storage: SQ
     firmware = FirmwareService(storage)
     cert_svc = CertificationService(storage, regulator=fake_reg, security_journal=sink)
     reg_svc = DroneRegistryService(storage, regulator=fake_reg, operator_fleet=fake_op)
-    vuln = CriticalVulnerabilityService(storage, regulator=fake_reg, security_journal=sink, operator_fleet=fake_op)
+    vuln = CriticalVulnerabilityService(
+        storage,
+        regulator=fake_reg,
+        security_journal=sink,
+        operator_fleet=fake_op,
+        registry_apply=lambda fw, d: reg_svc.apply_firmware_cert_decision(fw, d),
+    )
     firmware.submit(
         Roles.DEVELOPER,
         dev["username"],
@@ -353,19 +358,21 @@ def test_critical_vulnerability_revokes_certificate_and_blocks_fleet(storage: SQ
             "authenticity_proof": "p",
         },
     )
-    cert_svc.certify(Roles.DEVELOPER, dev["username"], "fw-v")
+    c = cert_svc.certify(Roles.DEVELOPER, dev["username"], "fw-v")
     reg_svc.register(
         Roles.DEVELOPER,
         {
             "serial_number": "V1",
             "drone_type": "t",
             "firmware_id": "fw-v",
-            "certificate_id": "cert-drone-fw-v",
+            "certificate_id": c["certificate_id"],
             "security_goals": ["ЦБ-1"],
             "price": 1,
         },
     )
-    PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op).purchase(Roles.OPERATOR, op["username"], "V1")
+    PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op, registry=reg_svc).purchase(
+        Roles.OPERATOR, op["username"], "V1"
+    )
     vuln.report(Roles.DEVELOPER, "fw-v", "CVE-TEST", correlation_id="corr-v1")
     with storage.connect() as connection:
         st = connection.execute("SELECT registration_status FROM drones WHERE serial_number='V1'").fetchone()[0]
@@ -386,7 +393,12 @@ def test_critical_vulnerability_narrows_security_goals(storage: SQLiteStorage) -
     firmware = FirmwareService(storage)
     cert_svc = CertificationService(storage, regulator=fake_reg)
     reg_svc = DroneRegistryService(storage, regulator=fake_reg, operator_fleet=fake_op)
-    vuln = CriticalVulnerabilityService(storage, regulator=fake_reg, operator_fleet=fake_op)
+    vuln = CriticalVulnerabilityService(
+        storage,
+        regulator=fake_reg,
+        operator_fleet=fake_op,
+        registry_apply=lambda fw, d: reg_svc.apply_firmware_cert_decision(fw, d),
+    )
     firmware.submit(
         Roles.DEVELOPER,
         dev["username"],
@@ -400,19 +412,21 @@ def test_critical_vulnerability_narrows_security_goals(storage: SQLiteStorage) -
             "authenticity_proof": "p",
         },
     )
-    cert_svc.certify(Roles.DEVELOPER, dev["username"], "fw-n")
+    c = cert_svc.certify(Roles.DEVELOPER, dev["username"], "fw-n")
     reg_svc.register(
         Roles.DEVELOPER,
         {
             "serial_number": "N1",
             "drone_type": "t",
             "firmware_id": "fw-n",
-            "certificate_id": "cert-drone-fw-n",
+            "certificate_id": c["certificate_id"],
             "security_goals": ["ЦБ-1", "ЦБ-2"],
             "price": 1,
         },
     )
-    PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op).purchase(Roles.OPERATOR, op["username"], "N1")
+    PurchaseService(storage, regulator=fake_reg, operator_fleet=fake_op, registry=reg_svc).purchase(
+        Roles.OPERATOR, op["username"], "N1"
+    )
     vuln.report(Roles.DEVELOPER, "fw-n", "narrow goals", correlation_id="corr-n1")
     with storage.connect() as connection:
         goals = connection.execute("SELECT security_goals FROM drones WHERE serial_number='N1'").fetchone()[0]

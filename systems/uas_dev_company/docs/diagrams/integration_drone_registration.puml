@@ -1,32 +1,30 @@
 @startuml integration_drone_registration
-title Первичная регистрация экземпляра БАС у Регулятора
+title Первичная регистрация экземпляра БАС (интеграция с Регулятором)
+
+skinparam ArrowThickness 2
 
 autonumber
 actor "Разработчик" as Dev
-box "Домены безопасности Разработчика БАС" #LightBlue
-    participant "Компания-разработчик\nБАС" as UAS
-    participant "drone_registry" as Registry
-    database "SQLite UAS\nлокальная проекция заявки" as UASDB
-end box
+participant "api_gateway" as GW #FFCDD2
+participant "drone_registry" as Registry #FFF9C4
+database "SQLite UAS" as UASDB #C8E6C9
+participant "Регулятор\nAPI/consumer" as REG #E8F5E9
+database "Реестр Регулятора" as REGDB #C8E6C9
 
-box "Домены безопасности Регулятора" #LightGreen
-    participant "Регулятор\nAPI/consumer" as REG
-    database "Реестр Регулятора\nрегистрации БАС" as REGDB
-end box
-
-Dev -> UAS : POST /api/register-drone\nserial, firmware_id, certificate_id,\nsecurity_goals, price\n[INT-FR-2]
-UAS -> Registry : validate local invariants
-Registry -> UASDB : save status=pending_regulator\ncorrelation_id\n[INT-NFR-3]
-Registry -> REG : register_drone_instance\n[INT-FR-1, INT-NFR-1]
+Dev -> GW : POST /api/register-drone\n[INT-FR-2]
+GW -> Registry : validate / заявка
+Registry -> UASDB : pending_regulator\n[INT-NFR-3]
+Registry -> REG : register_drone_instance\n[INT-FR-1]
 alt Регистрация подтверждена
-    REG -> REGDB : create registration/version\ninternal regulator write
-    REG --> Registry : registered\nregistration_id, version\n[INT-FR-5]
-    Registry -> UASDB : save registration_id\nstatus=registered_by_regulator
-    Registry --> UAS : available for storefront\n[INT-FR-6]
+    REG -> REGDB : registration
+    REG -> Registry : registered\n[INT-FR-5]
+    Registry -> UASDB : registered_by_regulator
+    Registry -> GW : витрина\n[INT-FR-6]
 else Регистрация отклонена
-    REG -> REGDB : save rejected decision\nreason_code
-    REG --> Registry : rejected\nreason_code\n[INT-FR-5]
-    Registry -> UASDB : status=registration_rejected\nregulator_reason
-    Registry --> UAS : show reason in UI\n[INT-FR-10]
+    REG -> REGDB : rejected
+    REG -> Registry : rejected\n[INT-FR-5]
+    Registry -> UASDB : registration_rejected
+    Registry -> GW : причина\n[INT-FR-10]
 end
+GW -> Dev : HTTP-ответ
 @enduml

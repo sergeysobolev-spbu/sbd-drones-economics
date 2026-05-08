@@ -6,7 +6,7 @@ import time
 
 from broker.bus_factory import create_system_bus
 
-from shared.journal_startup import emit_security_monitor_started
+from shared.journal_bootstrap import emit_security_monitor_started
 from shared.security_monitor import SecurityMonitorComponent
 
 

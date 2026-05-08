@@ -39,6 +39,23 @@ def full_policy_dicts() -> list[dict[str, str]]:
         (g, ComponentTopics.PURCHASE_SERVICE, Actions.PURCHASE_DRONE),
         (g, ComponentTopics.AUDIT_LOG, Actions.RECORD_AUDIT),
     ]
+    drn = ComponentTopics.DRONE_REGISTRY
+    ctf = ComponentTopics.CERTIFICATION_SERVICE
+    ffm = ComponentTopics.FIRMWARE_INGESTION
+    pur = ComponentTopics.PURCHASE_SERVICE
+    rows.extend(
+        [
+            (drn, mon, Actions.PROXY_REQUEST),
+            (pur, mon, Actions.PROXY_REQUEST),
+            (ctf, mon, Actions.PROXY_REQUEST),
+            (drn, ctf, Actions.GET_CERTIFICATE_SNAPSHOT),
+            (drn, ffm, Actions.GET_FIRMWARE_ROW),
+            (ctf, ffm, Actions.GET_FIRMWARE_ROW),
+            (pur, drn, Actions.GET_DRONE_PURCHASE_ROW),
+            (pur, drn, Actions.UPDATE_DRONE_PURCHASE),
+            (ctf, drn, Actions.APPLY_FIRMWARE_CERT_DECISION),
+        ]
+    )
     rows.append((ComponentTopics.AUDIT_LOG, ComponentTopics.ANALYTICS_ADAPTER, Actions.SEND_ANALYTICS))
     for peer in (
         ComponentTopics.USER_MANAGEMENT,

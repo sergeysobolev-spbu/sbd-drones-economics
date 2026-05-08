@@ -1,9 +1,7 @@
-"""Контракт минимальной доставки событий во внешний журнал (процессный или IPC)."""
+"""Совместимость: контракт перенесён в shared.protocols (Задача 23)."""
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from shared.protocols import SupportsAnalyticsEmit
 
-
-class SupportsAnalyticsEmit(Protocol):
-    def try_emit(self, event: dict[str, Any]) -> None: ...
+__all__ = ["SupportsAnalyticsEmit"]

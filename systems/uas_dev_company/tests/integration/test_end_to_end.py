@@ -2,24 +2,22 @@
 
 from __future__ import annotations
 
-from shared.services import (
-    CertificationService,
-    DroneRegistryService,
-    FirmwareService,
-    PurchaseService,
-    UserService,
-)
-from shared.storage import SQLiteStorage
+from certification_service.certification_service import CertificationService
+from drone_registry.registry_service import DroneRegistryService
+from firmware_ingestion.firmware_service import FirmwareService
+from purchase_service.purchase_core import PurchaseService
+from user_management.user_service import UserService
+from shared.storage import MONOLITH, SQLiteStorage
 from shared.topics import Roles
 
 
 def test_admin_developer_operator_end_to_end(tmp_path):
-    storage = SQLiteStorage(tmp_path / "e2e.sqlite3")
+    storage = SQLiteStorage(MONOLITH, db_path=tmp_path / "e2e.sqlite3")
     users = UserService(storage)
     firmware = FirmwareService(storage)
     certification = CertificationService(storage)
     registry = DroneRegistryService(storage)
-    purchases = PurchaseService(storage)
+    purchases = PurchaseService(storage, registry=registry)
 
     admin = users.bootstrap_admin("admin", "admin-pass")
     dev = users.create_user(admin["role"], "dev", Roles.DEVELOPER, "dev-pass")
@@ -55,7 +53,7 @@ def test_admin_developer_operator_end_to_end(tmp_path):
     assert order["purchased"] is True
     assert registry.list_available() == []
 
-    reloaded_storage = SQLiteStorage(tmp_path / "e2e.sqlite3")
+    reloaded_storage = SQLiteStorage(MONOLITH, db_path=tmp_path / "e2e.sqlite3")
     with reloaded_storage.connect() as connection:
         assert connection.execute("SELECT COUNT(*) AS c FROM users").fetchone()["c"] == 3
         assert connection.execute("SELECT COUNT(*) AS c FROM certificates").fetchone()["c"] == 1

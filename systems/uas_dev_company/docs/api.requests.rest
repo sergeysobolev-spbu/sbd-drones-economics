@@ -25,13 +25,13 @@ POST {{base}}/api/login
 {{json}}
 
 {
-  "username": "admin",
-  "password": "change-me-secure"
+  "username": "e2e-admin",
+  "password": "e2e-admin-pass"
 }
 
 ###
 # Получите access_token из ответа login и подставьте:
-@token = <paste_access_token_here>
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlMmUtYWRtaW4iLCJyb2xlIjoi0LDQtNC80LjQvdC40YHRgtGA0LDRgtC-0YAiLCJpYXQiOjE3NzgyNDU4OTcsImV4cCI6MTc3ODMzMjI5N30.BRYjWkpCHBXz9h9VAXD9l7PI1v7cTpHJnzLT_pNEnJk
 
 ###
 # Создать разработчика
@@ -40,9 +40,9 @@ Authorization: Bearer {{token}}
 {{json}}
 
 {
-  "username": "developer1",
+  "username": "dev1",
   "role": "разработчик",
-  "password": "dev-pass"
+  "password": "dev"
 }
 
 ###
@@ -52,9 +52,9 @@ Authorization: Bearer {{token}}
 {{json}}
 
 {
-  "username": "operator1",
+  "username": "op1",
   "role": "эксплуатант",
-  "password": "op-pass"
+  "password": "op"
 }
 
 ###

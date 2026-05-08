@@ -5,29 +5,29 @@
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
-        <mxCell id="h1" value="Соответствует: diagrams/deployment_containers.puml (PNG: make diagrams)" style="text;html=1;fontStyle=2" vertex="1" parent="1">
-          <mxGeometry x="40" y="24" width="560" height="30" as="geometry"/>
+        <mxCell id="h1" value="Реализация Docker (**БТС2**): монитор, брокер, контейнеры. Красный — периметр HTTP, **audit_log**, **analytics_adapter** (НДБ на ДАП); жёлтый — домены с красным входом с шлюза; файлы SQLite — **внутри** тома каждого воркера (на ДАП отдельным узлом не выделяются). §2 **docs/README.md**. Источник: diagrams/deployment_containers.puml" style="text;html=1;fontStyle=2" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="920" height="44" as="geometry"/>
         </mxCell>
-        <mxCell id="nginx" value="nginx_reverse_proxy&#xa;/ → web, /api/ → gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;" vertex="1" parent="1">
+        <mxCell id="nginx" value="nginx_reverse_proxy&#xa;/ → web, /api/ → gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;" vertex="1" parent="1">
           <mxGeometry x="40" y="80" width="200" height="64" as="geometry"/>
         </mxCell>
-        <mxCell id="web" value="web_portal (Nuxt)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;" vertex="1" parent="1">
+        <mxCell id="web" value="web_portal (Nuxt)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;" vertex="1" parent="1">
           <mxGeometry x="280" y="80" width="140" height="56" as="geometry"/>
         </mxCell>
-        <mxCell id="gw" value="api_gateway&#xa;UAS_GATEWAY_BACKEND=sqlite|bus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;" vertex="1" parent="1">
+        <mxCell id="gw" value="api_gateway&#xa;UAS_GATEWAY_BACKEND=sqlite|bus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;" vertex="1" parent="1">
           <mxGeometry x="40" y="200" width="200" height="64" as="geometry"/>
         </mxCell>
-        <mxCell id="mon" value="security_monitor&#xa;политики SECURITY_POLICIES" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;" vertex="1" parent="1">
+        <mxCell id="mon" value="security_monitor&#xa;(инфраструктура политик)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECEFF1;" vertex="1" parent="1">
           <mxGeometry x="280" y="200" width="200" height="64" as="geometry"/>
         </mxCell>
-        <mxCell id="bro" value="Kafka / MQTT (профиль compose)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;" vertex="1" parent="1">
+        <mxCell id="bro" value="Kafka / MQTT (профиль compose)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#EEEEEE;" vertex="1" parent="1">
           <mxGeometry x="520" y="200" width="120" height="80" as="geometry"/>
         </mxCell>
-        <mxCell id="sql" value="SQLite volume&#xa;(users, certs, drones, …)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#f8cecc;" vertex="1" parent="1">
-          <mxGeometry x="520" y="320" width="140" height="90" as="geometry"/>
-        </mxCell>
-        <mxCell id="work" value="Воркеры: user_management, firmware_ingestion, certification_service, drone_registry, purchase_service, audit_log" style="rounded=1;whiteSpace=wrap;html=1;align=left;" vertex="1" parent="1">
+        <mxCell id="work" value="Функциональные домены (жёлтый): user_management, firmware_ingestion, certification_service, drone_registry, purchase_service&#xa;— у каждого воркера свой том с data.sqlite3 (не отдельный контейнер «БД»)" style="rounded=1;whiteSpace=wrap;html=1;align=left;fillColor=#FFF9C4;" vertex="1" parent="1">
           <mxGeometry x="40" y="320" width="440" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="aa" value="audit_log, analytics_adapter&#xa;(НДБ на ДАП, ТБ / наблюдаемость — §2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCDD2;" vertex="1" parent="1">
+          <mxGeometry x="500" y="308" width="180" height="68" as="geometry"/>
         </mxCell>
         <mxCell id="e1" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="nginx" target="web">
           <mxGeometry relative="1" as="geometry"/>
@@ -35,13 +35,10 @@
         <mxCell id="e2" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="nginx" target="gw">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e3" value="режим bus" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="gw" target="mon">
+        <mxCell id="e3" value="режим bus (низкая целостность с периметра)" style="endArrow=classic;html=1;rounded=0;strokeColor=#B71C1C;" edge="1" parent="1" source="gw" target="mon">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="e4" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="mon" target="bro">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="e5" value="SQLite" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1" source="work" target="sql">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
       </root>
@@ -55,7 +52,7 @@
         <mxCell id="s1" value="Источник: diagrams/sequence_local_sqlite.puml" style="text;html=1;fontStyle=2" vertex="1" parent="1">
           <mxGeometry x="40" y="24" width="420" height="30" as="geometry"/>
         </mxCell>
-        <mxCell id="s2" value="Клиент → nginx → api_gateway&#xa;(ApiContext в процессе Python)&#xa;• bootstrap_admin → UserService напрямую&#xa;• authenticate / CRUD → сервисы без Kafka" style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;" vertex="1" parent="1">
+        <mxCell id="s2" value="Реализация sqlite: исходящий периметр — красный (§2); сервисы вызываются в процессе шлюза (без монитора/брокера на пути).&#xa;Клиент → nginx → api_gateway (ApiContext) • bootstrap_admin / authenticate / CRUD" style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;" vertex="1" parent="1">
           <mxGeometry x="40" y="80" width="520" height="120" as="geometry"/>
         </mxCell>
         <mxCell id="s3" value="pytest: локальный ThreadingHTTPServer + ApiContext (tests/integration/test_http_api.py)" style="text;html=1;align=left;fontStyle=2" vertex="1" parent="1">
@@ -72,7 +69,7 @@
         <mxCell id="b1" value="Источник: diagrams/sequence_broker_proxy.puml" style="text;html=1;fontStyle=2" vertex="1" parent="1">
           <mxGeometry x="40" y="24" width="380" height="30" as="geometry"/>
         </mxCell>
-        <mxCell id="b2" value="Клиент → gateway (BusApiContext) → Kafka REQUEST →&#xa;security_monitor (proxy_request) → воркер → ответ через монитор&#xa;Таймауты: GATEWAY_MONITOR_REQUEST_TIMEOUT_S, GATEWAY_AUTH_PROXY_TIMEOUT_S (authenticate/bootstrap_admin)" style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;" vertex="1" parent="1">
+        <mxCell id="b2" value="Реализация bus: клиент → gateway → Kafka → security_monitor → воркер → ответ. Таймауты: GATEWAY_MONITOR_REQUEST_TIMEOUT_S, GATEWAY_AUTH_PROXY_TIMEOUT_S. Логическая схема без брокера/монитора на рёбрах — §2 **docs/README.md**." style="rounded=1;whiteSpace=wrap;html=1;align=left;spacingLeft=8;" vertex="1" parent="1">
           <mxGeometry x="40" y="76" width="560" height="100" as="geometry"/>
         </mxCell>
         <mxCell id="b3" value="Проверка: tests/integration/test_http_docker_integration.py при make test-all-docker" style="text;html=1;align=left;fontStyle=2" vertex="1" parent="1">

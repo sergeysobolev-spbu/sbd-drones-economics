@@ -1,6 +1,8 @@
 @startuml sequence_broker_proxy
 !theme plain
-title Последовательность: вызов домена через брокер и security_monitor (режим bus)
+title Последовательность: bus — gateway, брокер, security_monitor
+
+skinparam ArrowThickness 2
 
 actor "Клиент" as U
 participant "nginx" as N
@@ -22,17 +24,17 @@ M -> K2 : request(USER_MANAGEMENT,\nsender=SECURITY_MONITOR,\naction=…)
 K2 -> W
 W -> W : ServiceComponent:\nдоверенный sender
 W -> DB : бизнес-логика
-DB --> W
-W --> K2 : ответ (payload)
-K2 --> M
-M --> K1 : target_response
-K1 --> G : развёрнутый ответ
-G --> N
-N --> U : JSON HTTP
+DB -> W
+W -> K2 : ответ (payload)
+K2 -> M
+M -> K1 : target_response
+K1 -> G : развёрнутый ответ\nна периметр
+G -> N
+N -> U : JSON HTTP
 
 note over M
   Deny-all по умолчанию;
-  канонические правила в
+  канонические правила —
   **shared.security_policies**
 end note
 

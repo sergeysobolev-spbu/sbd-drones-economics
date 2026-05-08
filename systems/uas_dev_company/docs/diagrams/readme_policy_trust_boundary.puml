@@ -1,45 +1,64 @@
 @startuml readme_policy_trust_boundary
-title Архитектура политики: доверие и границы (нотация как в tcb_decomposition.puml)
+title ДАП: домены безопасности и потоки (без монитора и брокера)
 
+top to bottom direction
 skinparam defaultFontName "SansSerif"
+skinparam ArrowThickness 2
 skinparam packageStyle rectangle
 
-package "Недоверенный периферийный контур" #LightGray {
-  [HTTP /\napi_gateway] as GW
+skinparam rectangle<<ut>> {
+  BackgroundColor #FFCDD2
+  BorderColor #B71C1C
+}
+skinparam rectangle<<fn>> {
+  BackgroundColor #FFF9C4
+  BorderColor #F9A825
 }
 
-package "ДВБ: security_monitor" #LightBlue {
-  [security_monitor\n+ security_policies] as MON
+legend right
+  |= Правило |= |
+  | Недоверенный (НДБ) | Нет явного обоснования **≥1 ЦБ** (**правило 1**); **исходящие только красные**; **входящие** красные или зелёные |
+  | Повышает целостность (жёлтый) | **≥1 ЦБ** и **≥1 красная** входящая (**правило 2**); дороже **правила 3** без красного входа |
+  | Правило 3 (ДДБ) | На ДАП **без отдельного узла**: критичные данные в **SQLite внутри** жёлтого домена / файла **audit_log** |
+  | Дуги | **между доменами**; сопоставление с **shared/security_policies.py** (не каждая внутренняя запись в файл) |
+  | **вклад ~%*** | **total_sloc** / **python_domains_tcb** в **tcb_metrics.json**; не **estimated_tcb_cost_score** |
+endlegend
+
+skinparam rectangle<<ext>> {
+  BackgroundColor #FFFFFF
+  BorderColor #757575
 }
 
-package "Прикладной контур\n(менее доверенный)" #LightYellow {
-  [доменные сервисы\n(user_management, …)] as SVC
-}
+rectangle "api_gateway\nвклад ~14.2%" <<ut>> as GW
 
-package "Доверенное хранилище\nпрототипа" #LightGreen {
-  database "SQLite" as DB
-}
+rectangle "user_management\nвклад ~12.1%\n+ SQLite в томе" <<fn>> as UM
+rectangle "firmware_ingestion\nвклад ~11.3%\n+ SQLite в томе" <<fn>> as FW
+rectangle "certification_service\nвклад ~13.4%\n+ SQLite в томе" <<fn>> as CS
+rectangle "drone_registry\nвклад ~12.9%\n+ SQLite в томе" <<fn>> as DR
+rectangle "purchase_service\nвклад ~12.8%\n+ SQLite в томе" <<fn>> as PS
+rectangle "audit_log\nвклад ~11.4%\nТБ, НДБ\n+ SQLite в томе" <<ut>> as AL
+rectangle "analytics_adapter\nвклад ~12.0%\nТБ, НДБ" <<ut>> as AA
 
-package "Граница системного журнала" #LightCoral {
-  [audit_log →\nanalytics_adapter] as JOURNAL
-}
+rectangle "Регулятор\n(вне системы, ПБ)" <<ext>> as REG
+rectangle "Эксплуатант\n(внешняя сторона)" <<ext>> as OP
+GW -[#B71C1C]-> UM : прикладные вызовы\n(bootstrap_admin … delete_user)
+GW -[#B71C1C]-> FW : submit_firmware
+GW -[#B71C1C]-> CS : certify_firmware,\nlist_certificates, …
+GW -[#B71C1C]-> DR : register_drone,\nlist_registered_drones
+GW -[#B71C1C]-> PS : purchase_drone
+GW -[#B71C1C]-> AL : record_audit
 
-package "Вне границ UAS" #White {
-  [Регулятор] as REG
-  [Эксплуатант] as OP
-}
+UM -[#2E7D32]-> AL : record_audit
+FW -[#2E7D32]-> AL : record_audit
+CS -[#2E7D32]-> AL : record_audit
+DR -[#2E7D32]-> AL : record_audit
+PS -[#2E7D32]-> AL : record_audit
 
-GW --> MON : proxy_request\n(internal IPC,\nрешение по allow-list)
-MON --> SVC : доставка при\nразрешении политики
-SVC --> DB
-SVC --> JOURNAL : события\nбезопасности
+AL -[#B71C1C]-> AA : send_analytics
 
-MON ..> REG : **не** является\nмежсистемным\nконтролёром
-REG ..> OP : контракты\nмежду внешними\nсторонами
-
-note right of MON
-  Монитор проверяет только обмен
-  api_gateway ↔ домены uas_dev_company
-end note
+CS ..[#757575].> REG
+DR ..[#757575].> REG
+PS ..[#757575].> REG
+REG -[#2E7D32]-> OP : по ПБ\n(благонадёжная сторона)
 
 @enduml

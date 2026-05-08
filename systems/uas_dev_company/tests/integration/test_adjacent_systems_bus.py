@@ -23,15 +23,13 @@ from shared.bus_integration_adapters import (
     BusOperatorFleetPort,
     BusRegulatorPort,
 )
-from shared.services import (
-    AnalyticsAdapterService,
-    CertificationService,
-    DroneRegistryService,
-    FirmwareService,
-    PurchaseService,
-    UserService,
-)
-from shared.storage import SQLiteStorage
+from analytics_adapter import AnalyticsAdapterService
+from certification_service.certification_service import CertificationService
+from drone_registry.registry_service import DroneRegistryService
+from firmware_ingestion.firmware_service import FirmwareService
+from purchase_service.purchase_core import PurchaseService
+from user_management.user_service import UserService
+from shared.storage import MONOLITH, SQLiteStorage
 from shared.topics import Roles
 
 from bus_adjacent_mocks import AdjacentBusMocks
@@ -95,7 +93,7 @@ def test_agro_chain_with_external_bus_mocks(tmp_path: Path, adjacent_broker_type
         port_ad = BusDronePortClient(bus=uas_bus, timeout=90.0)
         analytics_ad = BusDroneAnalyticsClient(bus=uas_bus, timeout=60.0)
 
-        storage = SQLiteStorage(tmp_path / "bus.sqlite3")
+        storage = SQLiteStorage(MONOLITH, db_path=tmp_path / "bus.sqlite3")
         central = AnalyticsAdapterService(
             storage, enabled=True, url="http://unused", api_key="k", client=analytics_ad
         )
@@ -146,6 +144,7 @@ def test_agro_chain_with_external_bus_mocks(tmp_path: Path, adjacent_broker_type
             security_journal=sink,
             operator_fleet=op_ad,
             drone_port=port_ad,
+            registry=reg_svc,
         )
         order = purchase.purchase(
             Roles.OPERATOR,

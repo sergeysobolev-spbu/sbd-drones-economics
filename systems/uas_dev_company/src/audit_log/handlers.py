@@ -6,7 +6,7 @@ import os
 from typing import Any, Callable
 
 from shared.models import SecurityEvent
-from shared.services import AuditLogService
+from audit_log.audit_service import AuditLogService
 from shared.storage import SQLiteStorage
 from shared.tcb import security_event_to_analytics_payload
 from shared.topics import Actions

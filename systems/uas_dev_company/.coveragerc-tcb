@@ -1,0 +1,13 @@
+# Порог --cov-fail-under для `make tcb-test`: не учитывать точки входа и IPC-handlers,
+# которые в pytest не исполняются (логика покрывается через сервисы и bus-заглушки).
+# Полнота перечня --cov= относительно Docker COPY проверяется отдельно
+# (tests/unit/test_tcb_makefile_cov_completeness.py).
+
+[run]
+relative_files = True
+omit =
+    */worker_runtime.py
+    */journal_startup.py
+    */journal_bootstrap.py
+    */handlers.py
+    */__main__.py

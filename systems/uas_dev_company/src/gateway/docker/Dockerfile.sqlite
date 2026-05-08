@@ -1,3 +1,5 @@
+# Толстый образ шлюза для UAS_GATEWAY_BACKEND=sqlite (dev / монолитный API без bus).
+# Содержит все домены — не использовать как эталон минимального ДВБ.
 FROM python:3.13-slim
 
 WORKDIR /app
@@ -9,4 +11,4 @@ COPY broker /app/broker
 COPY systems/uas_dev_company /app/systems/uas_dev_company
 
 ENV PYTHONPATH=/app:/app/systems/uas_dev_company/src
-CMD ["python", "-m", "user_management"]
+CMD ["python", "-m", "gateway"]

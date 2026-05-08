@@ -50,7 +50,7 @@ class _TinyBus(SystemBus):
 
 
 def test_full_policy_rows_count_stable():
-    assert len(full_policy_dicts()) == 35
+    assert len(full_policy_dicts()) == 44
 
 
 def test_json_roundtrip_equals_canonical():

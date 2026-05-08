@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from shared.services import UserService
+from user_management.user_service import UserService
 from shared.storage import SQLiteStorage
 from shared.topics import Actions
 from shared.worker_deps import WorkerServiceDeps

@@ -4,6 +4,7 @@
 Запуск из каталога systems/uas_dev_company:
   PYTHONPATH=src python scripts/tcb_metrics.py --baseline
   PYTHONPATH=src python scripts/tcb_metrics.py --target
+  python scripts/tcb_metrics.py --target --relax-docker-drift  # допускает рассинхрон COPY и python_path_specs
 """
 
 from __future__ import annotations
@@ -27,9 +28,13 @@ from tcb_container_domains import (
     compose_service_names,
     expected_compose_services,
 )
+from parse_uas_docker_copy import docker_path_specs_for_compose_service
+
+MODULE_ROLES_JSON = _SCRIPTS_DIR / "tcb_module_roles.json"
+
 from tcb_ipc_topology import build_ipc_topology_task14
 
-# Baseline: общий доверенный контур до декомпозиции (план Задачи 10).
+# Baseline: общий доверенный контур до декомпозиции (исходный монолитный контур в метриках).
 BASELINE_PATHS = [
     "src/shared/security_monitor.py",
     "src/shared/security_policies.py",
@@ -304,27 +309,76 @@ def analyze_bundle(label: str, path_specs: list[str]) -> dict:
     }
 
 
-def build_container_isolation_assessment() -> dict:
-    """Задача 11: ДБ в контейнерах; при ЦБ-критичном коде весь домен — ДВБ; IPC под монитором."""
+
+def _load_tb_ndb_carrier_paths() -> set[str]:
+    if not MODULE_ROLES_JSON.is_file():
+        return set()
+    data = json.loads(MODULE_ROLES_JSON.read_text(encoding="utf-8"))
+    return {str(x) for x in (data.get("tb_ndb_carrier_paths_relative") or [])}
+
+
+def _file_set_for_specs(specs: list[str]) -> set[str]:
+    r = ROOT.resolve()
+    return {p.resolve().relative_to(r).as_posix() for p in _iter_py_files(specs)}
+
+
+def _sloc_sum_for_rel_paths(rel_paths: list[str]) -> tuple[int, int]:
+    total = 0
+    for rel in rel_paths:
+        p = ROOT / rel
+        if p.is_file() and rel.endswith(".py"):
+            total += analyze_file(p).sloc
+    return total, len(rel_paths)
+
+
+def build_container_isolation_assessment(*, relax_docker_drift: bool = False) -> dict:
+    """Контейнеры, фактический COPY и сверка с ``python_path_specs``."""
     compose_yml = ROOT / "docker-compose.yml"
     observed = compose_service_names(compose_yml)
     expected = expected_compose_services()
+    ndb_carrier_decl = _load_tb_ndb_carrier_paths()
+
     python_domains: list[dict] = []
+    docker_match_all = True
+    task24_cb123_ndb_union_paths: set[str] = set()
+
     for d in CONTAINER_TCB_PYTHON_DOMAINS:
         specs = [str(x) for x in d["python_path_specs"]]
         files = _iter_py_files(specs)
         fms = [analyze_file(p) for p in files]
+
+        svc = str(d["compose_service"])
+        docker_specs = docker_path_specs_for_compose_service(svc)
+        f_manual = _file_set_for_specs(specs)
+        f_docker = _file_set_for_specs(docker_specs)
+        match = f_manual == f_docker
+        if not match:
+            docker_match_all = False
+
+        intersect = sorted(f_docker & ndb_carrier_decl)
+        ndb_sloc, ndb_fc = _sloc_sum_for_rel_paths(intersect)
+
+        if d.get("in_cb123_tcb_union", True):
+            task24_cb123_ndb_union_paths.update(intersect)
+
         python_domains.append(
             {
-                "compose_service": d["compose_service"],
+                "compose_service": svc,
                 "whole_domain_in_tcb": d["whole_domain_in_tcb"],
                 "in_cb123_tcb_union": d.get("in_cb123_tcb_union", True),
                 "maps_to_cb": list(d.get("maps_to_cb") or []),
                 "rationale_ru": d["rationale_ru"],
                 "python_path_specs": specs,
+                "docker_derived_path_specs": docker_specs,
+                "docker_derived_specs_match_manual": match,
+                "divergence_files_only_manual": sorted(f_manual - f_docker),
+                "divergence_files_only_docker_derived": sorted(f_docker - f_manual),
+                "ndb_carrier_files_in_image": intersect,
+                "ndb_carrier_in_image_aggregate": {"file_count": ndb_fc, "total_sloc": ndb_sloc},
                 "aggregate": _core_aggregate(fms),
             }
         )
+
     union_specs: list[str] = []
     seen_specs: set[str] = set()
     for d in CONTAINER_TCB_PYTHON_DOMAINS:
@@ -348,8 +402,27 @@ def build_container_isolation_assessment() -> dict:
                 cb123_specs.append(s)
     cb123_files = _iter_py_files(cb123_specs)
     cb123_fms = [analyze_file(p) for p in cb123_files]
+
+    cb123_ndb_sorted = sorted(task24_cb123_ndb_union_paths)
+    cb123_ndb_union_sloc, _ = _sloc_sum_for_rel_paths(cb123_ndb_sorted)
+
+    task24 = {
+        "task_ru": "Фактический COPY и НДБ-носители в образах доменов с ЦБ-1…ЦБ-3",
+        "role_manifest_relative": MODULE_ROLES_JSON.relative_to(ROOT).as_posix(),
+        "note_ru": (
+            "Файлы из `tb_ndb_carrier_paths_relative` (`tcb_module_roles.json`) задают общий код смыслового контура ТБ/"
+            "наблюдаемости или внешних хвостов; пересечение с COPY включают в модель объёма аттестации образа "
+            "(см. `docs/architecture_variants.md`, раздел «Метрики ДВБ по фактическому COPY»)."
+        ),
+        "relax_docker_drift_used": relax_docker_drift,
+        "docker_derived_specs_match_manual_all": docker_match_all,
+        "ndb_carrier_declaration_count": len(ndb_carrier_decl),
+        "union_ndb_carrier_files_in_cb123_images": cb123_ndb_sorted,
+        "union_ndb_carrier_total_sloc_in_cb123": cb123_ndb_union_sloc,
+    }
+
     return {
-        "task": "Задача 11 — изоляция ДБ в Docker и ДВБ по контейнеру",
+        "task": "Изоляция ДБ в Docker и ДВБ по контейнеру",
         "rule_ru": (
             "Домены безопасности изолированы процессами контейнеров; у контейнера один уровень "
             "критичности; наличие ЦБ-критичной логики переводит весь домен в ДВБ. Обмен между "
@@ -368,23 +441,26 @@ def build_container_isolation_assessment() -> dict:
         "union_cb123_python_scope": {
             "deduped_path_specs": cb123_specs,
             "note_ru": (
-                "Задача 15: объединение путей только доменов, отнесённых к реализации официальных ЦБ-1…ЦБ-3 "
+                "Объединение путей только доменов, отнесённых к реализации официальных ЦБ-1…ЦБ-3 "
                 "для оценки стоимости ДВБ; домены «только ТБ» исключены."
             ),
             "aggregate": _core_aggregate(cb123_fms),
         },
         "dockerfile_shared_note_ru": (
-            "Каждый образ копирует `systems/uas_dev_company` целиком; сертификационный анализ "
-            "привязывает доверие к границе процесса и к фактически исполняемым модулям, "
-            "но наличие общего `shared` в образе сохраняет общий объём кода для всех воркеров."
+            "Узкие образы — `docker/worker.Dockerfile` (build-arg DOMAIN), whitelist "
+            "`src/shared/*`, один `src/<домен>`; `api_gateway` bus без доменов и без `sqlite_context.py`; "
+            "`security_monitor` без воркер-зависимостей. Толстый dev-шлюз: `src/gateway/docker/Dockerfile.sqlite` "
+            "(профиль sqlite-dev). Контекст сборки репозиторий + корневой `.dockerignore`. "
+            "Множества Python-путей согласуются с парсингом COPY (`scripts/parse_uas_docker_copy.py`)."
         ),
+        "task24_copy_ndb_carrier": task24,
     }
 
 
 TASK12_NORMATIVE_BASELINE: dict[str, str | int | bool] = {
     "label": "task12_baseline_before_refactor",
     "description_ru": (
-        "Нормативная точка «до» Задачи 12: монолит сервисов в одном shared/services.py, "
+        "Нормативная точка «до» методики стоимости: монолит сервисов в одном shared/services.py, "
         "14 allow-правил (update_user, list_drones без отдельных узких действий), "
         "шлюз по умолчанию sqlite и прямой импорт всех доменных сервисов из gateway/server.py; "
         "метрика контейнеров использовала весь src/shared на домен."
@@ -415,7 +491,7 @@ def _gateway_server_imports_domain_packages() -> bool:
 
 
 def build_task12_assessment(container_block: dict) -> dict:
-    """Методика стоимости ДВБ после Задачи 12 (политики, связность шлюза, per-domain объём)."""
+    """Методика стоимости ДВБ (политики, связность шлюза, per-domain объём)."""
     sys.path.insert(0, str(ROOT / "src"))
     from shared.security_policies import full_policy_dicts  # noqa: E402
     from shared.topics import Actions, ComponentTopics  # noqa: E402
@@ -462,7 +538,7 @@ def build_task12_assessment(container_block: dict) -> dict:
         "gateway_default_backend": "bus",
         "per_domain_python_path_model": "component_dir_plus_shared_core",
         "tcb_cost_union_scope_ru": (
-            "Задача 15: union_backend_python_sloc — дедупликация по доменам с in_cb123_tcb_union; "
+            "union_backend_python_sloc — дедупликация по доменам с in_cb123_tcb_union; "
             "полный операционный объём — union_all_system_backend_python_sloc."
         ),
         "estimated_tcb_cost_score": round(estimated, 3),
@@ -474,13 +550,13 @@ def build_task12_assessment(container_block: dict) -> dict:
         and not after["gateway_direct_service_imports_in_server_py"],
     }
     return {
-        "task": "Задача 12 — гранулярность политик, слабые связи доменов, методика стоимости ДВБ",
+        "task": "Гранулярность политик, слабые связи доменов, методика стоимости ДВБ",
         "formula_ru": (
             "estimated_tcb_cost_score = 0.02 * union_backend_python_sloc + 0.35 * allow_rules_count "
             "+ (12.0 если gateway/server.py импортирует пакеты доменов; иначе 0). "
-            "**union_backend_python_sloc** после Задачи 15 — SLOC объединения **только** доменов `in_cb123_tcb_union` "
+            "**union_backend_python_sloc** — SLOC объединения **только** доменов `in_cb123_tcb_union` "
             "(реализация официальных ЦБ-1…ЦБ-3), без учёта доменов «только ТБ». "
-            "Число allow-правил IPC включает нормативные политики Задачи 14. Штраф — связность шлюза с доменами в одном файле."
+            "Число allow-правил IPC включает нормативные пары монитор ↔ воркер. Штраф — связность шлюза с доменами в одном файле."
         ),
         "task12_baseline_snapshot": before,
         "task12_after_snapshot": after,
@@ -534,6 +610,11 @@ def main() -> int:
         default=ROOT / "docs" / "tcb_metrics.json",
         help="Output JSON path",
     )
+    parser.add_argument(
+        "--relax-docker-drift",
+        action="store_true",
+        help="Не завершать процесс с кодом 2 при расхождении COPY и python_path_specs",
+    )
     args = parser.parse_args()
     if not args.baseline and not args.target:
         parser.error("specify --baseline and/or --target")
@@ -549,8 +630,20 @@ def main() -> int:
         if b and t:
             data["delta_baseline_to_target"] = _delta(b, t)
 
-    container_block = build_container_isolation_assessment()
+    container_block = build_container_isolation_assessment(relax_docker_drift=args.relax_docker_drift)
     data["container_isolation_tcb_task11"] = container_block
+
+    if args.target and not args.relax_docker_drift:
+        t24 = container_block.get("task24_copy_ndb_carrier") or {}
+        if not t24.get("docker_derived_specs_match_manual_all", True):
+            print(
+                "tcb_metrics: COPY в Dockerfile и python_path_specs в tcb_container_domains расходятся. "
+                "См. divergence_* в container_isolation_tcb_task11.python_domains_tcb. "
+                "Исправьте списки или запустите с --relax-docker-drift.",
+                file=sys.stderr,
+            )
+            return 2
+
     data["tcb_cost_task12"] = build_task12_assessment(container_block)
     sys.path.insert(0, str(ROOT / "src"))
     from shared.security_policies import full_policy_dicts as _full_policies  # noqa: E402

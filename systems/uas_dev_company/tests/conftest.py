@@ -1,4 +1,4 @@
-"""Общие настройки pytest: целевой backend шлюза — bus (см. Задача 12)."""
+"""Общие настройки pytest: целевой backend шлюза — bus."""
 
 from __future__ import annotations
 

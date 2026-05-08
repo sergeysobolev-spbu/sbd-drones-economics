@@ -11,14 +11,13 @@ import pytest
 
 from gateway.server import ApiHandler
 from gateway.sqlite_context import ApiContext
-from shared.storage import SQLiteStorage
 
 
 @pytest.fixture()
-def http_api(tmp_path):
-    """Короткоживущий ThreadingHTTPServer с изолированной SQLite."""
-    db = tmp_path / "http.sqlite3"
-    ApiHandler.context = ApiContext(SQLiteStorage(db))
+def http_api(tmp_path, monkeypatch):
+    """Короткоживущий ThreadingHTTPServer с изолированной SQLite (monolith-файл)."""
+    monkeypatch.setenv("UAS_SQLITE_MONOLITH_PATH", str(tmp_path / "http.sqlite3"))
+    ApiHandler.context = ApiContext()
     server = ThreadingHTTPServer(("127.0.0.1", 0), ApiHandler)
     port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)

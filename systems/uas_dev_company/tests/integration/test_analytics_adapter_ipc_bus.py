@@ -21,22 +21,25 @@ from broker.bus_factory import create_system_bus
 from shared.audit_log_ipc import AuditLogIpcForwarder
 from shared.bus_integration_adapters import BusDronePortClient, BusOperatorFleetPort, BusRegulatorPort
 from shared.component_base import ServiceComponent
-from shared.services import (
-    CertificationService,
-    DroneRegistryService,
-    FirmwareService,
-    PurchaseService,
-    UserService,
-)
-from shared.storage import SQLiteStorage
+from certification_service.certification_service import CertificationService
+from drone_registry.registry_service import DroneRegistryService
+from firmware_ingestion.firmware_service import FirmwareService
+from purchase_service.purchase_core import PurchaseService
+from user_management.user_service import UserService
+from shared.storage import MONOLITH, SQLiteStorage
 from shared.topics import ComponentTopics, Roles
 from shared.worker_deps import WorkerServiceDeps, build_worker_service_deps
 
 from bus_adjacent_mocks import AdjacentBusMocks
 
 requires_adjacent_bus = pytest.mark.skipif(
-    not os.environ.get("UAS_ADJACENT_BUS_INTEGRATION"),
-    reason="Set UAS_ADJACENT_BUS_INTEGRATION=1 and broker env (see make bus-adjacent-test)",
+    not os.environ.get("UAS_ADJACENT_BUS_INTEGRATION")
+    or bool(os.environ.get("UAS_HTTP_INTEGRATION_BASE", "").strip()),
+    reason=(
+        "Нужен только брокер без полного compose: `make bus-adjacent-test`. "
+        "При `UAS_HTTP_INTEGRATION_BASE` (make test-all-docker) реальные воркеры занимают те же топики Kafka — "
+        "in-process компоненты дают гонку и таймауты."
+    ),
 )
 
 
@@ -123,7 +126,7 @@ def test_analytics_ipc_worker_reaches_external_journal(
     analytics_comp: ServiceComponent | None = None
     audit_comp: ServiceComponent | None = None
     try:
-        storage = SQLiteStorage(tmp_path / "ipc_an.sqlite3")
+        storage = SQLiteStorage(MONOLITH, db_path=tmp_path / "ipc_an.sqlite3")
         deps_ax = WorkerServiceDeps(
             bus=uas_bus,
             self_topic=ComponentTopics.ANALYTICS_ADAPTER,
@@ -174,6 +177,7 @@ def test_analytics_ipc_worker_reaches_external_journal(
             security_journal=AuditLogIpcForwarder(uas_bus, ComponentTopics.PURCHASE_SERVICE),
             operator_fleet=op_ad,
             drone_port=port_ad,
+            registry=reg_svc,
         )
 
         users = UserService(

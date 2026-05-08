@@ -73,8 +73,8 @@ draft
 4. Изменить покупку: разрешать её только для `registered_by_regulator`; после покупки отправлять `reregister_drone_instance`.
 5. Добавить API статуса регистрации и обработчик результата/события `drone_reregistered`.
 6. Отображать в UI статус регистрации, `registration_id`, причину отказа и статус перерегистрации.
-7. **Задачи 17–18:** операционные события для центрального журнала маршрутизируются через системный журнал: домены вызывают `RECORD_AUDIT` на топик `audit_log` (`shared/audit_log_ipc.py`); воркер `audit_log` пишет в SQLite и при `DRONE_ANALYTICS_ENABLED` дублирует запись в `analytics_adapter` (`send_analytics`). Прямая дуга `SEND_ANALYTICS` из доменов `certification_service` / `drone_registry` / `purchase_service` снята; в политике остаётся `AUDIT_LOG` → `ANALYTICS_ADAPTER`. Отключение доменного IPC в журнал: `UAS_SECURITY_JOURNAL_IPC=false`. Смежные системы Регулятор/Оператор/Дронопорт подключаются к доменным воркерам при `UAS_EXTERNAL_SYSTEMS_TRANSPORT=bus`.
-8. **Задача 19:** расширенная проверка против развёрнутого `systems/DroneAnalytics` — см. [`tests/integration/test_drone_analytics_central_journal.py`](../tests/integration/test_drone_analytics_central_journal.py) и `make drone-analytics-integration-test` в README; код DroneAnalytics не изменяется.
+7. Маршрутизировать операционные события центрального журнала через системный журнал: домены вызывают `RECORD_AUDIT` на топик `audit_log` (`shared/audit_log_ipc.py`); воркер `audit_log` пишет в SQLite и при `DRONE_ANALYTICS_ENABLED` дублирует запись в `analytics_adapter` (`send_analytics`). Прямая дуга `SEND_ANALYTICS` из доменов `certification_service` / `drone_registry` / `purchase_service` снята; в политике остаётся `AUDIT_LOG` → `ANALYTICS_ADAPTER`. Отключение доменного IPC в журнал: `UAS_SECURITY_JOURNAL_IPC=false`. Смежные системы Регулятор/Оператор/Дронопорт подключаются к доменным воркерам при `UAS_EXTERNAL_SYSTEMS_TRANSPORT=bus`.
+8. Добавить расширенную проверку против развёрнутого `systems/DroneAnalytics` — см. [`tests/integration/test_drone_analytics_central_journal.py`](../tests/integration/test_drone_analytics_central_journal.py) и `make drone-analytics-integration-test` в README; код DroneAnalytics не изменяется.
 
 ### `systems/regulator`
 
@@ -533,7 +533,7 @@ UAS --> Op : error: available certified drone is required
 
 Текущий gateway `systems.drone_port` маршрутизирует `request_landing` / `request_takeoff` и не задаёт требуемый `destination_droneport_id`; поэтому описанный action отражает **целевую доработку** и покрывается интеграционными тестами через `FakeDronePort`, без правок репозитория `systems/drone_port`.
 
-## Интеграционные тесты с реальным брокером (Задача 16)
+## Интеграционные тесты с реальным брокером
 
 Моки Регулятора, Эксплуатанта, Дронопорта и DroneAnalytics слушают **системные** топики по [topic_namespaces.md](../../../docs/topic_namespaces.md): `systems.regulator`, `systems.operator`, `systems.drone_port`, `systems.drone_analytics` (с учётом `SYSTEM_NAMESPACE`). Сообщения: `bus.request(топик, {"action": "...", "sender": "systems.uas_dev_company", "payload": {"envelope": <конверт>}})`; для журнала в `payload` передаётся `event`. Моки проверяют конверты ([`tests/integration/adjacent_contracts.py`](../tests/integration/adjacent_contracts.py)) перед вызовом тех же in-memory `Fake*`, что и в локальных тестах.
 

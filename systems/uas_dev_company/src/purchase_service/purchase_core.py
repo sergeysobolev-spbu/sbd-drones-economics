@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 from shared.audit_log_ipc import SupportsSecurityJournal
@@ -16,7 +17,9 @@ from shared.tcb import (
     require_role,
     validate_purchase_prerequisites,
 )
-from shared.topics import Roles
+from shared.topics import Actions, ComponentTopics, Roles
+
+MonitorProxyCall = Callable[[str, str, dict[str, Any]], dict[str, Any]]
 
 
 class PurchaseService:
@@ -29,12 +32,92 @@ class PurchaseService:
         security_journal: SupportsSecurityJournal | None = None,
         operator_fleet: OperatorFleetPort | None = None,
         drone_port: DronePortPort | None = None,
+        registry: Any | None = None,
+        monitor_proxy_call: MonitorProxyCall | None = None,
     ):
         self.storage = storage
         self.regulator = regulator
         self.security_journal = security_journal
         self.operator_fleet = operator_fleet
         self.drone_port = drone_port
+        self._registry = registry
+        self._monitor_proxy = monitor_proxy_call
+
+    def _get_drone_row(self, serial_number: str) -> dict[str, Any] | None:
+        if self._registry is not None:
+            return self._registry.get_drone_purchase_row(serial_number)
+        if self._monitor_proxy is None:
+            raise RuntimeError("PurchaseService: нужен registry или monitor_proxy_call")
+        r = self._monitor_proxy(
+            ComponentTopics.DRONE_REGISTRY,
+            Actions.GET_DRONE_PURCHASE_ROW,
+            {"serial_number": serial_number},
+        )
+        return r.get("drone")
+
+    def _finalize_registry_purchase(
+        self,
+        serial_number: str,
+        *,
+        operator_username: str,
+        dest: str,
+        r_corr: str,
+        regulator_mode: bool,
+        new_reg_version: int,
+        updated_goals_json: str | None,
+    ) -> None:
+        payload: dict[str, Any] = {
+            "phase": "purchase",
+            "serial_number": serial_number,
+            "operator_username": operator_username,
+            "dest": dest,
+            "r_corr": r_corr,
+            "regulator_mode": regulator_mode,
+            "new_reg_version": new_reg_version,
+        }
+        if updated_goals_json is not None:
+            payload["updated_goals_json"] = updated_goals_json
+        if self._registry is not None:
+            self._registry.update_drone_after_purchase(
+                serial_number,
+                operator_username=operator_username,
+                dest=dest,
+                r_corr=r_corr,
+                regulator_mode=regulator_mode,
+                new_reg_version=new_reg_version,
+                updated_goals_json=updated_goals_json,
+            )
+            return
+        if self._monitor_proxy is None:
+            raise RuntimeError("PurchaseService: нужен registry или monitor_proxy_call")
+        self._monitor_proxy(ComponentTopics.DRONE_REGISTRY, Actions.UPDATE_DRONE_PURCHASE, payload)
+
+    def _finalize_registry_delivery(
+        self,
+        serial_number: str,
+        *,
+        delivery_status: str,
+        delivered_at: str,
+        physical_safety_responsibility: str,
+    ) -> None:
+        payload = {
+            "phase": "delivery",
+            "serial_number": serial_number,
+            "delivery_status": delivery_status,
+            "delivered_at": delivered_at,
+            "physical_safety_responsibility": physical_safety_responsibility,
+        }
+        if self._registry is not None:
+            self._registry.update_drone_delivery(
+                serial_number,
+                delivery_status=delivery_status,
+                delivered_at=delivered_at,
+                physical_safety_responsibility=physical_safety_responsibility,
+            )
+            return
+        if self._monitor_proxy is None:
+            raise RuntimeError("PurchaseService: нужен registry или monitor_proxy_call")
+        self._monitor_proxy(ComponentTopics.DRONE_REGISTRY, Actions.UPDATE_DRONE_PURCHASE, payload)
 
     def purchase(
         self,
@@ -55,33 +138,20 @@ class PurchaseService:
         dest = str(destination_droneport_id or "").strip()
         r_corr = str(correlation_id or "").strip() or f"rereg-{uuid.uuid4().hex[:12]}"
 
-        with self.storage.connect() as connection:
-            drone = connection.execute(
-                """
-                SELECT d.*, c.certificate_status AS cert_status
-                FROM drones d
-                JOIN certificates c ON c.certificate_id = d.certificate_id
-                WHERE d.serial_number = ?
-                """,
-                (serial_number,),
-            ).fetchone()
-            if drone is None:
-                raise ValueError("available certified drone is required")
-            validate_purchase_prerequisites(
-                drone_status=str(drone["status"]),
-                certificate_status=str(drone["cert_status"]) if drone["cert_status"] is not None else None,
-                registration_status=str(drone["registration_status"]) if drone["registration_status"] is not None else None,
-                registration_id=str(drone["registration_id"]) if drone["registration_id"] is not None else None,
-                regulator_integration_enabled=self.regulator is not None,
-            )
+        drone = self._get_drone_row(serial_number)
+        if drone is None:
+            raise ValueError("available certified drone is required")
+        validate_purchase_prerequisites(
+            drone_status=str(drone["status"]),
+            certificate_status=str(drone.get("certificate_status") or "") or None,
+            registration_status=str(drone["registration_status"]) if drone["registration_status"] is not None else None,
+            registration_id=str(drone["registration_id"]) if drone["registration_id"] is not None else None,
+            regulator_integration_enabled=self.regulator is not None,
+        )
 
         reg_out: dict[str, Any] | None = None
         if self.regulator is not None:
-            with self.storage.connect() as connection:
-                fw = connection.execute(
-                    "SELECT * FROM firmware_versions WHERE firmware_id = ?",
-                    (drone["firmware_id"],),
-                ).fetchone()
+            supplier = str(drone.get("firmware_supplier") or "uas-dev-company")
             env = {
                 "schema_version": "uas-registration.v1",
                 "correlation_id": r_corr,
@@ -91,7 +161,7 @@ class PurchaseService:
                 "payload": {
                     "registration_id": drone["registration_id"],
                     "serial_number": serial_number,
-                    "from_owner_id": str(fw["supplier"] if fw else "uas-dev-company"),
+                    "from_owner_id": supplier,
                     "to_owner_id": operator_username,
                     "reason": "ownership_transfer",
                     "purchase_order_id": order.order_id,
@@ -113,42 +183,16 @@ class PurchaseService:
                 "INSERT INTO purchases(order_id, serial_number, operator_username) VALUES (?, ?, ?)",
                 (order.order_id, order.serial_number, order.operator_username),
             )
-            if self.regulator is None:
-                connection.execute(
-                    """
-                    UPDATE drones SET
-                        status = 'sold',
-                        owner_operator_id = ?,
-                        destination_droneport_id = ?,
-                        last_regulator_correlation_id = ?
-                    WHERE serial_number = ?
-                    """,
-                    (operator_username, dest, r_corr, serial_number),
-                )
-            else:
-                connection.execute(
-                    """
-                    UPDATE drones SET
-                        status = 'sold_reregistered',
-                        owner_operator_id = ?,
-                        destination_droneport_id = ?,
-                        registration_version = ?,
-                        last_regulator_correlation_id = ?,
-                        delivery_status = ?,
-                        physical_safety_responsibility = 'developer',
-                        security_goals = COALESCE(?, security_goals)
-                    WHERE serial_number = ?
-                    """,
-                    (
-                        operator_username,
-                        dest,
-                        new_reg_version,
-                        r_corr,
-                        "pending_delivery" if dest else "none",
-                        updated_goals_json,
-                        serial_number,
-                    ),
-                )
+
+        self._finalize_registry_purchase(
+            serial_number,
+            operator_username=operator_username,
+            dest=dest,
+            r_corr=r_corr,
+            regulator_mode=self.regulator is not None,
+            new_reg_version=new_reg_version,
+            updated_goals_json=updated_goals_json,
+        )
 
         if self.security_journal:
             self.security_journal.try_record(
@@ -205,17 +249,12 @@ class PurchaseService:
             port_reason = str(pr.get("reason_code") or "")
             delivered_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()) if ok else ""
             phys = "operator" if ok else "developer"
-            with self.storage.connect() as connection:
-                connection.execute(
-                    """
-                    UPDATE drones SET
-                        delivery_status = ?,
-                        delivered_at = ?,
-                        physical_safety_responsibility = ?
-                    WHERE serial_number = ?
-                    """,
-                    (delivery_status, delivered_at, phys, serial_number),
-                )
+            self._finalize_registry_delivery(
+                serial_number,
+                delivery_status=delivery_status,
+                delivered_at=delivered_at,
+                physical_safety_responsibility=phys,
+            )
             if self.security_journal:
                 if ok:
                     self.security_journal.try_record(
