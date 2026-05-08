@@ -5,6 +5,7 @@
 - Соответствует ожиданиям **РФ1** из [`docs/requirements_spec.md`](../../../docs/requirements_spec.md).
 - У системы своя папка **`docs/`**, код в **`src/`**, компоненты с Docker по образцу [`systems/dummy_system`](../dummy_system).
 - Диаграммы: **PlantUML** в [`docs/diagrams/`](diagrams/); PNG для просмотра в GitHub/IDE — команда **`make diagrams`** (Docker).
+- **Быстрый старт** (развертывание, тесты, UI, FAQ): [`quickstart.md`](quickstart.md).
 
 ## 0. Контекст и функциональная архитектура
 
