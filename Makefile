@@ -120,10 +120,7 @@ prepare-multi:
 # E2E: full-scenario Docker test (4 systems + broker + DroneAnalytics)
 # ---------------------------------------------------------------------------
 
-E2E_SYSTEMS = Agregator insurer operator orvd_system team1-regulator_operation_devsecops gcs drone_port agrodron SITL-module
-# drones (delivery_drone, Go) подключён в Test1b/Test5, но контейнер пока не
-# поднимается — апстрим Dockerfile делает `go build -mod=vendor` из /app, где
-# go.mod нет (он в /app/systems/drones/). Ждём fix в команде drones.
+E2E_SYSTEMS = Agregator insurer operator orvd_system team1-regulator_operation_devsecops gcs drone_port agrodron SITL-module drones
 E2E_OUTPUT = .generated/e2e
 E2E_COMPOSE = docker compose -f $(E2E_OUTPUT)/docker-compose.yml -f tests/e2e/analytics-compose.yml --env-file $(E2E_OUTPUT)/.env
 E2E_COMPOSE_NO_ANALYTICS = docker compose -f $(E2E_OUTPUT)/docker-compose.yml --env-file $(E2E_OUTPUT)/.env
@@ -188,13 +185,13 @@ e2e-codespace:
 	@echo "=== Initializing git submodules ==="
 	git submodule update --init --recursive
 	@echo "=== Installing Python dependencies ==="
-	pip install -r $(REQUIREMENTS)
+	pipenv run pip install -r $(REQUIREMENTS)
 	@echo "=== Preparing docker/.env ==="
 	@test -f docker/.env || cp docker/example.env docker/.env
 	@echo "=== Cleaning leftover build artifacts ==="
 	@sudo rm -rf systems/Agregator/postgres_data 2>/dev/null || true
 	@echo "=== Generating multi-system compose ==="
-	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@$(LOAD_ENV) && pipenv run python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
 	@echo "AGRODRON_GATEWAY_HOST_PORT=18081" >> $(E2E_OUTPUT)/.env
 	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env

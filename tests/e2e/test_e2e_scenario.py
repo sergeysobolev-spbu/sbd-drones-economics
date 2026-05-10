@@ -48,7 +48,7 @@ ORVD_COMPONENT_TOPIC = "components.orvd_component"
 
 # ---- Delivery drone topics ----
 DELIVERY_DRONE_ID = "delivery_001"
-DELIVERY_DRONE_TOPIC = "components.deliverydron.security_monitor"
+DELIVERY_DRONE_TOPIC = "components.deliverydron.delivery_drone"
 
 # ---- Agrodron (cyber_drons) component topics ----
 # Agrodron containers run with SYSTEM_NAME=Agrodron → topic_for("x") = "components.Agrodron.x"
