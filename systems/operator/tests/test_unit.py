@@ -58,6 +58,33 @@ def test_buy_insurance_calls_insurer():
     bus.request.assert_called_once()
 
 
+def test_report_incident_calls_insurer_with_incident_payload():
+    bus = MagicMock()
+    bus.request.return_value = {
+        "success": True,
+        "payload": {"payment_amount": 1200, "coverage_amount": 1200},
+    }
+    comp = OperatorComponent(component_id="operator_component", bus=bus)
+    msg = {
+        "action": OperatorActions.BUY_INSURANCE_POLICY,
+        "payload": {
+            "drone_id": "d1",
+            "coverage_amount": 1200,
+            "order_id": "o1",
+            "insurance_action": "report_incident",
+            "incident": {"damage_amount": 1200, "incident_type": "motor_failure"},
+        },
+    }
+    result = comp._handlers[OperatorActions.BUY_INSURANCE_POLICY](msg)
+    assert result["status"] == "incident_processed"
+    assert result["claim"]["payment_amount"] == 1200
+
+    bus.request.assert_called_once()
+    _, request_message = bus.request.call_args[0]
+    assert request_message["action"] == "report_incident"
+    assert request_message["payload"]["incident"]["damage_amount"] == 1200
+
+
 def test_register_in_orvd_calls_orvd():
     bus = MagicMock()
     bus.request.return_value = {

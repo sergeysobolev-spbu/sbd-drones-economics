@@ -16,7 +16,7 @@
 [submodule "systems/drones"]
 	path = systems/drones
 	url = https://github.com/AMCP-Drones/drones.git
-	branch = extract/only-system
+	branch = extract/deliverydron-module-2
 [submodule "systems/orvd_system"]
 	path = systems/orvd_system
 	url = https://github.com/autoryuzo/OpBD.git

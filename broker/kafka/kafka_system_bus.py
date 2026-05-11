@@ -165,7 +165,7 @@ class KafkaSystemBus(SystemBus):
         try:
             is_reply_topic = topic.startswith("replies.")
             group_suffix = str(uuid4())[:8] if is_reply_topic else "v1"
-            
+
             config = {
                 'bootstrap_servers': self.bootstrap_servers,
                 'client_id': f"{self.client_id}_{topic.replace('.', '_')}",
