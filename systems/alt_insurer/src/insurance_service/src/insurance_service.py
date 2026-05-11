@@ -169,8 +169,15 @@ class InsuranceService(BaseComponent):
         drone_id = p.get("drone_id", "")
         stats  = self._drone_stats_for(drone_id)
 
+        # Совместимость с протоколом systems.insurer: внешние клиенты шлют
+        # coverage_amount; используем его как drone_value, если drone_value
+        # явно не задан.
+        drone_value = p.get("drone_value")
+        if drone_value in (None, 0):
+            drone_value = p.get("coverage_amount", 0)
+
         premium = _calc_annual_premium(
-            drone_value     = float(p.get("drone_value", 0)),
+            drone_value     = float(drone_value),
             base_hull_rate  = float(p.get("base_hull_rate", 0.08)),
             flights_per_year= int(stats["flights_per_year"]),
             accident_rate   = float(stats["accident_rate"]),

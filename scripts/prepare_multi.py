@@ -498,6 +498,28 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                         "BROKER_PASSWORD", "${ADMIN_PASSWORD:-admin_secret_123}"
                     )
 
+            # Insurer (Java/Spring): MQTT профиль, его MqttConfig читает
+            # MQTT_SERVER / MQTT_USERNAME / MQTT_PASSWORD.
+            # NB: на момент написания insurer/.../MqttConfig.java эти переменные
+            # ещё не читает (только MQTT_SERVER, причём дефолт tcp://localhost:1883).
+            # До фикса используется alt_insurer как drop-in замена в e2e-mqtt.
+            if sys_name.lower() == "insurer" and os.getenv("E2E_BROKER") == "mqtt":
+                env_dict["MQTT_SERVER"] = "tcp://mosquitto:1883"
+                env_dict["MQTT_USERNAME"] = env_dict.get(
+                    "BROKER_USER", "${ADMIN_USER:-admin}"
+                )
+                env_dict["MQTT_PASSWORD"] = env_dict.get(
+                    "BROKER_PASSWORD", "${ADMIN_PASSWORD:-admin_secret_123}"
+                )
+
+            # alt_insurer выступает как drop-in замена insurer на время, пока
+            # Java-insurer не починит MQTT auth. Слушает на systems.insurer
+            # (через INSURER_GATEWAY_TOPIC), чтобы Operator/тесты не правились.
+            if sys_name.lower() == "alt_insurer" and os.getenv("E2E_BROKER") == "mqtt":
+                if original_name == "insurer_gateway":
+                    env_dict["SYSTEM_ID"] = "insurer"
+                    env_dict["INSURER_GATEWAY_TOPIC"] = "systems.insurer"
+
             if sys_name.lower() == "drones":
                 # Apстрим (extract/deliverydron-module-2) параметризовал пути.
                 env_dict["DELIVERYDRON_ROOT"] = "systems/drones"
