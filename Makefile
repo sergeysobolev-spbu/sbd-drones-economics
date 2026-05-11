@@ -216,7 +216,7 @@ e2e-codespace:
 	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
 	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== Running E2E tests ==="
-	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
+	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 pipenv run python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
 	@echo "=== Stopping E2E environment ==="
 	-$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null
 	@echo "=== Done ==="
