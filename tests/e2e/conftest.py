@@ -24,6 +24,9 @@ ANALYTICS_PASSWORD = os.environ.get("ANALYTICS_PASSWORD", "admin1234")
 
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
+MQTT_BROKER = os.environ.get("MQTT_BROKER", "localhost")
+MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
+
 STARTUP_TIMEOUT = int(os.environ.get("E2E_STARTUP_TIMEOUT", "180"))
 SKIP_ANALYTICS = os.environ.get("E2E_SKIP_ANALYTICS", "0") not in ("0", "", "false", "False")
 
@@ -40,6 +43,29 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def pytest_configure(config: pytest.Config) -> None:
     if getattr(config.option, "alt_insurer", False):
         os.environ["E2E_ALT_INSURER"] = "1"
+
+
+def _warmup_orvd_component(bus) -> None:
+    """Drain OrvdComponent's Kafka consumer backlog before tests begin.
+
+    The OrvdComponent processes messages sequentially.  On a fresh-start with
+    auto_offset_reset='earliest' there may be messages already queued on
+    'components.orvd_component' from a previous (uncommitted) run.  We ping
+    OrvdComponent directly (bypassing the gateway) until it responds, which
+    confirms the backlog is cleared and the component is ready to handle
+    test requests within normal timeouts.
+    """
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        resp = bus.request(
+            "components.orvd_component",
+            {"action": "ping", "sender": "e2e_warmup", "payload": {}},
+            timeout=10,
+        )
+        if resp is not None and (resp.get("payload") or {}).get("pong"):
+            return
+        time.sleep(3)
+    # Non-fatal: ORVD may not be running; tests will skip/handle accordingly.
 
 
 def _wait_for_http(url: str, label: str, timeout: int = STARTUP_TIMEOUT) -> None:
@@ -102,14 +128,47 @@ def analytics_bearer_token() -> str:
 
 @pytest.fixture(scope="session")
 def kafka_bus():
-    """Create a Kafka SystemBus for the test host to send bus messages."""
-    os.environ.setdefault("BROKER_TYPE", "kafka")
-    os.environ.setdefault("KAFKA_BOOTSTRAP_SERVERS", KAFKA_BOOTSTRAP)
+    """SystemBus для сценария e2e: Kafka или MQTT по BROKER_TYPE (совпадает с контейнерами).
+
+    Имя фикстуры историческое: при ``make e2e-mqtt-test`` задаётся ``BROKER_TYPE=mqtt``.
+    """
+    bt = os.environ.get("BROKER_TYPE", "kafka").strip().lower()
+    os.environ.setdefault("BROKER_USER", os.environ.get("ADMIN_USER", "admin"))
+    os.environ.setdefault("BROKER_PASSWORD", os.environ.get("ADMIN_PASSWORD", "admin_secret_123"))
+    if bt == "mqtt":
+        os.environ["BROKER_TYPE"] = "mqtt"
+        os.environ.setdefault("MQTT_BROKER", MQTT_BROKER)
+        os.environ.setdefault("MQTT_PORT", str(MQTT_PORT))
+    else:
+        os.environ.setdefault("BROKER_TYPE", "kafka")
+        os.environ.setdefault("KAFKA_BOOTSTRAP_SERVERS", KAFKA_BOOTSTRAP)
+
+    from broker.bus_factory import create_system_bus
+    bus = create_system_bus(client_id="e2e_test_host")
+    bus.start()
+    _warmup_orvd_component(bus)
+    yield bus
+    bus.stop()
+
+
+@pytest.fixture(scope="session")
+def mqtt_bus():
+    """Create an MQTT SystemBus for the test host to send bus messages.
+
+    Uses the same single-broker SystemBus API as kafka_bus — request/publish.
+    Requires mosquitto on localhost:1883 (docker profile=mqtt) and systems
+    running with BROKER_TYPE=mqtt.
+    """
+    os.environ.setdefault("MQTT_BROKER", MQTT_BROKER)
+    os.environ.setdefault("MQTT_PORT", str(MQTT_PORT))
     os.environ.setdefault("BROKER_USER", os.environ.get("ADMIN_USER", "admin"))
     os.environ.setdefault("BROKER_PASSWORD", os.environ.get("ADMIN_PASSWORD", "admin_secret_123"))
 
     from broker.bus_factory import create_system_bus
-    bus = create_system_bus(client_id="e2e_test_host")
+    bus = create_system_bus(
+        bus_type="mqtt",
+        client_id="e2e_test_host",
+    )
     bus.start()
     yield bus
     bus.stop()

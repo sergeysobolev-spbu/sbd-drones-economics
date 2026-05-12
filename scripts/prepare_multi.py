@@ -318,6 +318,12 @@ def prepare_multi(
         if sys_name.lower() == "sitl-module":
             for infra_service in ("zookeeper", "kafka", "mosquitto", "redis"):
                 sys_services.pop(infra_service, None)
+            # Apstream SITL на ветке pure дублирует broker/ и sdk/, но не
+            # доложил половину файлов (system_bus, config, messages,
+            # base_component). Правильный подход — использовать монорепные
+            # broker/ и sdk/ как единый источник истины и не иметь
+            # дубликатов в сабмодуле. Пока SITL-команда не почистит свой
+            # sdk/broker, монтируем наши поверх.
             monorepo_broker = rewrite_path("broker", root, output_dir)
             monorepo_sdk = rewrite_path("sdk", root, output_dir)
             for sitl_service_name, sitl_service in sys_services.items():
@@ -412,11 +418,7 @@ def prepare_multi(
             # ----------------------------------------------------------------
             # System-specific env injections
             # ----------------------------------------------------------------
-            # drone_port / gcs: после template-fix топики стали flat
-            # (`components.drone_registry`, `components.orchestrator`,
-            # `components.drone_manager`) — у DronePort и GCS возникает
-            # коллизия по `components.drone_manager`. Применяем
-            # SYSTEM_NAMESPACE чтобы топики стали `<system>.components.*`.
+            # drone_port / gcs: топики `<system>.components.*` (избегаем коллизий).
             if sys_name.lower() == "drone_port":
                 env_dict["SYSTEM_NAMESPACE"] = "drone_port"
             if sys_name.lower() == "gcs":
@@ -429,20 +431,26 @@ def prepare_multi(
             ):
                 env_dict["EXTERNAL_INSURER_TOPIC"] = "systems.alt_insurer"
 
-            # agrodron: force Kafka broker and inject correct external topics.
+            # agrodron: Kafka по умолчанию; MQTT если E2E_BROKER=mqtt (e2e-mqtt).
             if sys_name.lower() == "agrodron":
-                env_dict["BROKER_TYPE"] = "kafka"
+                env_dict["BROKER_TYPE"] = os.getenv("E2E_BROKER", "kafka")
                 env_dict["NUS_TOPIC"] = "gcs.components.drone_manager"
                 env_dict["ORVD_TOPIC"] = "systems.orvd_system"
                 env_dict["DRONEPORT_TOPIC"] = "drone_port.components.drone_manager"
-                # navigation по умолчанию опрашивает SITL 10 Гц (0.1s).
-                # В e2e это забивает security_monitor очередь и autopilot
-                # не получает ответы вовремя на cmd=START.
-                env_dict["NAVIGATION_POLL_INTERVAL_S"] = "1.0"
-                # security_monitor застревает на медленных целях (sitl.telemetry
-                # отвечает медленно либо пуст). Снизим timeout с 10s до 2s
-                # чтобы очередь не росла.
-                env_dict["SECURITY_MONITOR_PROXY_REQUEST_TIMEOUT_S"] = "2.0"
+                # AgroDron: shim для импорта components.autopilot (см. autopilot.py).
+                if original_name == "autopilot":
+                    shim_path = rewrite_path(".generated/agrodron-shim/components", root, output_dir)
+                    svc_volumes = svc.setdefault("volumes", [])
+                    svc_volumes.append(f"{shim_path}:/app/components:ro")
+                if os.getenv("E2E_BROKER") == "mqtt":
+                    # MQTT-сценарий: очереди и цепочка proxy_request длиннее.
+                    env_dict["NAVIGATION_POLL_INTERVAL_S"] = "2.0"
+                    env_dict["AUTOPILOT_REQUEST_TIMEOUT_S"] = "30"
+                    env_dict["SECURITY_MONITOR_PROXY_REQUEST_TIMEOUT_S"] = "25"
+                else:
+                    env_dict["NAVIGATION_POLL_INTERVAL_S"] = "1.0"
+                    env_dict["SECURITY_MONITOR_PROXY_REQUEST_TIMEOUT_S"] = "15.0"
+                    env_dict["AUTOPILOT_REQUEST_TIMEOUT_S"] = "20"
                 # One shared drone_id across AgroDron, DronePort and SITL.
                 env_dict["INSTANCE_ID"] = "drone_001"
                 env_dict["SITL_TOPIC"] = "sitl.telemetry.request"
@@ -501,8 +509,8 @@ def prepare_multi(
                 env_dict["AGRODRON_TELEMETRY_TOPIC"] = "components.Agrodron.telemetry"
 
             if sys_name.lower() == "sitl-module":
-                env_dict["BROKER_BACKEND"] = "kafka"
-                env_dict["BROKER_TYPE"] = "kafka"
+                env_dict["BROKER_BACKEND"] = os.getenv("E2E_BROKER", "kafka")
+                env_dict["BROKER_TYPE"] = os.getenv("E2E_BROKER", "kafka")
                 env_dict["KAFKA_SERVERS"] = "kafka:29092"
                 env_dict["KAFKA_BOOTSTRAP_SERVERS"] = "kafka:29092"
                 env_dict["MQTT_BROKER"] = "mosquitto"
@@ -513,19 +521,51 @@ def prepare_multi(
                 env_dict["BROKER_USER"] = "${ADMIN_USER:-admin}"
                 env_dict["BROKER_PASSWORD"] = "${ADMIN_PASSWORD:-admin_secret_123}"
 
+            # Agregator (Go): Kafka + при MQTT дублирование operator-трафика в Mosquitto.
+            if sys_name.lower() == "agregator" and os.getenv("E2E_BROKER") == "mqtt":
+                if original_name == "aggregator":
+                    env_dict["OPERATOR_TRANSPORT"] = "both"
+                    env_dict["MQTT_BROKER"] = "mosquitto:1883"
+                    env_dict["MQTT_USERNAME"] = env_dict.get(
+                        "BROKER_USER", "${ADMIN_USER:-admin}"
+                    )
+                    env_dict["MQTT_PASSWORD"] = env_dict.get(
+                        "BROKER_PASSWORD", "${ADMIN_PASSWORD:-admin_secret_123}"
+                    )
+
+            # Insurer (Java/Spring): MQTT профиль, его MqttConfig читает
+            # MQTT_SERVER / MQTT_USERNAME / MQTT_PASSWORD.
+            # NB: на момент написания insurer/.../MqttConfig.java эти переменные
+            # ещё не читает (только MQTT_SERVER, причём дефолт tcp://localhost:1883).
+            # До фикса используется alt_insurer как drop-in замена в e2e-mqtt.
+            if sys_name.lower() == "insurer" and os.getenv("E2E_BROKER") == "mqtt":
+                env_dict["MQTT_SERVER"] = "tcp://mosquitto:1883"
+                env_dict["MQTT_USERNAME"] = env_dict.get(
+                    "BROKER_USER", "${ADMIN_USER:-admin}"
+                )
+                env_dict["MQTT_PASSWORD"] = env_dict.get(
+                    "BROKER_PASSWORD", "${ADMIN_PASSWORD:-admin_secret_123}"
+                )
+
+            # alt_insurer выступает как drop-in замена insurer на время, пока
+            # Java-insurer не починит MQTT auth. Слушает на systems.insurer
+            # (через INSURER_GATEWAY_TOPIC), чтобы Operator/тесты не правились.
+            if sys_name.lower() == "alt_insurer" and os.getenv("E2E_BROKER") == "mqtt":
+                if original_name == "insurer_gateway":
+                    env_dict["SYSTEM_ID"] = "insurer"
+                    env_dict["INSURER_GATEWAY_TOPIC"] = "systems.insurer"
+
             if sys_name.lower() == "drones":
                 # Apстрим (extract/deliverydron-module-2) параметризовал пути.
-                # Указываем submodule path в монорепо и monorepo-scheme топиков.
                 env_dict["DELIVERYDRON_ROOT"] = "systems/drones"
                 env_dict["TOPIC_SCHEME"] = "components"
                 env_dict["SYSTEM_NAME"] = "deliverydron"
                 env_dict["INSTANCE_ID"] = "delivery_001"
-                env_dict["BROKER_TYPE"] = "kafka"
+                # bus/src/factory.go поддерживает kafka/mqtt через BROKER_TYPE.
+                env_dict["BROKER_TYPE"] = os.getenv("E2E_BROKER", "kafka")
                 env_dict["KAFKA_BOOTSTRAP_SERVERS"] = "kafka:29092"
                 env_dict["MQTT_BROKER"] = "mosquitto"
                 env_dict["MQTT_PORT"] = "1883"
-                # Также прокинем DELIVERYDRON_ROOT в build.args, чтобы
-                # Dockerfile нашёл ./systems/drones/delivery_drone/cmd/...
                 build = svc.get("build")
                 if isinstance(build, dict):
                     build_args = build.setdefault("args", {})
