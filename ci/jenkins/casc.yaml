@@ -67,3 +67,37 @@ jobs:
           }
         }
       }
+
+  - script: |
+      pipelineJob('drone-agrodron-security-monitor') {
+        description('Unit tests: systems/agrodron/src/security_monitor/tests (ci/Jenkinsfile.agrodron-security-monitor)')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('${GIT_REPO_URL}') }
+                branch('${GIT_BRANCH}')
+              }
+            }
+            scriptPath('ci/Jenkinsfile.agrodron-security-monitor')
+            lightweight(true)
+          }
+        }
+      }
+
+  - script: |
+      pipelineJob('drone-dummy-fabric-unit') {
+        description('Unit tests: systems/dummy_fabric/tests/test_unit.py (ci/Jenkinsfile.dummy-fabric-unit)')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('${GIT_REPO_URL}') }
+                branch('${GIT_BRANCH}')
+              }
+            }
+            scriptPath('ci/Jenkinsfile.dummy-fabric-unit')
+            lightweight(true)
+          }
+        }
+      }

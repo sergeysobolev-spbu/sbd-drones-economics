@@ -1,4 +1,4 @@
-.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local jenkins-up jenkins-down jenkins-restart jenkins-logs jenkins-ps jenkins-build-unit jenkins-build-integration jenkins-build-e2e
+.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local jenkins-up jenkins-down jenkins-restart jenkins-logs jenkins-ps jenkins-build-unit jenkins-build-integration jenkins-build-e2e jenkins-build-agrodron-security-monitor jenkins-build-dummy-fabric-unit
 
 PROJECT_ROOT := $(CURDIR)
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
@@ -39,6 +39,8 @@ help:
 	@echo "make jenkins-build-unit         - Триггер job drone-unit"
 	@echo "make jenkins-build-integration  - Триггер job drone-integration"
 	@echo "make jenkins-build-e2e          - Триггер job drone-e2e"
+	@echo "make jenkins-build-agrodron-security-monitor - Триггер job drone-agrodron-security-monitor"
+	@echo "make jenkins-build-dummy-fabric-unit - Триггер job drone-dummy-fabric-unit"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
@@ -296,3 +298,9 @@ jenkins-build-integration:
 
 jenkins-build-e2e:
 	@$(JENKINS_DIR)/build.sh drone-e2e $(if $(WAIT),--wait,)
+
+jenkins-build-agrodron-security-monitor:
+	@$(JENKINS_DIR)/build.sh drone-agrodron-security-monitor $(if $(WAIT),--wait,)
+
+jenkins-build-dummy-fabric-unit:
+	@$(JENKINS_DIR)/build.sh drone-dummy-fabric-unit $(if $(WAIT),--wait,)
