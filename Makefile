@@ -1,4 +1,4 @@
-.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local e2e-mqtt-up e2e-mqtt-test e2e-mqtt-down e2e-mqtt
+.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local e2e-mqtt-up e2e-mqtt-test e2e-mqtt-down e2e-mqtt jenkins-up jenkins-down jenkins-restart jenkins-logs jenkins-ps jenkins-build-unit jenkins-build-integration jenkins-build-e2e jenkins-build-agrodron-security-monitor jenkins-build-dummy-fabric-unit
 
 PROJECT_ROOT := $(CURDIR)
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
@@ -6,6 +6,9 @@ LOAD_ENV = set -a && . docker/.env && set +a
 PIPENV_PIPFILE = config/Pipfile
 PYTEST_CONFIG = config/pyproject.toml
 REQUIREMENTS = config/requirements.txt
+
+JENKINS_DIR = ci/jenkins
+JENKINS_COMPOSE = docker compose -f $(JENKINS_DIR)/docker-compose.yml --env-file $(JENKINS_DIR)/.env
 
 help:
 	@echo "make init              - Установить pipenv и зависимости"
@@ -32,6 +35,16 @@ help:
 	@echo "make e2e-mqtt-test     - Запустить те же E2E тесты (pytest tests/e2e/test_e2e_scenario.py), транспорт MQTT"
 	@echo "make e2e-mqtt-down     - Остановить MQTT E2E стенд"
 	@echo "make e2e-mqtt          - e2e-mqtt-up + e2e-mqtt-test + e2e-mqtt-down"
+	@echo "make jenkins-up        - Поднять Jenkins (JCasC, авто-конфиг jobs)"
+	@echo "make jenkins-down      - Остановить Jenkins"
+	@echo "make jenkins-restart   - Перезапустить Jenkins"
+	@echo "make jenkins-logs      - Логи Jenkins"
+	@echo "make jenkins-ps        - Статус Jenkins"
+	@echo "make jenkins-build-unit         - Триггер job drone-unit"
+	@echo "make jenkins-build-integration  - Триггер job drone-integration"
+	@echo "make jenkins-build-e2e          - Триггер job drone-e2e"
+	@echo "make jenkins-build-agrodron-security-monitor - Триггер job drone-agrodron-security-monitor"
+	@echo "make jenkins-build-dummy-fabric-unit - Триггер job drone-dummy-fabric-unit"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
@@ -210,7 +223,7 @@ e2e-codespace:
 	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
 	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== Running E2E tests ==="
-	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
+	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 pipenv run python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
 	@echo "=== Stopping E2E environment ==="
 	-$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null
 	@echo "=== Done ==="
@@ -309,3 +322,41 @@ e2e-mqtt-down:
 	@echo "=== E2E MQTT environment stopped ==="
 
 e2e-mqtt: e2e-mqtt-up e2e-mqtt-test e2e-logs e2e-mqtt-down
+
+# --- Jenkins (JCasC) ---
+
+$(JENKINS_DIR)/.env:
+	@cp $(JENKINS_DIR)/.env.example $@
+	@echo "Created $@ from .env.example — отредактируй пароль/брэнч и перезапусти 'make jenkins-up'."
+
+jenkins-up: $(JENKINS_DIR)/.env
+	$(JENKINS_COMPOSE) up -d --build
+	@PORT=$$(grep '^JENKINS_HTTP_PORT=' $(JENKINS_DIR)/.env | cut -d= -f2); \
+	echo "Jenkins стартует на http://localhost:$${PORT:-8080}"
+
+jenkins-down:
+	-$(JENKINS_COMPOSE) down
+
+jenkins-restart:
+	$(JENKINS_COMPOSE) restart
+
+jenkins-logs:
+	$(JENKINS_COMPOSE) logs -f --tail=200
+
+jenkins-ps:
+	$(JENKINS_COMPOSE) ps
+
+jenkins-build-unit:
+	@$(JENKINS_DIR)/build.sh drone-unit $(if $(WAIT),--wait,)
+
+jenkins-build-integration:
+	@$(JENKINS_DIR)/build.sh drone-integration $(if $(WAIT),--wait,)
+
+jenkins-build-e2e:
+	@$(JENKINS_DIR)/build.sh drone-e2e $(if $(WAIT),--wait,)
+
+jenkins-build-agrodron-security-monitor:
+	@$(JENKINS_DIR)/build.sh drone-agrodron-security-monitor $(if $(WAIT),--wait,)
+
+jenkins-build-dummy-fabric-unit:
+	@$(JENKINS_DIR)/build.sh drone-dummy-fabric-unit $(if $(WAIT),--wait,)

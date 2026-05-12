@@ -15,10 +15,17 @@ pipeline {
 
     environment {
         PIP_DISABLE_PIP_VERSION_CHECK = '1'
+        PIP_BREAK_SYSTEM_PACKAGES = '1'
         PYTHONDONTWRITEBYTECODE = '1'
         DOCKER_BUILDKIT = '1'
         COMPOSE_DOCKER_CLI_BUILD = '1'
-        E2E_WARMUP_SECONDS = '60'
+        COMPOSE_PARALLEL_LIMIT = '4'
+        E2E_WARMUP_SECONDS = '180'
+        AGREGATOR_URL = 'http://host.docker.internal:8081'
+        REGULATOR_URL = 'http://host.docker.internal:8088'
+        ANALYTICS_URL = 'http://host.docker.internal:8090'
+        KAFKA_BOOTSTRAP_SERVERS = 'host.docker.internal:9092'
+        KAFKA_ADVERTISED_HOST = 'host.docker.internal'
     }
 
     stages {
@@ -64,6 +71,7 @@ pipeline {
                     set +e
                     make e2e-down || true
                     docker network rm drones_net 2>/dev/null || true
+                    docker builder prune -af || true
                 '''
             }
         }
