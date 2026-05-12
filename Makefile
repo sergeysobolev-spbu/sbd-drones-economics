@@ -121,10 +121,7 @@ prepare-multi:
 # ---------------------------------------------------------------------------
 
 E2E_SYSTEMS = Agregator insurer operator orvd_system team1-regulator_operation_devsecops gcs drone_port agrodron SITL-module drones
-# E2E (MQTT): временная замена Java-insurer на Python alt_insurer пока
-# в insurer/MqttConfig.java не появится поддержка MQTT auth и MQTT_SERVER
-# через env (MQTT_USERNAME/MQTT_PASSWORD на MqttConnectOptions). См. README.
-E2E_SYSTEMS_MQTT = Agregator alt_insurer operator orvd_system team1-regulator_operation_devsecops gcs drone_port agrodron SITL-module drones
+E2E_SYSTEMS_MQTT = $(E2E_SYSTEMS)
 E2E_OUTPUT = .generated/e2e
 E2E_COMPOSE = docker compose -f $(E2E_OUTPUT)/docker-compose.yml -f tests/e2e/analytics-compose.yml --env-file $(E2E_OUTPUT)/.env
 E2E_COMPOSE_NO_ANALYTICS = docker compose -f $(E2E_OUTPUT)/docker-compose.yml --env-file $(E2E_OUTPUT)/.env

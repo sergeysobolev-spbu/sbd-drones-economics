@@ -526,7 +526,8 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                 env_dict["TOPIC_SCHEME"] = "components"
                 env_dict["SYSTEM_NAME"] = "deliverydron"
                 env_dict["INSTANCE_ID"] = "delivery_001"
-                env_dict["BROKER_TYPE"] = "kafka"
+                # bus/src/factory.go поддерживает kafka/mqtt через BROKER_TYPE.
+                env_dict["BROKER_TYPE"] = os.getenv("E2E_BROKER", "kafka")
                 env_dict["KAFKA_BOOTSTRAP_SERVERS"] = "kafka:29092"
                 env_dict["MQTT_BROKER"] = "mosquitto"
                 env_dict["MQTT_PORT"] = "1883"
