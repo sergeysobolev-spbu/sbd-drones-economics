@@ -20,7 +20,7 @@ pipeline {
         DOCKER_BUILDKIT = '1'
         COMPOSE_DOCKER_CLI_BUILD = '1'
         COMPOSE_PARALLEL_LIMIT = '4'
-        E2E_WARMUP_SECONDS = '60'
+        E2E_WARMUP_SECONDS = '180'
         AGREGATOR_URL = 'http://host.docker.internal:8081'
         REGULATOR_URL = 'http://host.docker.internal:8088'
         ANALYTICS_URL = 'http://host.docker.internal:8090'
