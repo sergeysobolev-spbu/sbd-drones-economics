@@ -25,6 +25,7 @@ pipeline {
         REGULATOR_URL = 'http://host.docker.internal:8088'
         ANALYTICS_URL = 'http://host.docker.internal:8090'
         KAFKA_BOOTSTRAP_SERVERS = 'host.docker.internal:9092'
+        KAFKA_ADVERTISED_HOST = 'host.docker.internal'
     }
 
     stages {
