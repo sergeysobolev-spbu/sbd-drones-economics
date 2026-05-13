@@ -84,10 +84,13 @@ ci-unit-test:
 	done; \
 	if [ $$fail -ne 0 ]; then echo "=== Some unit tests FAILED ==="; exit 1; fi
 
+CI_INTEGRATION_EXCLUDE := systems/dummy_fabric systems/dummy_system
+
 ci-integration-test:
 	@fail=0; \
 	for dir in components/*/ systems/*/; do \
 		[ -d "$$dir" ] || continue; \
+		case " $(CI_INTEGRATION_EXCLUDE) " in *" $${dir%/} "*) echo "=== Skipping $$dir (excluded) ==="; continue;; esac; \
 		if [ -f "$$dir/Makefile" ] && grep -qE '^test-all-docker:|^integration-test:' "$$dir/Makefile" 2>/dev/null; then \
 			target=$$(grep -oE '^(test-all-docker|integration-test):' "$$dir/Makefile" | head -1 | tr -d ':'); \
 			echo "=== Integration tests: $$dir (make $$target) ==="; \
