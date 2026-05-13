@@ -1,0 +1,32 @@
+@startuml integration_purchase_reregistration
+title Покупка и перерегистрация
+
+skinparam ArrowThickness 2
+
+autonumber
+actor "Эксплуатант" as Op
+participant "api_gateway" as GW #FFCDD2
+participant "purchase_service" as Purchase #FFF9C4
+database "SQLite UAS" as UDB #C8E6C9
+participant "Регулятор\nAPI/consumer" as REG #E8F5E9
+database "Реестр Регулятора" as REGDB #C8E6C9
+participant "Система\nЭксплуатанта" as OPS #FFF9C4
+database "Реестр Эксплуатанта" as ODB #C8E6C9
+
+Op -> GW : GET /api/drones
+GW -> Purchase : list
+Purchase -> UDB
+Purchase -> GW : зарегистрированные\n[INT-FR-6]
+GW -> Op
+Op -> GW : POST /api/purchase
+GW -> Purchase : purchase_drone
+Purchase -> UDB : заказ
+Purchase -> REG : reregister_drone_instance\n[INT-FR-7]
+Purchase -> UDB : sold_pending_reregistration
+REG -> REG : проверки\n[INT-NFR-3]
+REG -> REGDB : новая версия владельца
+REG -> Purchase : reregistered
+REG -> OPS : drone_reregistered\n[INT-FR-8]
+OPS -> ODB : импорт в парк
+OPS -> Op : UI-ответ\n[INT-FR-10]
+@enduml

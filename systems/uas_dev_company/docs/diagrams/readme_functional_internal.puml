@@ -1,0 +1,63 @@
+@startuml readme_functional_internal
+title ДАП: внутренние функциональные домены (без отдельного узла SQLite)
+
+skinparam defaultFontName "SansSerif"
+skinparam ArrowThickness 2
+
+skinparam rectangle<<ut>> {
+  BackgroundColor #FFCDD2
+  BorderColor #B71C1C
+}
+skinparam rectangle<<fn>> {
+  BackgroundColor #FFF9C4
+  BorderColor #F9A825
+}
+skinparam rectangle<<stub>> {
+  BackgroundColor #ECEFF1
+  BorderColor #78909C
+}
+
+rectangle "api_gateway\nвклад ~14.2%" <<ut>> as GW
+
+rectangle "user_management\n~12.1%\n+ SQLite в томе" <<fn>> as UM
+rectangle "firmware_ingestion\n~11.3%\n+ SQLite в томе" <<fn>> as FW
+rectangle "certification_service\n~13.4%\n+ SQLite в томе" <<fn>> as CS
+rectangle "drone_registry\n~12.9%\n+ SQLite в томе" <<fn>> as DR
+rectangle "purchase_service\n~12.8%\n+ SQLite в томе" <<fn>> as PS
+rectangle "audit_log\n~11.4%\nТБ, НДБ\n+ SQLite в томе" <<ut>> as AL
+
+rectangle "analytics_adapter\n~12.0%\nТБ, НДБ" <<ut>> as AA
+
+rectangle "regulator_adapter\n(заготовка)" <<stub>> as RAD
+
+GW -[#B71C1C]-> UM
+GW -[#B71C1C]-> FW
+GW -[#B71C1C]-> CS
+GW -[#B71C1C]-> DR
+GW -[#B71C1C]-> PS
+GW -[#B71C1C]-> AL
+
+UM -[#2E7D32]-> AL
+FW -[#2E7D32]-> AL
+CS -[#2E7D32]-> AL
+DR -[#2E7D32]-> AL
+PS -[#2E7D32]-> AL
+
+AL -[#B71C1C]-> AA : send_analytics
+
+CS ..[#757575].> RAD
+DR ..[#757575].> RAD
+PS ..[#757575].> RAD
+
+note bottom of GW
+  Транспорт **БТС2** (монитор, брокер) на ДАП не изображается.
+  Стрелки — **между доменами**; сопоставление с allow-list — §2 **docs/README.md**.
+end note
+
+note bottom of UM
+  **Персистентность:** у каждого воркера свой каталог **UAS_DOMAIN_DATA_ROOT** / `<domain_id>` / **data.sqlite3**.
+  Отдельный узел «БД» на ДАП **не рисуется**; персистентность — атрибут данных **внутри** границы домена (см. §2 **docs/README.md**).
+  HTTP-режим **sqlite:** при необходимости один монолит **UAS_SQLITE_MONOLITH_PATH**.
+end note
+
+@enduml

@@ -1,0 +1,30 @@
+@startuml integration_drone_registration
+title Первичная регистрация экземпляра БАС (интеграция с Регулятором)
+
+skinparam ArrowThickness 2
+
+autonumber
+actor "Разработчик" as Dev
+participant "api_gateway" as GW #FFCDD2
+participant "drone_registry" as Registry #FFF9C4
+database "SQLite UAS" as UASDB #C8E6C9
+participant "Регулятор\nAPI/consumer" as REG #E8F5E9
+database "Реестр Регулятора" as REGDB #C8E6C9
+
+Dev -> GW : POST /api/register-drone\n[INT-FR-2]
+GW -> Registry : validate / заявка
+Registry -> UASDB : pending_regulator\n[INT-NFR-3]
+Registry -> REG : register_drone_instance\n[INT-FR-1]
+alt Регистрация подтверждена
+    REG -> REGDB : registration
+    REG -> Registry : registered\n[INT-FR-5]
+    Registry -> UASDB : registered_by_regulator
+    Registry -> GW : витрина\n[INT-FR-6]
+else Регистрация отклонена
+    REG -> REGDB : rejected
+    REG -> Registry : rejected\n[INT-FR-5]
+    Registry -> UASDB : registration_rejected
+    Registry -> GW : причина\n[INT-FR-10]
+end
+GW -> Dev : HTTP-ответ
+@enduml

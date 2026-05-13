@@ -1,0 +1,62 @@
+@startuml tcb_decomposition
+title ДВБ — декомпозиция доверенной базы (код)
+
+skinparam defaultFontName "SansSerif"
+skinparam packageStyle rectangle
+skinparam ArrowThickness 2
+
+package "Недоверенный периметр" #FFCDD2 {
+  [HTTP / api_gateway] as GW
+  [Thin handlers\nв процессах воркеров] as TH
+}
+
+package "Инфраструктура политик" #ECEFF1 {
+  [security_monitor\n+ security_policies] as MON
+}
+
+package "ДВБ: чистое ядро политик" #C8E6C9 {
+  folder shared.tcb as TCB {
+    [auth / roles] as POL1
+    [registry / purchase] as POL2
+    [certification statuses] as POL3
+    [vulnerability goals] as POL4
+    [journal payload] as POL5
+  }
+}
+
+package "ДВБ: типы и IPC-утилиты" #E8F5E9 {
+  [models (нормализация ЦБ)] as MOD
+  [jwt_tokens] as JWT
+  [component_base] as CB
+}
+
+package "Оркестрация и I/O\n(вне target-набора метрик)" #F5F5F5 {
+  [services.py] as SVC
+  [storage / adapters] as STO
+}
+
+package "Граница системного журнала" #C8E6C9 {
+  [AnalyticsAdapterService\n→ DroneAnalytics] as AN
+}
+
+GW -[#B71C1C]-> MON : proxy_request
+MON -[#546E7A]-> TH : allow-list,\nipc_inbound_request
+TH -[#2E7D32]-> TCB : вызовы policy
+TH -[#2E7D32]-> SVC
+SVC -[#2E7D32]-> TCB
+SVC -[#2E7D32]-> STO
+SVC -[#2E7D32]-> AN
+TCB ..[#757575].> MOD : типы и инварианты
+
+note right of MON
+  **canonical_allow_rule_tuples()**;
+  актуальное число правил — **tcb_metrics.json** / **tcb_cost_task12**;
+  трассировка — **test_tcb_allow_policy_traceability**.
+end note
+
+note bottom of TCB
+  Запрет: broker, urllib, sqlite3, HTTP SDK;
+  см. **test_tcb_dependency_budget**
+end note
+
+@enduml

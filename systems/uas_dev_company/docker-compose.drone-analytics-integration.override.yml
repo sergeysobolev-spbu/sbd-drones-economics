@@ -1,0 +1,12 @@
+# Override для системного docker-compose DroneAnalytics: доступ к Elasticsearch и API backend с хоста
+# (pytest Задача 19). Файл лежит в uas_dev_company и не изменяет systems/DroneAnalytics/*.yaml.
+#
+# Запуск из каталога systems/DroneAnalytics:
+#   docker compose -f docker-compose.yaml -f ../uas_dev_company/docker-compose.drone-analytics-integration.override.yml up -d --build
+services:
+  elastic:
+    ports:
+      - "127.0.0.1:${DA_ELASTIC_HOST_PORT:-19200}:9200"
+  backend:
+    ports:
+      - "127.0.0.1:${DA_BACKEND_HOST_PORT:-28080}:8080"

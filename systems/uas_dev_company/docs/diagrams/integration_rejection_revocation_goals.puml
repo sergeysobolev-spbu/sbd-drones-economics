@@ -1,0 +1,39 @@
+@startuml integration_rejection_revocation_goals
+title Отказ Регулятора, отзыв и пустой набор ЦБ
+
+skinparam ArrowThickness 2
+
+autonumber
+participant "api_gateway" as GW #FFCDD2
+participant "drone_registry" as DR #FFF9C4
+participant "purchase_service" as PS #FFF9C4
+database "SQLite UAS" as UASDB #C8E6C9
+participant "Регулятор" as REG #E8F5E9
+database "Реестр Регулятора" as REGDB #C8E6C9
+participant "Система Эксплуатанта" as OPS #FFF9C4
+database "Реестр Эксплуатанта" as ODB #C8E6C9
+
+GW -> DR : register_drone\nsecurity_goals=[ЦБ-2] [INT-FR-3]
+DR -> REG : register_drone_instance
+REG -> REGDB : rejected
+REG -> DR : reason [INT-FR-5]
+DR -> UASDB : registration_rejected\n[INT-NFR-5]
+DR -> GW : payload
+
+GW -> DR : register_goals=[] [INT-FR-3]
+DR -> REG
+REG -> REGDB : create
+REG -> DR : registration_id
+DR -> UASDB
+DR -> GW
+
+PS -> OPS : после покупки (событие)\n[INT-FR-8]
+OPS -> ODB : goals=[]
+OPS -> OPS : фильтр миссий [INT-FR-3]
+
+REG -> REGDB : отзыв
+REG -> DR : registration_revoked [INT-FR-9]
+REG -> OPS : registration_revoked
+DR -> UASDB : блокировка [INT-NFR-4]
+OPS -> ODB : блок миссий [INT-NFR-4]
+@enduml

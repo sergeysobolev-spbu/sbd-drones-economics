@@ -1,0 +1,12 @@
+# Временный Cobertura от pytest-cov (регенерируется `make tcb-test`)
+docs/tcb_coverage.xml
+.pytest_cache/
+.generated/
+.coverage
+coverage.xml
+htmlcov/
+artifacts/
+
+# Локальные копии каталогов доменов с хоста (не поставка в репозиторий)
+uas_domain_*/
+

@@ -1,0 +1,51 @@
+@startuml integration_agrodrone_e2e
+title E2E агродрон (сквозной сценарий)
+
+skinparam ArrowThickness 2
+
+autonumber
+actor "Разработчик dev-agro" as Dev
+actor "Эксплуатант op-agro" as Op
+participant "api_gateway" as GW #FFCDD2
+participant "firmware_ingestion" as FW #FFF9C4
+participant "certification_service" as CS #FFF9C4
+participant "drone_registry" as DR #FFF9C4
+participant "purchase_service" as PS #FFF9C4
+database "SQLite UAS" as UASDB #C8E6C9
+participant "Регулятор" as REG #E8F5E9
+database "Реестр Регулятора" as REGDB #C8E6C9
+participant "Система Эксплуатанта" as OPS #FFF9C4
+database "Реестр Эксплуатанта" as ODB #C8E6C9
+
+Dev -> GW : POST /api/firmware [INT-FR-11]
+GW -> FW
+FW -> UASDB
+Dev -> GW : POST /api/certify
+GW -> CS
+CS -> REG
+REG -> REGDB
+REG -> CS
+CS -> UASDB
+Dev -> GW : POST /api/register-drone
+GW -> DR
+DR -> REG
+REG -> REGDB
+REG -> DR
+DR -> UASDB
+Op -> GW : GET /api/drones
+GW -> DR
+DR -> GW
+GW -> Op
+Op -> GW : POST /api/purchase
+GW -> PS
+PS -> UASDB
+PS -> REG
+REG -> REGDB
+REG -> OPS
+OPS -> ODB
+OPS -> Op
+Op -> GW : повторная покупка
+GW -> PS
+PS -> GW : ошибка
+GW -> Op
+@enduml

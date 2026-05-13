@@ -1,0 +1,74 @@
+@startuml readme_context
+title ДАП: контекст (недоверенный периметр — Web и api_gateway)
+
+skinparam defaultFontName "SansSerif"
+skinparam ArrowThickness 2
+
+skinparam rectangle<<ut>> {
+  BackgroundColor #FFCDD2
+  BorderColor #B71C1C
+}
+skinparam rectangle<<fn>> {
+  BackgroundColor #FFF9C4
+  BorderColor #F9A825
+}
+skinparam rectangle<<ext>> {
+  BackgroundColor #F5F5F5
+  BorderColor #757575
+}
+
+actor "Разработчик БАС" as Dev
+actor "Эксплуатант" as Op
+actor "Администратор" as Adm
+
+rectangle "Web UI\n(клиент)" <<ut>> as UI
+rectangle "api_gateway\nвклад ~14.2%" <<ut>> as GW
+
+rectangle "user_management\n~12.1%\n+ SQLite в томе" <<fn>> as UM
+rectangle "firmware_ingestion\n~11.3%\n+ SQLite в томе" <<fn>> as FW
+rectangle "certification_service\n~13.4%\n+ SQLite в томе" <<fn>> as CS
+rectangle "drone_registry\n~12.9%\n+ SQLite в томе" <<fn>> as DR
+rectangle "purchase_service\n~12.8%\n+ SQLite в томе" <<fn>> as PS
+rectangle "audit_log\n~11.4%\nТБ, НДБ\n+ SQLite в томе" <<ut>> as AL
+rectangle "analytics_adapter\n~12.0%\nТБ, НДБ" <<ut>> as AA
+
+cloud "Внешний контур" #EEEEEE {
+  rectangle "Регулятор" <<ext>> as Reg
+  rectangle "Система\nэксплуатанта" <<ext>> as ExtOp
+  rectangle "ОрВД / НУС /\nстрахование" <<ext>> as Orvd
+}
+
+Dev -[#B71C1C]-> UI
+Op -[#B71C1C]-> UI
+Adm -[#B71C1C]-> UI
+UI -[#B71C1C]-> GW
+
+GW -[#B71C1C]-> UM
+GW -[#B71C1C]-> FW
+GW -[#B71C1C]-> CS
+GW -[#B71C1C]-> DR
+GW -[#B71C1C]-> PS
+GW -[#B71C1C]-> AL
+
+UM -[#2E7D32]-> AL
+FW -[#2E7D32]-> AL
+CS -[#2E7D32]-> AL
+DR -[#2E7D32]-> AL
+PS -[#2E7D32]-> AL
+
+AL -[#B71C1C]-> AA : send_analytics
+
+CS -[#2E7D32]-> Reg
+DR -[#2E7D32]-> Reg
+PS -[#2E7D32]-> Reg
+Reg -[#2E7D32]-> ExtOp : по ПБ
+ExtOp -[#B71C1C]-> Orvd
+
+note bottom of UI
+  **НДБ:** **исходящие только красные**
+  **Входящие** к НДБ — красные или зелёные (см. §2 **docs/README.md**).
+  Дуги — **между доменами**; SQLite в границе воркера, отдельным узлом на ДАП не показан.
+  Монитор и брокер не показаны — §2 **docs/README.md**.
+end note
+
+@enduml

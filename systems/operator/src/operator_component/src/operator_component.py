@@ -52,6 +52,14 @@ class OperatorComponent(BaseComponent):
         self.register_handler(OperatorActions.SEND_ORDER_TO_NUS, self._handle_send_to_nus)
         self.register_handler(OperatorActions.CREATE_ORDER, self._handle_create_order)
         self.register_handler(OperatorActions.CONFIRM_PRICE, self._handle_confirm_price)
+        self.register_handler(
+            OperatorActions.IMPORT_DRONE_REREGISTERED,
+            self._handle_import_drone_reregistered,
+        )
+        self.register_handler(
+            OperatorActions.APPLY_REGULATOR_FIRMWARE_DECISION,
+            self._handle_apply_regulator_firmware_decision,
+        )
 
     def _handle_register_drone(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Регистрирует дрон в реестре оператора."""
@@ -412,3 +420,86 @@ class OperatorComponent(BaseComponent):
                 continue
             route.append({"lat": lat, "lon": lon})
         return route
+
+    # ------------------------------------------------------------------
+    # Интеграция с Разработчиком БАС (systems/uas_dev_company)
+    # ------------------------------------------------------------------
+    def _handle_import_drone_reregistered(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Принять дрон в парк после покупки и перерегистрации владельца у Регулятора.
+
+        Контракт: ``uas-registration-event.v1`` (см. systems/uas_dev_company/docs/integration_tasks.md).
+        envelope.payload содержит: registration_id, registration_version, serial_number,
+        owner_operator_id, certificate_id, security_goals, status.
+        """
+        payload = message.get("payload", {}) or {}
+        envelope = payload.get("envelope") if isinstance(payload.get("envelope"), dict) else payload
+        ev_payload = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
+
+        if (ev_payload.get("status") or "").strip() != "reregistered":
+            raise ValueError(
+                f"unexpected status '{ev_payload.get('status')}' (expected 'reregistered')"
+            )
+
+        serial = (ev_payload.get("serial_number") or "").strip()
+        if not serial:
+            raise ValueError("serial_number is required")
+
+        drone_id = serial
+        self._drones[drone_id] = {
+            "drone_id": drone_id,
+            "serial_number": serial,
+            "registration_id": ev_payload.get("registration_id"),
+            "registration_version": ev_payload.get("registration_version"),
+            "certificate_id": ev_payload.get("certificate_id"),
+            "security_goals": ev_payload.get("security_goals") or [],
+            "owner_operator_id": ev_payload.get("owner_operator_id"),
+            "source_system": "uas_dev_company",
+            "status": "available",
+            "model": ev_payload.get("drone_type") or ev_payload.get("model", ""),
+            "operator_id": self.component_id,
+        }
+        logger.info(
+            "[%s] Imported drone %s from uas_dev_company (registration %s v%s)",
+            self.component_id,
+            drone_id,
+            ev_payload.get("registration_id"),
+            ev_payload.get("registration_version"),
+        )
+        return {
+            "status": "imported",
+            "drone_id": drone_id,
+            "registration_id": ev_payload.get("registration_id"),
+        }
+
+    def _handle_apply_regulator_firmware_decision(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """Массовая корректировка дронов после смены/отзыва ЦБ по сертификату прошивки.
+
+        envelope.payload: certificate_id, decision ("revoked"|"updated"),
+        effective_security_goals (опц.).
+        """
+        payload = message.get("payload", {}) or {}
+        envelope = payload.get("envelope") if isinstance(payload.get("envelope"), dict) else payload
+        ev_payload = envelope.get("payload") if isinstance(envelope.get("payload"), dict) else envelope
+
+        cert_id = (ev_payload.get("certificate_id") or "").strip()
+        decision = (ev_payload.get("decision") or "").strip().lower()
+        effective_goals = ev_payload.get("effective_security_goals")
+        if not cert_id:
+            raise ValueError("certificate_id is required")
+
+        affected: list[str] = []
+        for drone_id, drone in self._drones.items():
+            if drone.get("certificate_id") != cert_id:
+                continue
+            if decision == "revoked":
+                drone["status"] = "grounded"
+                drone["security_goals"] = []
+            elif decision == "updated" and isinstance(effective_goals, list):
+                drone["security_goals"] = effective_goals
+            affected.append(drone_id)
+
+        logger.info(
+            "[%s] Applied regulator firmware decision '%s' for cert=%s; affected=%d",
+            self.component_id, decision, cert_id, len(affected),
+        )
+        return {"status": "applied", "decision": decision, "affected": affected}

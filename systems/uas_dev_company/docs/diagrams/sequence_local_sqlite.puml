@@ -1,0 +1,40 @@
+@startuml sequence_local_sqlite
+!theme plain
+title Последовательность: режим sqlite (сервисы в процессе шлюза)
+
+skinparam ArrowThickness 2
+
+actor "Тестировщик /\nбраузер" as U
+participant "nginx" as N
+participant "api_gateway" as G
+participant "UserService /\nпрочие сервисы\n(in-process)" as S
+database "SQLite" as DB
+
+U -> N : POST /api/bootstrap-admin\nJSON {username, password}
+N -> G
+G -> S : bootstrap_admin(...)
+S -> DB : INSERT user (admin)
+S -> G : {username, role}
+G -> U : 200 JSON
+
+U -> N : POST /api/login\n{username, password}
+N -> G
+G -> S : authenticate(...)
+S -> DB : SELECT users
+S -> G : {username, role}
+G -> G : JWT HS256
+G -> U : 200 {access_token}
+
+U -> N : GET /api/users\nAuthorization: Bearer …
+N -> G
+G -> G : verify JWT
+G -> S : list_users(role)
+S -> DB
+S -> G
+G -> U : 200 {users: [...]}
+
+note over G, S
+  **UAS_GATEWAY_BACKEND=sqlite** — без брокера на пути вызова.
+end note
+
+@enduml

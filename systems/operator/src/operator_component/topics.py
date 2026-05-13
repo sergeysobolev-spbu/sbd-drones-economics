@@ -40,4 +40,9 @@ class OperatorActions:
     SEND_ORDER_TO_NUS = "send_order_to_nus"
     CREATE_ORDER = "create_order"
     CONFIRM_PRICE = "confirm_price"
+    # Импорт дрона после покупки у Разработчика БАС (systems/uas_dev_company).
+    # Контракт: docs/uas_dev_company_regulator_changes.md, схема uas-registration-event.v1.
+    IMPORT_DRONE_REREGISTERED = "import_drone_reregistered"
+    # Массовая корректировка дронов парка после изменения сертификата прошивки в Регуляторе.
+    APPLY_REGULATOR_FIRMWARE_DECISION = "apply_regulator_firmware_decision"
 

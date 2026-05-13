@@ -31,4 +31,6 @@ class GatewayActions:
     BUY_INSURANCE_POLICY = "buy_insurance_policy"
     REGISTER_DRONE_IN_ORVD = "register_drone_in_orvd"
     SEND_ORDER_TO_NUS = "send_order_to_nus"
+    IMPORT_DRONE_REREGISTERED = "import_drone_reregistered"
+    APPLY_REGULATOR_FIRMWARE_DECISION = "apply_regulator_firmware_decision"
 

@@ -20,6 +20,8 @@ class OperatorGateway(BaseGateway):
         GatewayActions.BUY_INSURANCE_POLICY: ComponentTopics.OPERATOR_COMPONENT,
         GatewayActions.REGISTER_DRONE_IN_ORVD: ComponentTopics.OPERATOR_COMPONENT,
         GatewayActions.SEND_ORDER_TO_NUS: ComponentTopics.OPERATOR_COMPONENT,
+        GatewayActions.IMPORT_DRONE_REREGISTERED: ComponentTopics.OPERATOR_COMPONENT,
+        GatewayActions.APPLY_REGULATOR_FIRMWARE_DECISION: ComponentTopics.OPERATOR_COMPONENT,
     }
 
     PROXY_TIMEOUT = 10.0

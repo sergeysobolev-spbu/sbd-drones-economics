@@ -1,0 +1,41 @@
+@startuml sequence_scenario_certify_and_purchase
+!theme plain
+title Функциональный сценарий: прошивка → сертификат → дрон → покупка
+
+skinparam ArrowThickness 2
+
+actor "Администратор" as A
+actor "Разработчик" as D
+actor "Эксплуатант" as O
+participant "nginx / api_gateway" as API
+participant "Домен\n(sqlite / bus)" as DOM
+
+== Первичная настройка ==
+A -> API : POST /api/bootstrap-admin
+API -> DOM : создать admin
+A -> API : POST /api/login → Bearer
+A -> API : POST /api/users\n(разработчик, эксплуатант)\n[Bearer admin]
+
+== Прошивка и сертификация ==
+D -> API : POST /api/login
+D -> API : POST /api/firmware\n[Bearer developer]\nметаданные прошивки
+API -> DOM : FirmwareService.submit
+D -> API : POST /api/certify\n[Bearer developer]\nfirmware_id
+API -> DOM : CertificationService.certify\n(заглушка регулятора)
+
+== Реестр и продажа ==
+D -> API : POST /api/register-drone\n[Bearer developer]\nserial, firmware_id,\ncertificate_id, price …
+API -> DOM : DroneRegistryService.register
+
+O -> API : POST /api/login\n(эксплуатант)
+O -> API : GET /api/drones\n[Bearer operator]
+API -> DOM : список дронов
+O -> API : POST /api/purchase\nserial_number, …\n[Bearer operator]
+API -> DOM : PurchaseService.purchase
+
+note over API, DOM
+  **DOM** — воркеры доменов за HTTP API.
+  В режиме **bus** каждый вызов к воркеру идёт через монитор и брокер.
+end note
+
+@enduml

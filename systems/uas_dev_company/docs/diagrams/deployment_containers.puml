@@ -1,0 +1,61 @@
+@startuml deployment_containers
+!theme plain
+title Развёртывание: контейнеры Docker (Kafka / MQTT)
+
+skinparam shadowing false
+skinparam linetype ortho
+skinparam ArrowThickness 2
+
+package "Периметр HTTP" #FFCDD2 {
+  component [nginx_reverse_proxy] as nginx <<container>>
+  component [web_portal\n(Nuxt)] as web <<container>>
+  component [api_gateway] as gw <<container>>
+}
+
+package "Инфраструктура политик" #ECEFF1 {
+  component [security_monitor] as mon <<container>>
+}
+
+package "Функциональные домены (жёлтый на ДАП) — том SQLite в каждом воркере" #FFF9C4 {
+  component [user_management] as um <<container>>
+  component [firmware_ingestion] as fi <<container>>
+  component [certification_service] as cs <<container>>
+  component [drone_registry] as dr <<container>>
+  component [purchase_service] as ps <<container>>
+  note bottom of ps
+    У каждого воркера — свой **named volume** с **data.sqlite3** в каталоге домена (**UAS_DOMAIN_DATA_ROOT**).
+    Это **не** отдельный узел ДАП и **не** отдельный контейнер «БД» — см. §2 **docs/README.md**.
+  end note
+}
+
+package "НДБ на ДАП" #FFCDD2 {
+  component [audit_log] as al <<container>>
+  component [analytics_adapter] as aa <<container>>
+}
+
+cloud "Брокер сообщений" #EEEEEE {
+  component [Kafka / Mosquitto\n(профиль compose)] as broker <<infra>>
+}
+
+nginx -[#757575]-> web : GET /\nстатика UI
+nginx -[#B71C1C]-> gw : /api/*\nJSON API
+
+gw -[#B71C1C]-> broker : режим **bus**:\nк топику монитора
+
+mon -[#757575]-> broker
+um -[#757575]-> broker
+fi -[#757575]-> broker
+cs -[#757575]-> broker
+dr -[#757575]-> broker
+ps -[#757575]-> broker
+al -[#757575]-> broker
+aa -[#757575]-> broker
+
+note right of gw
+  **UAS_GATEWAY_BACKEND=bus:** вызовы API к доменам проходят
+  **security_monitor** и брокер (**БТС2**).
+  **UAS_GATEWAY_BACKEND=sqlite:** шлюз использует локальный SQLite-контекст в процессе шлюза (**UAS_SQLITE_MONOLITH_PATH** и т.д.);
+  отдельного контейнера «SQLite» нет.
+end note
+
+@enduml

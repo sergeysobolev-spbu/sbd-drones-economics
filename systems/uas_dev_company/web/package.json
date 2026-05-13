@@ -1,0 +1,19 @@
+{
+  "name": "uas_dev_company-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --host 0.0.0.0",
+    "build": "nuxt build",
+    "preview": "nuxt preview --host 0.0.0.0 --port 3000",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "nuxt": "latest",
+    "vue": "latest"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "typescript": "^5.9.3"
+  }
+}
