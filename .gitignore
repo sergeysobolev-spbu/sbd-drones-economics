@@ -12,3 +12,5 @@ fabric/
 .DS_Store
 **/postgres_data/
 *.tmp
+test.log
+Pipfile

@@ -1,0 +1,23 @@
+# Образ агента CI для Jenkins (Pipeline: docker { image ... }).
+# Python 3.12+, make, git, curl, Docker CLI и Compose v2 (демон хоста через docker.sock).
+# Тег по умолчанию согласуйте с JENKINS_AGENT_IMAGE в docker/example.env.
+FROM python:3.12-bookworm
+
+USER root
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Docker CLI (как в Dockerfile.jenkins)
+RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz \
+    | tar zxvf - --strip-components=1 -C /usr/bin/ docker/docker
+
+RUN mkdir -p /usr/libexec/docker/cli-plugins/ \
+    && curl -fsSL https://github.com/docker/compose/releases/download/v2.26.1/docker-compose-linux-x86_64 \
+        -o /usr/libexec/docker/cli-plugins/docker-compose \
+    && chmod +x /usr/libexec/docker/cli-plugins/docker-compose \
+    && ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/bin/docker-compose

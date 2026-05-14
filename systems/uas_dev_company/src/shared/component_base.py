@@ -38,3 +38,11 @@ class ServiceComponent(BaseComponent):
             return handler(message.get("payload", {}) or {})
 
         return guarded
+
+    def start(self):
+        """Create the component topic before subscribing, then start handling messages."""
+        self.bus.start()
+        self.bus.publish(self.topic, {"_init": True})
+        self.bus.subscribe(self.topic, self._handle_message)
+        self._running = True
+        print(f"[{self.component_id}] Started. Listening on topic: {self.topic}")

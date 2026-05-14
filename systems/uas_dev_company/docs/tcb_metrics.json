@@ -133,23 +133,23 @@
     },
     "total_loc": {
       "before": 1035,
-      "after": 857,
-      "delta": -178
+      "after": 873,
+      "delta": -162
     },
     "total_sloc": {
       "before": 864,
-      "after": 701,
-      "delta": -163
+      "after": 715,
+      "delta": -149
     },
     "total_functions": {
       "before": 57,
-      "after": 55,
-      "delta": -2
+      "after": 57,
+      "delta": 0
     },
     "sum_complexity": {
       "before": 134,
-      "after": 165,
-      "delta": 31
+      "after": 167,
+      "delta": 33
     },
     "max_complexity": {
       "before": 11,
@@ -174,12 +174,12 @@
   "target_tcb": {
     "aggregate": {
       "label": "target_tcb",
-      "generated_at": "2026-05-08T12:14:32.224277+00:00",
+      "generated_at": "2026-05-14T08:21:48.310260+00:00",
       "file_count": 14,
-      "total_loc": 857,
-      "total_sloc": 701,
-      "total_functions": 55,
-      "sum_complexity": 165,
+      "total_loc": 873,
+      "total_sloc": 715,
+      "total_functions": 57,
+      "sum_complexity": 167,
       "max_complexity": 11,
       "functions_over_10": 1,
       "external_imports": [
@@ -289,10 +289,10 @@
       },
       {
         "path": "src/shared/security_monitor.py",
-        "loc": 197,
-        "sloc": 173,
-        "functions": 15,
-        "sum_complexity": 57,
+        "loc": 205,
+        "sloc": 180,
+        "functions": 16,
+        "sum_complexity": 58,
         "max_complexity": 11,
         "functions_over_10": 1,
         "imports": [
@@ -315,10 +315,10 @@
       },
       {
         "path": "src/shared/component_base.py",
-        "loc": 40,
-        "sloc": 31,
-        "functions": 4,
-        "sum_complexity": 10,
+        "loc": 48,
+        "sloc": 38,
+        "functions": 5,
+        "sum_complexity": 11,
         "max_complexity": 3,
         "functions_over_10": 0,
         "imports": [
@@ -502,10 +502,10 @@
         },
         "aggregate": {
           "file_count": 18,
-          "total_loc": 971,
-          "total_sloc": 781,
-          "total_functions": 61,
-          "sum_complexity": 164,
+          "total_loc": 979,
+          "total_sloc": 788,
+          "total_functions": 62,
+          "sum_complexity": 165,
           "max_complexity": 11,
           "functions_over_10": 1,
           "external_imports": [
@@ -588,10 +588,10 @@
         },
         "aggregate": {
           "file_count": 32,
-          "total_loc": 1937,
-          "total_sloc": 1581,
-          "total_functions": 118,
-          "sum_complexity": 265,
+          "total_loc": 1945,
+          "total_sloc": 1588,
+          "total_functions": 119,
+          "sum_complexity": 266,
           "max_complexity": 11,
           "functions_over_10": 1,
           "external_imports": [
@@ -677,10 +677,10 @@
         },
         "aggregate": {
           "file_count": 32,
-          "total_loc": 1844,
-          "total_sloc": 1499,
-          "total_functions": 108,
-          "sum_complexity": 244,
+          "total_loc": 1852,
+          "total_sloc": 1506,
+          "total_functions": 109,
+          "sum_complexity": 245,
           "max_complexity": 11,
           "functions_over_10": 1,
           "external_imports": [
@@ -766,10 +766,10 @@
         },
         "aggregate": {
           "file_count": 33,
-          "total_loc": 2163,
-          "total_sloc": 1795,
-          "total_functions": 117,
-          "sum_complexity": 291,
+          "total_loc": 2171,
+          "total_sloc": 1802,
+          "total_functions": 118,
+          "sum_complexity": 292,
           "max_complexity": 18,
           "functions_over_10": 3,
           "external_imports": [
@@ -855,10 +855,10 @@
         },
         "aggregate": {
           "file_count": 32,
-          "total_loc": 2240,
-          "total_sloc": 1876,
-          "total_functions": 120,
-          "sum_complexity": 315,
+          "total_loc": 2248,
+          "total_sloc": 1883,
+          "total_functions": 121,
+          "sum_complexity": 316,
           "max_complexity": 32,
           "functions_over_10": 3,
           "external_imports": [
@@ -942,10 +942,10 @@
         },
         "aggregate": {
           "file_count": 32,
-          "total_loc": 2062,
-          "total_sloc": 1706,
-          "total_functions": 109,
-          "sum_complexity": 267,
+          "total_loc": 2070,
+          "total_sloc": 1713,
+          "total_functions": 110,
+          "sum_complexity": 268,
           "max_complexity": 27,
           "functions_over_10": 2,
           "external_imports": [
@@ -1029,10 +1029,10 @@
         },
         "aggregate": {
           "file_count": 32,
-          "total_loc": 1842,
-          "total_sloc": 1492,
-          "total_functions": 109,
-          "sum_complexity": 245,
+          "total_loc": 1850,
+          "total_sloc": 1499,
+          "total_functions": 110,
+          "sum_complexity": 246,
           "max_complexity": 11,
           "functions_over_10": 1,
           "external_imports": [
@@ -1115,10 +1115,10 @@
         },
         "aggregate": {
           "file_count": 33,
-          "total_loc": 1917,
-          "total_sloc": 1563,
-          "total_functions": 110,
-          "sum_complexity": 259,
+          "total_loc": 1925,
+          "total_sloc": 1570,
+          "total_functions": 111,
+          "sum_complexity": 260,
           "max_complexity": 11,
           "functions_over_10": 1,
           "external_imports": [
@@ -1174,10 +1174,10 @@
       "note_ru": "Объединение всех Python-доменов прототипа (операционный охват).",
       "aggregate": {
         "file_count": 67,
-        "total_loc": 4581,
-        "total_sloc": 3907,
-        "total_functions": 242,
-        "sum_complexity": 697,
+        "total_loc": 4597,
+        "total_sloc": 3921,
+        "total_functions": 244,
+        "sum_complexity": 699,
         "max_complexity": 32,
         "functions_over_10": 8,
         "external_imports": [
@@ -1236,10 +1236,10 @@
       "note_ru": "Объединение путей только доменов, отнесённых к реализации официальных ЦБ-1…ЦБ-3 для оценки стоимости ДВБ; домены «только ТБ» исключены.",
       "aggregate": {
         "file_count": 54,
-        "total_loc": 3896,
-        "total_sloc": 3307,
-        "total_functions": 220,
-        "sum_complexity": 604,
+        "total_loc": 3912,
+        "total_sloc": 3321,
+        "total_functions": 222,
+        "sum_complexity": 606,
         "max_complexity": 32,
         "functions_over_10": 7,
         "external_imports": [
@@ -1303,14 +1303,14 @@
         "report_critical_vulnerability"
       ],
       "policy_granularity_index": 1.0,
-      "union_backend_python_sloc": 3307,
-      "union_all_system_backend_python_sloc": 3907,
-      "sum_per_domain_aggregate_sloc_cb123_only": 8558,
+      "union_backend_python_sloc": 3321,
+      "union_all_system_backend_python_sloc": 3921,
+      "sum_per_domain_aggregate_sloc_cb123_only": 8593,
       "gateway_direct_service_imports_in_server_py": false,
       "gateway_default_backend": "bus",
       "per_domain_python_path_model": "component_dir_plus_shared_core",
       "tcb_cost_union_scope_ru": "union_backend_python_sloc — дедупликация по доменам с in_cb123_tcb_union; полный операционный объём — union_all_system_backend_python_sloc.",
-      "estimated_tcb_cost_score": 81.54
+      "estimated_tcb_cost_score": 81.82
     },
     "task12_delta_baseline_to_after": {
       "allow_rules_count_delta": 30,

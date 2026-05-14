@@ -1,0 +1,43 @@
+# uas_dev_company builds use Docker context = monorepo root (see docker-compose context: ../..).
+.git
+**/.git
+**/node_modules
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.venv
+**/coverage.xml
+**/.coverage
+**/htmlcov
+
+# Python service images do not need sibling system trees.
+systems/agregator
+systems/Agregator
+systems/agrodron
+systems/alt_insurer
+systems/cyber_drons
+systems/deliverydron
+systems/DroneAnalytics
+systems/drone-operator-system
+systems/drone_port
+systems/drones
+systems/dummy_fabric
+systems/dummy_system
+systems/gcs
+systems/insurer
+systems/operator
+systems/orvd_system
+systems/regulator
+systems/SITL-module
+systems/team1-regulator_operation_devsecops
+
+# Web app artifacts
+systems/uas_dev_company/web/node_modules
+systems/uas_dev_company/web/.nuxt
+systems/uas_dev_company/web/.output
+
+# Runtime SQLite and generated reports (not part of image layers)
+systems/uas_dev_company/resources
+systems/uas_dev_company/web/playwright-report
+systems/uas_dev_company/web/test-results

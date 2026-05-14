@@ -54,6 +54,14 @@ class SecurityMonitorComponent(BaseComponent):
         self.register_handler("clear_policies", self._handle_clear_policies)
         self.register_handler("list_policies", self._handle_list_policies)
 
+    def start(self):
+        """Create the monitor topic before subscribing to avoid cold-start Kafka races."""
+        self.bus.start()
+        self.bus.publish(self.topic, {"_init": True})
+        self.bus.subscribe(self.topic, self._handle_message)
+        self._running = True
+        print(f"[{self.component_id}] Started. Listening on topic: {self.topic}")
+
     def _handle_get_status(self, message: dict[str, Any]) -> dict[str, Any]:
         status = super()._handle_get_status(message)
         status["policies_count"] = len(self._policies)

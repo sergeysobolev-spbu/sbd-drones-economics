@@ -49,6 +49,7 @@ class AdjacentBusMocks:
         if self._started:
             return
         self._bus.start()
+        self._ensure_topics()
         self._bus.subscribe(ExternalTopics.regulator(), self._on_regulator)
         self._bus.subscribe(ExternalTopics.operator_fleet(), self._on_operator)
         if self._port is not None:
@@ -56,6 +57,16 @@ class AdjacentBusMocks:
         if self._analytics is not None:
             self._bus.subscribe(ExternalTopics.drone_analytics(), self._on_analytics)
         self._started = True
+
+    def _ensure_topics(self) -> None:
+        """Create Kafka topics before consumers subscribe to avoid first-message races."""
+        topics = [ExternalTopics.regulator(), ExternalTopics.operator_fleet()]
+        if self._port is not None:
+            topics.append(ExternalTopics.drone_port())
+        if self._analytics is not None:
+            topics.append(ExternalTopics.drone_analytics())
+        for topic in topics:
+            self._bus.publish(topic, {"_init": True})
 
     def stop(self) -> None:
         if not self._started:
