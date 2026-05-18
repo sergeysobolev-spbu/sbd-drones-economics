@@ -317,16 +317,26 @@ class Test2_OperatorInAggregator:
         _shared["operator_cert_id"] = (r.get("payload") or {})["certificate_id"]
 
     def test_02_register_operator_at_agregator(self, agregator_url):
+        # Agregator теперь принимает self-service форму: {name, license, email, password}
+        # и возвращает {token, user: {id, ...}, role}. operator_id/certificate_id
+        # уехали в bus-флоу (Regulator), сюда они не нужны.
         r = rest_post(agregator_url, "/operators", {
             "name": "E2E Operator",
             "license": "E2E-LIC-1",
-            "operator_id": "e2e-operator-1",
-            "certificate_id": _shared["operator_cert_id"],
+            "email": "e2e-operator@local",
+            "password": "e2e-operator-pass",
         })
         assert r.status_code in (200, 201), f"{r.status_code} {r.text}"
         body = r.json()
-        _shared["registered_operator_id"] = body.get("operator_id") or body.get("id")
-        assert _shared["registered_operator_id"], "operator_id должен быть в ответе"
+        user = body.get("user") or {}
+        _shared["registered_operator_id"] = (
+            user.get("id")
+            or body.get("operator_id")
+            or body.get("id")
+        )
+        assert _shared["registered_operator_id"], (
+            f"operator id должен быть в ответе: {body}"
+        )
 
     def test_03_verify_operator_cert(self, kafka_bus):
         v = bus_request(kafka_bus, REGULATOR_TOPIC, "verify_operator_cert", {
@@ -347,14 +357,21 @@ class Test3_OrderFlow:
     ORDER_BUDGET = 5000
 
     def test_01_create_customer(self, agregator_url):
+        # /customers требует {name, email, password}; id возвращается в body.user.id.
         r = rest_post(agregator_url, "/customers", {
             "name": "E2E Customer",
-            "email": "e2e@local",
+            "email": "e2e-customer@local",
+            "password": "e2e-customer-pass",
         })
-        assert r.status_code in (200, 201)
+        assert r.status_code in (200, 201), f"{r.status_code} {r.text}"
         body = r.json()
-        _shared["customer_id"] = body.get("customer_id") or body.get("id")
-        assert _shared["customer_id"]
+        user = body.get("user") or {}
+        _shared["customer_id"] = (
+            user.get("id")
+            or body.get("customer_id")
+            or body.get("id")
+        )
+        assert _shared["customer_id"], f"customer id должен быть в ответе: {body}"
 
     def test_02_create_order_and_wait_for_match(self, agregator_url, kafka_bus):
         """Создаём заказ. Agregator отправляет create_order в Kafka,

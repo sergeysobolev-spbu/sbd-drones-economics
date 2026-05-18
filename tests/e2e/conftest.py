@@ -54,6 +54,28 @@ def _warmup_orvd_component(bus) -> None:
     # Non-fatal: ORVD may not be running; tests will skip/handle accordingly.
 
 
+def _warmup_bus_topic(bus, topic: str, *, deadline_s: float = 60) -> None:
+    """Ping a system/component topic until it answers — drains Kafka consumer
+    rebalance race that otherwise hits the very first bus.request in tests.
+
+    Особенно нужно для systems.regulator: первый register_system из теста
+    уходит до того, как regulator-gateway consumer успевает войти в
+    consumer-group, и тест ловит timeout. Этот warmup гарантирует, что
+    цель в кластере живая и отвечает на ping.
+    """
+    deadline = time.time() + deadline_s
+    while time.time() < deadline:
+        resp = bus.request(
+            topic,
+            {"action": "ping", "sender": "e2e_warmup", "payload": {}},
+            timeout=10,
+        )
+        if resp is not None and (resp.get("payload") or {}).get("pong"):
+            return
+        time.sleep(3)
+    # Non-fatal: тесты сами решат skip/fail.
+
+
 def _wait_for_http(url: str, label: str, timeout: int = STARTUP_TIMEOUT) -> None:
     deadline = time.time() + timeout
     last_err = ""
@@ -133,6 +155,9 @@ def kafka_bus():
     bus = create_system_bus(client_id="e2e_test_host")
     bus.start()
     _warmup_orvd_component(bus)
+    # Прогреваем systems.regulator gateway, иначе первый register_system
+    # ловит таймаут на rebalance.
+    _warmup_bus_topic(bus, "systems.regulator")
     yield bus
     bus.stop()
 

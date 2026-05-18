@@ -485,6 +485,16 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                 # SASL_PLAINTEXT когда заданы BROKER_USER/PASSWORD.
                 env_dict["BROKER_USER"] = "${ADMIN_USER:-admin}"
                 env_dict["BROKER_PASSWORD"] = "${ADMIN_PASSWORD:-admin_secret_123}"
+                # Перенаправляем infopanel на наш analytics-backend, иначе SITL
+                # пытается стучаться на прод https://infopanel.csse.ru и спамит
+                # SSL-ошибками — это создаёт фоновую нагрузку, из-за которой у
+                # других consumer-групп Kafka теряются heartbeats.
+                # Подменяем только когда E2E_ANALYTICS=1 (e2e-up / e2e-local /
+                # e2e-mqtt-up). В e2e-codespace флаг не задан — analytics-backend
+                # не поднимается, и подмена сделала бы хуже (DNS-ошибки).
+                if os.getenv("E2E_ANALYTICS") == "1":
+                    env_dict["INFOPANEL_URL"] = "http://analytics-backend:8080"
+                    env_dict["INFOPANEL_API_KEY"] = "${ANALYTICS_API_KEY:-test-api-key-e2e-12345}"
 
             # Agregator (Go): Kafka + при MQTT дублирование operator-трафика в Mosquitto.
             if sys_name.lower() == "agregator" and os.getenv("E2E_BROKER") == "mqtt":
