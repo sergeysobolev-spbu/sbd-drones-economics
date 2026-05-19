@@ -84,7 +84,16 @@ ci-unit-test:
 	done; \
 	if [ $$fail -ne 0 ]; then echo "=== Some unit tests FAILED ==="; exit 1; fi
 
-CI_INTEGRATION_EXCLUDE := systems/dummy_fabric systems/dummy_system
+CI_INTEGRATION_EXCLUDE := systems/dummy_fabric systems/dummy_system systems/team1-regulator_operation_devsecops
+
+# Системы используют фиксированные container_name (insurer: kafka/zookeeper/mosquitto/kafdrop,
+# SITL-module: sitl-*) — если предыдущий прогон упал и оставил контейнеры, следующий ловит
+# "Conflict. The container name is already in use". Перед каждой системой делаем force-remove
+# известных конфликтующих имён. compose-проектные имена (`agregator-*-1`, `drones-*`) docker
+# создаёт сам и они не пересекаются между системами.
+CI_INTEGRATION_DIRTY_NAMES := kafka zookeeper mosquitto kafdrop \
+    sitl-kafka sitl-zookeeper sitl-mosquitto sitl-redis \
+    sitl-verifier sitl-controller sitl-core sitl-messaging
 
 ci-integration-test:
 	@fail=0; \
@@ -93,6 +102,8 @@ ci-integration-test:
 		case " $(CI_INTEGRATION_EXCLUDE) " in *" $${dir%/} "*) echo "=== Skipping $$dir (excluded) ==="; continue;; esac; \
 		if [ -f "$$dir/Makefile" ] && grep -qE '^test-all-docker:|^integration-test:' "$$dir/Makefile" 2>/dev/null; then \
 			target=$$(grep -oE '^(test-all-docker|integration-test):' "$$dir/Makefile" | head -1 | tr -d ':'); \
+			echo "=== Cleanup leftover broker containers ==="; \
+			docker rm -f $(CI_INTEGRATION_DIRTY_NAMES) 2>/dev/null || true; \
 			echo "=== Integration tests: $$dir (make $$target) ==="; \
 			$(MAKE) -C "$$dir" $$target PROJECT_ROOT=$(PROJECT_ROOT) || fail=1; \
 			echo ""; \
@@ -100,6 +111,7 @@ ci-integration-test:
 			echo "=== Skipping $$dir (no integration target) ==="; \
 		fi; \
 	done; \
+	docker rm -f $(CI_INTEGRATION_DIRTY_NAMES) 2>/dev/null || true; \
 	if [ $$fail -ne 0 ]; then echo "=== Some integration tests FAILED ==="; exit 1; fi
 
 ci-test: ci-unit-test ci-integration-test
