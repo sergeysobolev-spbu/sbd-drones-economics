@@ -1,4 +1,4 @@
-.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local e2e-mqtt-up e2e-mqtt-test e2e-mqtt-down e2e-mqtt jenkins-up jenkins-down jenkins-restart jenkins-logs jenkins-ps jenkins-build-unit jenkins-build-integration jenkins-build-e2e jenkins-build-agrodron-security-monitor jenkins-build-dummy-fabric-unit
+.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local e2e-mqtt-up e2e-mqtt-test e2e-mqtt-down e2e-mqtt e2e-negative-test e2e-negative e2e-negative-mqtt-test e2e-negative-mqtt jenkins-up jenkins-down jenkins-restart jenkins-logs jenkins-ps jenkins-build-unit jenkins-build-integration jenkins-build-e2e jenkins-build-agrodron-security-monitor jenkins-build-dummy-fabric-unit
 
 PROJECT_ROOT := $(CURDIR)
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
@@ -35,6 +35,10 @@ help:
 	@echo "make e2e-mqtt-test     - Запустить те же E2E тесты (pytest tests/e2e/test_e2e_scenario.py), транспорт MQTT"
 	@echo "make e2e-mqtt-down     - Остановить MQTT E2E стенд"
 	@echo "make e2e-mqtt          - e2e-mqtt-up + e2e-mqtt-test + e2e-mqtt-down"
+	@echo "make e2e-negative-test - Запустить негативный сценарий (pytest tests/e2e/test_e2e_negative_scenario.py)"
+	@echo "make e2e-negative      - e2e-up + e2e-negative-test + e2e-logs + e2e-down"
+	@echo "make e2e-negative-mqtt-test - Запустить негативный сценарий на MQTT-транспорте"
+	@echo "make e2e-negative-mqtt - e2e-mqtt-up + e2e-negative-mqtt-test + e2e-logs + e2e-mqtt-down"
 	@echo "make jenkins-up        - Поднять Jenkins (JCasC, авто-конфиг jobs)"
 	@echo "make jenkins-down      - Остановить Jenkins"
 	@echo "make jenkins-restart   - Перезапустить Jenkins"
@@ -195,6 +199,19 @@ e2e-down:
 e2e: e2e-up e2e-test e2e-logs e2e-down
 
 # ---------------------------------------------------------------------------
+# E2E Negative: только негативный сценарий (ORVD emergency landing → dispute →
+# страховая выплата). Использует тот же стенд, что и e2e.
+# ---------------------------------------------------------------------------
+
+e2e-negative-test:
+	@echo "=== Running E2E negative scenario ==="
+	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest \
+		tests/e2e/test_e2e_negative_scenario.py -v -s --tb=short 2>&1 || \
+		(echo "E2E negative scenario failed"; exit 1)
+
+e2e-negative: e2e-up e2e-negative-test e2e-logs e2e-down
+
+# ---------------------------------------------------------------------------
 # E2E Codespace: без pipenv, без привязки к версии Python
 # ---------------------------------------------------------------------------
 
@@ -325,6 +342,20 @@ e2e-mqtt-down:
 	@echo "=== E2E MQTT environment stopped ==="
 
 e2e-mqtt: e2e-mqtt-up e2e-mqtt-test e2e-logs e2e-mqtt-down
+
+# ---------------------------------------------------------------------------
+# E2E Negative (MQTT): негативный сценарий на MQTT-транспорте.
+# Использует MQTT-стенд (e2e-mqtt-up).
+# ---------------------------------------------------------------------------
+
+e2e-negative-mqtt-test:
+	@echo "=== Running E2E negative scenario (MQTT transport) ==="
+	@$(LOAD_ENV) && BROKER_TYPE=mqtt MQTT_BROKER=localhost MQTT_PORT=1883 \
+		PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest \
+		tests/e2e/test_e2e_negative_scenario.py -v -s --tb=short 2>&1 || \
+		(echo "E2E MQTT negative scenario failed"; exit 1)
+
+e2e-negative-mqtt: e2e-mqtt-up e2e-negative-mqtt-test e2e-logs e2e-mqtt-down
 
 # --- Jenkins (JCasC) ---
 

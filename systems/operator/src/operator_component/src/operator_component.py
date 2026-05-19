@@ -137,6 +137,10 @@ class OperatorComponent(BaseComponent):
             "drone_id": drone_id,
             "coverage_amount": coverage_amount,
         }
+        # Прокидываем manufacturer_id — Java insurer падает с NPE при пересчёте
+        # KBM в processIncident, если manufacturer_id == null.
+        if payload.get("manufacturer_id"):
+            insurer_payload["manufacturer_id"] = payload["manufacturer_id"]
         if isinstance(payload.get("incident"), dict):
             insurer_payload["incident"] = payload["incident"]
 
