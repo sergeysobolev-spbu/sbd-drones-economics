@@ -263,6 +263,17 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
     broker_compose = yaml.safe_load(broker_compose_path.read_text()) or {}
     broker_services = deepcopy(broker_compose.get("services", {}))
 
+    # Hyperledger Fabric integration: при ENABLE_FABRIC=true тащим в merged
+    # compose сервисы fabric-proxy + ledger-gateway (через них тесты ходят в
+    # components.ledger) и подключаем external сеть fabric_drone, созданную
+    # fabric-network/network. По умолчанию вырезаем эти сервисы, чтобы
+    # ссылка на fabric_drone не ломала валидацию compose.
+    enable_fabric = os.getenv("ENABLE_FABRIC", "false").strip().lower() == "true"
+    fabric_service_names = ("fabric-proxy", "ledger-gateway")
+    if not enable_fabric:
+        for fname in fabric_service_names:
+            broker_services.pop(fname, None)
+
     # rewrite broker volume paths относительно output директории
     broker_dir = broker_compose_path.parent
     for svc in broker_services.values():
@@ -615,15 +626,24 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
 
     validate_ports(merged_services)
 
+    merged_networks: Dict[str, Any] = {
+        "drones_net": {
+            "driver": "bridge",
+            "name": "${DOCKER_NETWORK:-drones_net}",
+        }
+    }
+    if enable_fabric:
+        # fabric_drone создаётся fabric-network/network до запуска e2e-стенда;
+        # объявляем external, иначе fabric-proxy не сможет привязаться.
+        merged_networks["fabric_drone"] = {
+            "external": True,
+            "name": "fabric_drone",
+        }
+
     merged: Dict[str, Any] = {
         "name": "drones",
         "services": merged_services,
-        "networks": {
-            "drones_net": {
-                "driver": "bridge",
-                "name": "${DOCKER_NETWORK:-drones_net}",
-            }
-        },
+        "networks": merged_networks,
     }
     if merged_volumes:
         merged["volumes"] = merged_volumes
