@@ -1,0 +1,71 @@
+name: Integration tests
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    name: Integration Tests (make ci-integration-test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      PIPENV_PIPFILE: config/Pipfile
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      DOCKER_BUILDKIT: "1"
+      COMPOSE_DOCKER_CLI_BUILD: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Sanity check
+        run: |
+          set -eu
+          docker version
+          docker compose version
+          python3 --version
+
+      - name: Install pipenv & dependencies
+        run: |
+          set -eu
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install pipenv
+          pipenv --version
+          pipenv install --dev
+
+      - name: Run integration tests
+        run: make ci-integration-test
+
+      - name: Tear down docker stacks
+        if: always()
+        run: |
+          set +e
+          make docker-down || true
+          for sys in systems/*/; do
+            [ -f "$sys/Makefile" ] && make -C "$sys" docker-down PROJECT_ROOT="$(pwd)" 2>/dev/null || true
+          done
+          docker system prune -f --volumes --filter "label=ci=drones" || true
+
+      - name: Upload pytest reports & logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-pytest-reports
+          path: |
+            **/pytest-report*.xml
+            **/*.log
+          if-no-files-found: ignore

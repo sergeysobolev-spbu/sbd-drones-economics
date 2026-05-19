@@ -1,0 +1,52 @@
+name: Unit tests — agrodron/security_monitor
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: agrodron-security-monitor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Unit Tests (agrodron/security_monitor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      PIPENV_PIPFILE: config/Pipfile
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipenv & dependencies
+        run: |
+          set -eu
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install pipenv
+          pipenv install --dev
+
+      - name: Run agrodron/security_monitor tests
+        run: |
+          pipenv run pytest -c config/pyproject.toml \
+            systems/agrodron/src/security_monitor/tests/ \
+            -v --tb=short
+
+      - name: Upload pytest reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agrodron-security-monitor-reports
+          path: "**/pytest-report*.xml"
+          if-no-files-found: ignore

@@ -1,0 +1,101 @@
+name: E2E (codespace)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: E2E (make e2e-codespace)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_BREAK_SYSTEM_PACKAGES: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      DOCKER_BUILDKIT: "1"
+      COMPOSE_DOCKER_CLI_BUILD: "1"
+      COMPOSE_PARALLEL_LIMIT: "4"
+      E2E_WARMUP_SECONDS: "180"
+      AGREGATOR_URL: "http://host.docker.internal:8081"
+      REGULATOR_URL: "http://host.docker.internal:8088"
+      ANALYTICS_URL: "http://host.docker.internal:8090"
+      KAFKA_BOOTSTRAP_SERVERS: "host.docker.internal:9092"
+      KAFKA_ADVERTISED_HOST: "host.docker.internal"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Sanity check
+        run: |
+          set -eu
+          docker version
+          docker compose version
+          python3 --version
+          pip3 --version || python3 -m ensurepip --upgrade
+
+      - name: Enable host.docker.internal on Linux runner
+        run: |
+          # ubuntu-latest doesn't resolve host.docker.internal by default;
+          # add it explicitly to /etc/hosts pointing at the docker bridge gateway.
+          HOST_IP=$(ip -4 addr show docker0 | awk '/inet /{print $2}' | cut -d/ -f1)
+          echo "${HOST_IP} host.docker.internal" | sudo tee -a /etc/hosts
+          getent hosts host.docker.internal
+
+      - name: Pre-clean
+        run: |
+          set +e
+          make e2e-down || true
+          docker network rm drones_net 2>/dev/null || true
+          docker builder prune -af || true
+
+      - name: Run E2E (codespace target)
+        run: |
+          set -eu
+          make e2e-codespace
+
+      - name: Collect docker compose logs
+        if: always()
+        run: |
+          set +e
+          docker compose -f .generated/e2e/docker-compose.yml --env-file .generated/e2e/.env logs --no-color > e2e-logs.txt 2>&1 || true
+
+      - name: Tear down e2e stack
+        if: always()
+        run: |
+          set +e
+          make e2e-down || true
+          for sys in systems/*/; do
+            [ -f "$sys/Makefile" ] && make -C "$sys" docker-down PROJECT_ROOT="$(pwd)" 2>/dev/null || true
+          done
+
+      - name: Show container status on failure
+        if: failure()
+        run: |
+          set +e
+          docker ps -a || true
+          docker compose -f .generated/e2e/docker-compose.yml --env-file .generated/e2e/.env ps || true
+
+      - name: Upload e2e artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            e2e-logs.txt
+            .generated/e2e/**
+            **/pytest-report*.xml
+          if-no-files-found: ignore
