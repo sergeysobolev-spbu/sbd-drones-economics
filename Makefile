@@ -149,7 +149,7 @@ E2E_WARMUP_SECONDS ?= 100
 
 e2e-up:
 	@echo "=== Generating multi-system compose ==="
-	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py \
+	@$(LOAD_ENV) && E2E_ANALYTICS=1 PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py \
 		--systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
 	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
@@ -245,7 +245,7 @@ e2e-local:
 	@echo "=== Cleaning leftover build artifacts ==="
 	@sudo rm -rf systems/Agregator/postgres_data 2>/dev/null || true
 	@echo "=== Generating multi-system compose ==="
-	@$(LOAD_ENV) && python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@$(LOAD_ENV) && E2E_ANALYTICS=1 python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
 	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
@@ -288,7 +288,7 @@ e2e-local:
 
 e2e-mqtt-up:
 	@echo "=== Generating multi-system compose (E2E_BROKER=mqtt) ==="
-	@$(LOAD_ENV) && E2E_BROKER=mqtt PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py \
+	@$(LOAD_ENV) && E2E_BROKER=mqtt E2E_ANALYTICS=1 PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py \
 		--systems $(E2E_SYSTEMS_MQTT) --output $(E2E_OUTPUT)
 	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
