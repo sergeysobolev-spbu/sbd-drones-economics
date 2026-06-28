@@ -677,9 +677,9 @@ flowchart LR
 | I3 | compose stub, gate table, CI exclude | full compose YAML | `-economics` `f386b72` | ci-unit-test green (all suites) |
 | I4 | ADR-003, PlantUML T12, traceability | C4 container diagram update | `-ai` `16a0d45` | — |
 | I5 | agent gaps, tem-bas-operator, ZUN stub | coding worktrees | `-ai` `a1dc490` | — |
-| I6 | Final table, SHAs | ci-integration port 8081 busy; T10 compose | `-ai` I6 doc commit | `ci-unit-test` ✅; `phase0-smoke` 2 passed |
+| I6 | Final table, SHAs | ci-integration port 8081 busy; T10 compose | `-ai` `763ae0b` | `ci-unit-test` ✅; `phase0-smoke` 2 passed |
 
-**HEAD (2026-06-28):** `-economics` `feature/uas-dev-company` @ `f386b72`; `-ai` `test/integration-phase0-initiation` @ `a1dc490` (+I6 pending).
+**HEAD (2026-06-28):** `-economics` `feature/uas-dev-company` @ `f386b72`; `-ai` `test/integration-phase0-initiation` @ `763ae0b`.
 
 **Test summary I6:** `make ci-unit-test` — all unit suites green (team1 excluded). `make ci-integration-test` — **red** on `systems/Agregator` port 8081 already allocated (environment). `make phase0-smoke` — **2 passed** (structural TM-001/002).
 
