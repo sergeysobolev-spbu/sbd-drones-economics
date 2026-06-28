@@ -1,4 +1,4 @@
-<!-- doc-meta: status=active version=1.1 updated=2026-06-28 audience=internal -->
+<!-- doc-meta: status=active version=1.2 updated=2026-06-28 audience=internal -->
 
 # Улучшение AI-агентов и навыков для `sbd-drones-economics-ai`
 
@@ -88,6 +88,48 @@
 | `tem-bas-operator` | pending | env KAFKA_OPERATOR_* + green shell tests |
 | `tem-bas-aggregator` | pending | `service_type: agro_field` HTTP→Kafka |
 | `tem-bas-integration-stubs` | pending | ORVD ping stub, DronePort battery OK |
+
+## 4.4. Замечание QA/DevOps — автономность спринта (2026-06-28)
+
+**Проблема:** QA-спринт 120 мин завершился досрочно при невыполненных E2E-целях (`make e2e-codespace` не подтверждён green; `ci-integration-test` red на порту 8081). Агенты не использовали выделенное время, ресурсы и инструкции полностью.
+
+**Обязательная политика для `qa-marinet-spec`, `ci-marinet-steward` и связанных skills** (`platform-validation`, `platform-ci-jenkins`, `skill_sdet_broker_e2e`, `skill_devops_broker_cicd`):
+
+| # | Правило | Детали |
+|---|---|---|
+| 1 | **Полное использование time budget** | Не завершать спринт раньше срока (например, 120 мин), пока не выполнены все sprint goals **или** документированно не осталось незаблокированной полезной работы в границах репозитория |
+| 2 | **Pivot при блокере** | На blocking issue → переключиться на следующую приоритетную незаблокированную задачу, полезную для целей проекта; **не простаивать** и не ждать human без попыток обхода |
+| 3 | **Границы репозитория** | Работать в `-economics` / `-ai` согласно sprint scope; не уходить в open-platform или другие репо без явной инструкции |
+| 4 | **Повышенная автономность** | Самостоятельно: запускать тесты, читать логи, чинить infra (порты, compose down, exclude), итерировать циклы fix→retest **без запроса подтверждения** на каждый шаг |
+| 5 | **E2E gate обязателен** | Заявлять sprint complete только после **`make e2e-codespace` green** (или явного xfail/skip policy с issue, если цель спринта — только unit/integration) |
+
+### Pivot rules (приоритет незаблокированной работы)
+
+1. **Infra red** (порт занят, stack не поднялся) → `docker compose down`, освободить порт, retry; параллельно — structural/unit тесты, doc gates, flake classification.
+2. **Integration red, unit green** → не останавливаться на «unit достаточно»; pivot: port cleanup → retry integration → подготовка e2e-up.
+3. **Product red** (assertion, контракт) → классифицировать skip/xfail/pass; если fix вне scope — pivot на smoke skeleton, gate table, traceability, CI exclude.
+4. **Все цели текущего блока закрыты, время осталось** → взять следующий пункт из [backlog-sync](ai_dev_tasks.md#backlog-sync) или [next-actions](ai_dev_tasks.md#next-actions), не завершать спринт.
+
+### Anti-patterns (запрещено)
+
+| Anti-pattern | Почему плохо |
+|---|---|
+| Early exit при broken e2e | Soft-green: CI частично зелёный, интеграция не доказана |
+| «Blocked on port 8081» без cleanup/retry | Infra fix в scope DevOps; idle недопустим |
+| Остановка после `ci-unit-test` green, если цель — E2E | Unit ≠ sprint success для E2E-focused sprint |
+| Запрос human на каждый `make` / `docker` | Снижает автономность; human — только для merge/ADR/T3 |
+| Уход в другой репозиторий «починить платформу» | Нарушение границ; фиксировать issue, pivot внутри scope |
+
+### Checklist перед «sprint complete»
+
+- [ ] Time budget использован ≥90% **или** все sprint goals met с evidence
+- [ ] Если цель включала E2E: `make e2e-codespace` выполнен и **green** (или задокументированный defer с owner/issue)
+- [ ] Блокеры перечислены с классификацией: infra / product / scope / external
+- [ ] Для каждого блокера — что сделано (retry, pivot, workaround) или почему truly no unblocked work
+- [ ] Commits и test summary table обновлены в [sprint-120min-2026-06-28](ai_dev_tasks.md#sprint-120min-2026-06-28)
+- [ ] Не заявлено «готово» при red integration/e2e без явного sprint scope exception
+
+**Канон:** [sprint-autonomy-policy](ai_dev_tasks.md#sprint-autonomy-policy) в `ai_dev_tasks.md`; skills `platform-validation` / `platform-ci-jenkins` § Sprint mode; rule `.cursor/rules/sprint-autonomy-qa-devops.mdc`.
 
 ## 5. План усиления
 

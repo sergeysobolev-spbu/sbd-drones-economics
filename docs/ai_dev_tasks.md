@@ -1,10 +1,6 @@
 # Мультиагентная разработка проекта ТЭМ БАС
 
-<!-- doc-meta: status=active version=1.7 updated=2026-06-28 -->
-
-<!-- merged from integration branch -->
-
-<!-- doc-meta: status=active version=1.6 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.2 updated=2026-06-28 -->
 
 Документ — **контракт агент-оркестратора** для подготовки и проведения работ по открытой платформе моделирования экономики эксплуатации безопасных дронов (направление **ОП**, см. [concept.md](concept.md)). Программный стенд — экспорт [`sbd-open-platform-and-trainings-development/code`](../../../sbd-open-platform-and-trainings-development/code).
 
@@ -26,6 +22,7 @@
 - [backlog-sync](#backlog-sync) — синхронизация с бэклогом этапа 0 (T1–T17)
 - [next-actions](#next-actions) — ближайшие действия оркестратора
 - [sprint-120min-2026-06-28](#sprint-120min-2026-06-28) — автономный спринт 120 мин (phase 0 artifacts)
+- [sprint-autonomy-policy](#sprint-autonomy-policy) — политика автономности QA/DevOps спринта
 
 ---
 
@@ -692,6 +689,37 @@ flowchart LR
 
 **Pushed (follow-up b9d16219):** gitflic `origin/feature/uas-dev-company` @ `f386b72` (ci-test green); `origin/docs/sprint-120min-2026-06-28` @ `5132f18`.
 
+### Retrospective: lesson learned (QA/DevOps autonomy)
+
+| Наблюдение | Урок |
+|---|---|
+| I6 завершён при red `ci-integration-test` и без `make e2e-codespace` | E2E-focused sprint **не закрывается** без e2e gate или явного defer |
+| Блокер «port 8081 busy» не привёл к cleanup/retry/pivot | DevOps обязан освобождать порты и retry; idle на infra — anti-pattern |
+| ~20 мин блока I6 не использованы на альтернативные задачи | Pivot: phase0-smoke hardening, e2e prep, port doc, flake log — в scope |
+| Агенты запрашивали human там, где могли итерировать сами | Повышенная автономность: tests, logs, docker, make — без подтверждения |
+
+### sprint-autonomy-policy {#sprint-autonomy-policy}
+
+**Контракт спринта QA/DevOps** (обязателен для всех time-boxed sprint с целями CI/E2E):
+
+1. **Time budget:** использовать выделенное время (например, 120 мин) полностью, если остаётся незаблокированная работа в scope.
+2. **Pivot on block:** при блокере — следующая приоритетная незаблокированная задача; документировать блокер и предпринятые попытки.
+3. **Repo boundaries:** `-economics` / `-ai` по sprint scope; другие репо — только по явной инструкции.
+4. **Autonomy:** запуск тестов, inspect logs, infra fix (ports, compose, exclude), fix→retest loops — без запроса human на каждый шаг.
+5. **E2E success criterion:** если sprint goal включает E2E — **`make e2e-codespace` green** обязателен перед claim «sprint complete»; red integration при green unit — не достаточное основание для завершения.
+
+Подробности, pivot rules, anti-patterns, checklist: [§4.4 ai_agents_improvements.md](ai_agents_improvements.md#44-замечание-qadevops--автономность-спринта-2026-06-28). Skills: `platform-validation`, `platform-ci-jenkins` § Sprint mode. Rule: `.cursor/rules/sprint-autonomy-qa-devops.mdc`.
+
+**Updated sprint contract (применять к следующим спринтам):**
+
+| Поле | Значение |
+|---|---|
+| Min time utilization | ≥90% budget или all goals met |
+| E2E gate | `make e2e-codespace` green если в goals |
+| On infra block | cleanup → retry → pivot (не stop) |
+| Human escalation | merge, ADR sign-off, T3 model — только эти точки |
+| Complete claim | test summary + blockers + evidence table в этом разделе |
+
 ---
 
-*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.1 — двухуровневая модель агентов и детализация Этапа 1 (1a–1c).*
+*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.2 — политика автономности QA/DevOps спринта (sprint-autonomy-policy).*
