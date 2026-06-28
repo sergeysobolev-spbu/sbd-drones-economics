@@ -641,7 +641,7 @@ flowchart LR
 
 **Session fixes (2026-06-28, agent):** insurer submodule `be3b3c74`, operator Kafka gateway restore, `.gitmodules` for notebook/cyber_drons/drone-operator-system, duplicate gitlink removal, operator `drones_net` compose.
 
-**`origin/master` tip (post QA push):** `d47ec827` → updated after `docs(vuca): record final QA`.
+**`origin/master` tip (post QA push):** `bc959b0`.
 
 ---
 
@@ -649,7 +649,7 @@ flowchart LR
 
 | Поле | Значение |
 |------|----------|
-| `origin/master` | `d47ec827` (after VUCA QA session; was `7a0c87de`) |
+| `origin/master` | `bc959b0` (after VUCA QA session; was `7a0c87de`) |
 | Отчёт | [2026-06-28-final-merge-purge.md](staged-push-reports/2026-06-28-final-merge-purge.md) |
 | Ветки | Только `master` (local + origin); purge **PASS** |
 | QA unit | `make unit-test` — 70 passed (`-ai`) |
