@@ -174,7 +174,7 @@ E2E_FABRIC_PROFILES = $(if $(filter true,$(ENABLE_FABRIC)),--profile fabric,)
 # Прогрев стенда после health-чеков: даём Kafka-консьюмерам во всех сервисах
 # (Agregator, Operator, Regulator, ORVD, GCS и т.д.) вступить в consumer group,
 # иначе первые тесты нестабильны (гейтвеи ловят таймауты до первой ребалансировки).
-E2E_WARMUP_SECONDS ?= 100
+E2E_WARMUP_SECONDS ?= 120
 
 e2e-up:
 	@echo "=== Generating multi-system compose (ENABLE_FABRIC=$(ENABLE_FABRIC)) ==="
@@ -189,8 +189,14 @@ e2e-up:
 	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env
 	@$(LOAD_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
 	@$(LOAD_ENV) && echo "BROKER_PASSWORD=$${ADMIN_PASSWORD:-admin_secret_123}" >> $(E2E_OUTPUT)/.env
+	@sed -i 's/^DOCKER_NETWORK=.*/DOCKER_NETWORK=drones_net_e2e_gate/' $(E2E_OUTPUT)/.env 2>/dev/null || echo "DOCKER_NETWORK=drones_net_e2e_gate" >> $(E2E_OUTPUT)/.env
+	@echo "=== E2E preflight (host ports / stale stacks) ==="
+	-$(E2E_COMPOSE) --profile $(E2E_PROFILE) $(E2E_FABRIC_PROFILES) down -v 2>/dev/null
+	@bash scripts/e2e_preflight_host_ports.sh
 	@echo "=== Starting E2E environment ==="
 	$(E2E_COMPOSE) --profile $(E2E_PROFILE) $(E2E_FABRIC_PROFILES) up -d --build
+	@echo "=== Waiting for Kafka ($${KAFKA_PORT:-9092}) ==="
+	@for i in $$(seq 1 60); do nc -z localhost $${KAFKA_PORT:-9092} 2>/dev/null && echo "Kafka port is open" && break; [ $$i -eq 60 ] && echo "ERROR: Kafka did not open port $${KAFKA_PORT:-9092}" && exit 1 || sleep 5; done
 	@echo "=== Waiting for Agregator (8081) ==="
 	@for i in $$(seq 1 60); do curl -sf http://localhost:8081/health >/dev/null 2>&1 && echo "Agregator is up" && break; [ $$i -eq 60 ] && echo "WARNING: Agregator did not respond after 300s" || sleep 5; done
 	@echo "=== Waiting for Regulator (8088) ==="
@@ -283,22 +289,28 @@ e2e-codespace:
 	@echo "=== Initializing git submodules ==="
 	git submodule update --init --recursive
 	@echo "=== Installing Python dependencies ==="
-	pipenv run pip install -r $(REQUIREMENTS)
+	PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pip install -r $(REQUIREMENTS)
 	@echo "=== Preparing docker/.env ==="
 	@test -f docker/.env || cp docker/example.env docker/.env
 	@echo "=== Cleaning leftover build artifacts ==="
 	@rm -rf systems/Agregator/postgres_data 2>/dev/null || true
 	@echo "=== Generating multi-system compose ==="
-	@$(LOAD_ENV) && pipenv run python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
 	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
 	@echo "AGRODRON_GATEWAY_HOST_PORT=18081" >> $(E2E_OUTPUT)/.env
 	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env
+	@sed -i 's/^DOCKER_NETWORK=.*/DOCKER_NETWORK=drones_net_e2e_gate/' $(E2E_OUTPUT)/.env 2>/dev/null || echo "DOCKER_NETWORK=drones_net_e2e_gate" >> $(E2E_OUTPUT)/.env
 	@$(LOAD_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
 	@$(LOAD_ENV) && echo "BROKER_PASSWORD=$${ADMIN_PASSWORD:-admin_secret_123}" >> $(E2E_OUTPUT)/.env
+	@echo "=== E2E preflight (host ports / stale stacks) ==="
+	-$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null
+	@bash scripts/e2e_preflight_host_ports.sh
 	@echo "=== Resetting Docker network ==="
-	@docker network rm $${DOCKER_NETWORK:-drones_net} 2>/dev/null || true
+	@docker network rm drones_net_e2e_gate 2>/dev/null || true
 	@echo "=== Starting E2E environment (no analytics) ==="
 	$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) up -d --build
+	@echo "=== Waiting for Kafka ($${KAFKA_PORT:-9092}) ==="
+	@for i in $$(seq 1 60); do nc -z localhost $${KAFKA_PORT:-9092} 2>/dev/null && echo "Kafka port is open" && break; [ $$i -eq 60 ] && echo "ERROR: Kafka did not open port $${KAFKA_PORT:-9092}" && exit 1 || sleep 5; done
 	@echo "=== Waiting for Agregator (8081) ==="
 	@for i in $$(seq 1 60); do curl -sf http://localhost:8081/health >/dev/null 2>&1 && echo "Agregator is up" && break; [ $$i -eq 60 ] && echo "WARNING: Agregator did not respond after 300s" || sleep 5; done
 	@echo "=== Waiting for Regulator (8088) ==="
@@ -307,7 +319,7 @@ e2e-codespace:
 	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
 	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== Running E2E tests ==="
-	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 pipenv run python -m pytest tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
+	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
 	@echo "=== Stopping E2E environment ==="
 	-$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null
 	@echo "=== Done ==="

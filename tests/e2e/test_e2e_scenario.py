@@ -120,6 +120,25 @@ def rest_get(base: str, path: str) -> requests.Response:
     return requests.get(f"{base}{path}", timeout=15)
 
 
+def rest_post_with_retries(
+    base: str,
+    path: str,
+    json: dict | None = None,
+    *,
+    attempts: int = 5,
+    sleep_s: float = 2.0,
+) -> requests.Response:
+    last_exc = None
+    for idx in range(attempts):
+        try:
+            return rest_post(base, path, json)
+        except requests.RequestException as exc:
+            last_exc = exc
+            if idx < attempts - 1:
+                time.sleep(sleep_s)
+    raise last_exc  # type: ignore[misc]
+
+
 # ---------------------------------------------------------------------------
 # Phase 0: System Registration
 # ---------------------------------------------------------------------------
@@ -376,7 +395,7 @@ class Test3_OrderFlow:
     def test_02_create_order_and_wait_for_match(self, agregator_url, kafka_bus):
         """Создаём заказ. Agregator отправляет create_order в Kafka,
         Operator автоматически отвечает price_offer, заказ переходит в matched."""
-        r = rest_post(agregator_url, "/orders", {
+        r = rest_post_with_retries(agregator_url, "/orders", {
             "customer_id": _shared["customer_id"],
             "description": "E2E agro delivery",
             "budget": self.ORDER_BUDGET,
@@ -446,12 +465,20 @@ class Test3_OrderFlow:
         if not _shared.get("order_id"):
             pytest.skip("No order to insure")
 
-        r = bus_request(kafka_bus, OPERATOR_TOPIC, "buy_insurance_policy", {
-            "order_id": _shared["order_id"],
-            "drone_id": E2E_DRONE_ID,
-            "coverage_amount": self.ORDER_BUDGET,
-            "insurance_action": "mission_insurance",
-        })
+        r = bus_request_with_retries(
+            kafka_bus,
+            OPERATOR_TOPIC,
+            "buy_insurance_policy",
+            {
+                "order_id": _shared["order_id"],
+                "drone_id": E2E_DRONE_ID,
+                "coverage_amount": self.ORDER_BUDGET,
+                "insurance_action": "mission_insurance",
+            },
+            attempts=6,
+            timeout=30,
+            sleep_s=3,
+        )
         assert r.get("success") is True, f"mission_insurance failed: {r}"
         mission = r.get("payload") or {}
         assert mission.get("status") == "insured"
@@ -469,7 +496,7 @@ class Test4_MissionPlanning:
 
     def test_01_register_mission_orvd(self, kafka_bus):
         mission_id = f"mission-{_shared.get('order_id', 'e2e')}"
-        _shared["mission_id"] = mission_id
+        _shared.pop("mission_registered", None)
 
         route = [
             {"lat": 55.75, "lon": 37.62},
@@ -516,8 +543,12 @@ class Test4_MissionPlanning:
         if not registered:
             pytest.skip("ORVD register_mission not reachable — skipping ORVD tests")
 
+        _shared["mission_id"] = mission_id
+        _shared["mission_registered"] = True
+        _shared["orvd_route"] = route
+
     def test_02_authorize_mission_orvd(self, kafka_bus):
-        if not _shared.get("mission_id"):
+        if not _shared.get("mission_registered"):
             pytest.skip("No mission_id from ORVD registration")
 
         mission_id = _shared["mission_id"]
@@ -579,7 +610,8 @@ class Test4_MissionPlanning:
                         "payload": {
                             "mission_id": mission_id,
                             "drone_id": E2E_DRONE_ID,
-                            "route": [
+                            "route": _shared.get("orvd_route")
+                            or [
                                 {"lat": 55.75, "lon": 37.62},
                                 {"lat": 55.80, "lon": 37.70},
                             ],
@@ -971,7 +1003,7 @@ class Test6_MissionExecution:
             return
 
         terminal_states = ("COMPLETED", "IDLE")
-        deadline = time.time() + 180  # flight simulation can take up to 180s
+        deadline = time.time() + 300  # flight simulation can take up to 300s
 
         while time.time() < deadline:
             try:
@@ -1006,7 +1038,7 @@ class Test6_MissionExecution:
 
         if state not in terminal_states:
             pytest.skip(
-                f"Mission not completed after 60s, last state={state!r} — "
+                f"Mission not completed after 300s, last state={state!r} — "
                 "SITL may not be running (drone position never changes)"
             )
 
