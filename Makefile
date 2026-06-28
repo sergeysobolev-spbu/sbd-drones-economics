@@ -141,6 +141,7 @@ ci-test: ci-unit-test ci-integration-test
 
 ci-config-check: ports-check phase0-smoke
 	@python3 scripts/check_jenkins_e2e_makefile.py
+	@bash scripts/check_jenkins_submodule_pins.sh
 	@test -f $(JENKINS_DIR)/.env && $(MAKE) jenkins-preflight || true
 
 ci-recovery-check:
@@ -470,6 +471,7 @@ jenkins-ps:
 
 jenkins-preflight:
 	@bash scripts/check_jenkins_env.sh
+	@bash scripts/check_jenkins_submodule_pins.sh
 
 jenkins-reload-casc: jenkins-apply-jobs
 
