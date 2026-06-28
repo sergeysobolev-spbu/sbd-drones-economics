@@ -1,4 +1,4 @@
-<!-- doc-meta: status=active version=1.0 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.0 updated=2026-06-28 phase-C -->
 
 # Staged push report — phase 5 master merge (2026-06-28)
 
@@ -24,7 +24,7 @@ Agent group: merge `origin/master` into PR-E1 line and, when gates green, fast-f
 
 | Gate | Result | Evidence |
 |------|--------|----------|
-| `make ci-test` | **RED** | `systems/Agregator` Go integration: Kafka timeout / aggregator health (`TestKafkaMalformedMessageGoesToDLT`, lifecycle tests); first run also hit **port 8081** conflict with leftover E2E stack |
+| `make ci-test` | **RED** | Agregator: **Unknown Topic Or Partition** (2026-06-28 retry); earlier **8081** conflict when E2E stack up |
 | `make e2e-codespace` | **GREEN** (28 passed, 2 skipped, ~245s) | `test_e2e_scenario.py`; mission completion + analytics skipped |
 
 ### DevOps mitigations attempted
@@ -37,6 +37,18 @@ Agent group: merge `origin/master` into PR-E1 line and, when gates green, fast-f
 
 - **E2E codespace:** green (2026-06-28 run). **ci-test** still red on Agregator integration.
 - **Master push:** **blocked**.
+
+
+## Phase C follow-up (agent 58ce477e, 2026-06-28)
+
+| Gate | Result | Notes |
+|------|--------|-------|
+| `make e2e-codespace` | **GREEN** | 28 passed, 2 skipped; log `/tmp/e2e-codespace-phase5.log` |
+| `make ci-test` | **RED** | Agregator Go integration: broker returns **Unknown Topic Or Partition** for aggregator topics (kafka-init / topic bootstrap gap vs E2E `ensure_kafka_topics` path). Retry after `make e2e-down`: same topic errors (`/tmp/ci-test-phase5-retry.log`). |
+
+**PR-E1 → master:** still **NOT executed** (ci-test red).
+
+**Agregator ci-test diagnosis:** not a host-port flake on final retry; isolated `systems/Agregator` compose does not pre-create the same topic set as full E2E warmup. Fix backlog: align `kafka-init` or test harness with E2E topic list.
 
 ## Next steps
 
