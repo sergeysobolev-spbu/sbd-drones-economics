@@ -1,0 +1,131 @@
+@startuml uas_purchase_sequence
+!theme plain
+title Последовательность покупки БАС
+
+actor "Оператор" as Operator
+participant "Operator System" as OS
+participant "Fleet Manager" as FM
+participant "Regulator Client" as RC
+participant "Developer Client" as DC
+participant "Регулятор" as Regulator
+participant "Разработчик БАС" as Developer
+
+== Инициализация ==
+Operator -> OS: Запуск системы
+activate OS
+OS -> RC: Создать клиент
+activate RC
+RC -> Regulator: Регистрация оператора
+activate Regulator
+Regulator --> RC: Подтверждение регистрации
+deactivate Regulator
+RC -> Regulator: Запрос списка систем
+activate Regulator
+Regulator --> RC: Список зарегистрированных систем
+deactivate Regulator
+RC --> OS: Топики систем
+deactivate RC
+
+OS -> DC: Создать клиент
+activate DC
+DC -> RC: Получить топики разработчиков
+RC --> DC: Список топиков
+deactivate DC
+
+OS -> FM: Инициализация Fleet Manager
+activate FM
+FM -> DC: Установить клиент разработчиков
+deactivate FM
+deactivate OS
+
+== Получение каталогов ==
+Operator -> FM: Запрос каталогов БАС
+activate FM
+FM -> DC: get_all_catalogs()
+activate DC
+
+alt Режим YAML (тестовый)
+    DC -> DC: Загрузить из YAML файла
+else Режим API (продуктивный)
+    loop Для каждого разработчика
+        DC -> Developer: Запрос каталога
+        activate Developer
+        Developer --> DC: Каталог моделей БАС
+        deactivate Developer
+    end
+end
+
+DC --> FM: Словарь каталогов
+deactivate DC
+FM --> Operator: Список доступных моделей
+deactivate FM
+
+== Поиск подходящих БАС ==
+Operator -> FM: Найти БАС по требованиям
+activate FM
+note right
+    Требования:
+    - Категория: light_cargo
+    - Грузоподъёмность: ≥3 кг
+    - Дальность: ≥30 км
+    - Сертификация: обязательна
+end note
+
+FM -> DC: find_best_uas_for_requirements()
+activate DC
+DC -> DC: Фильтрация моделей
+DC --> FM: Список подходящих моделей
+deactivate DC
+FM --> Operator: Подходящие модели
+deactivate FM
+
+== Покупка БАС ==
+Operator -> FM: Купить БАС (модель, количество)
+activate FM
+FM -> DC: purchase_uas(developer_id, model_id, quantity)
+activate DC
+
+DC -> DC: Проверить наличие
+alt Достаточное количество
+    DC -> DC: Создать заказ
+    DC -> Developer: Отправить заказ (в реальной системе)
+    activate Developer
+    Developer --> DC: Подтверждение заказа
+    deactivate Developer
+    DC --> FM: Успешный заказ
+    
+    FM -> FM: Добавить БАС в парк
+    loop Для каждого купленного БАС
+        FM -> FM: Создать запись БАС
+        note right
+            - Уникальный ID
+            - Модель и характеристики
+            - Статус: available
+            - Батарея: 100%
+        end note
+    end
+    
+    FM --> Operator: Покупка успешна
+else Недостаточное количество
+    DC --> FM: Ошибка: недостаточно БАС
+    FM --> Operator: Ошибка покупки
+end
+
+deactivate DC
+deactivate FM
+
+== Использование купленных БАС ==
+Operator -> FM: Найти доступные БАС для миссии
+activate FM
+FM -> FM: Фильтрация по требованиям
+FM --> Operator: Список доступных БАС
+deactivate FM
+
+Operator -> FM: Зарезервировать БАС
+activate FM
+FM -> FM: Изменить статус на "reserved"
+FM -> FM: Установить время истечения
+FM --> Operator: БАС зарезервирован
+deactivate FM
+
+@enduml

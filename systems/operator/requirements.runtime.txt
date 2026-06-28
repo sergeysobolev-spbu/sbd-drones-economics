@@ -1,0 +1,18 @@
+pydantic>=2.0.0
+dataclasses-json>=0.6.0
+python-dateutil>=2.8.2
+pyyaml>=6.0.1
+
+# Health endpoint (SDK)
+flask>=3.1.3
+
+# Message broker clients
+paho-mqtt>=1.6.1
+
+# Logging & monitoring
+structlog>=23.1.0
+prometheus-client>=0.18.0
+
+# Utilities
+python-dotenv>=1.0.0
+click>=8.1.0

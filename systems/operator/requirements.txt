@@ -1,0 +1,6 @@
+#
+# Aggregate requirements for local development.
+# Docker images should install only `requirements.runtime.txt`.
+#
+-r requirements.runtime.txt
+-r requirements.dev.txt

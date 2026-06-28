@@ -1,0 +1,108 @@
+@startuml uas_reservation_sequence
+!theme plain
+title UAS Reservation Sequence with Security Domains
+
+participant "Mission Planner" as MP
+participant "System Bus" as BUS
+participant "Fleet Manager" as FM
+participant "FleetManagerService\n(D2_OPERATIONAL)" as FMS
+participant "FleetManagerCore\n(D1_TRUSTED)" as FMC
+participant "Regulator Client" as RC
+
+== Find Suitable UAS ==
+
+MP -> BUS: FIND_AVAILABLE_UAS\n{requirements}
+BUS -> FM: deliver message
+FM -> FMS: find_suitable_uas(requirements)
+
+FMS -> FMS: filter by type, payload, range
+FMS -> FMC: get_uas_state(uas_id)
+FMC --> FMS: {status, battery, certificate}
+
+FMS -> FMS: calculate_suitability_score()
+FMS --> FM: [{uas_id, score, details}]
+FM --> BUS: suitable_uas list
+BUS --> MP: response
+
+== Reserve Selected UAS ==
+
+MP -> BUS: RESERVE_UAS\n{uas_id, mission_id}
+BUS -> FM: deliver message
+FM -> FMS: reserve_uas_with_validation()
+
+FMS -> FMC: authorize_uas_operation(\nuas_id, "reserve", operator_id)
+note right of FMC
+  **D1_TRUSTED checks:**
+  - UAS exists
+  - Certificate valid
+  - Certificate not expired
+  - UAS available
+end note
+
+alt Authorization Success
+    FMC --> FMS: (true, "OK")
+    
+    FMS -> FMC: reserve_uas(\nuas_id, mission_id, operator_id)
+    note right of FMC
+      **Atomic operation:**
+      - Check status again
+      - Update to RESERVED
+      - Set reserved_by
+    end note
+    
+    FMC --> FMS: (true, "OK")
+    
+    FMS -> FMS: log operation
+    FMS -> FMS: save reservation info
+    FMS -> FMS: update metrics
+    
+    FMS --> FM: {success: true, reservation}
+    FM --> BUS: reservation confirmed
+    BUS --> MP: success response
+    
+else Authorization Failed
+    FMC --> FMS: (false, reason)
+    
+    FMS -> FMS: get_reservation_suggestions()
+    FMS --> FM: {success: false, reason, suggestions}
+    FM --> BUS: reservation failed
+    BUS --> MP: error response
+end
+
+== Certificate Check (Background) ==
+
+FMS -> RC: check_certificate(uas_id)
+RC --> FMS: certificate status
+
+alt Certificate Expiring Soon
+    FMS -> FMS: add to maintenance_required
+    FMS -> FMS: log warning
+end
+
+== Release UAS ==
+
+MP -> BUS: RELEASE_UAS\n{uas_id}
+BUS -> FM: deliver message
+FM -> FMS: release_uas_with_cleanup()
+
+FMS -> FMC: authorize_uas_operation(\nuas_id, "release", operator_id)
+note right of FMC
+  **D1_TRUSTED checks:**
+  - UAS exists
+  - Operator authorized
+end note
+
+FMC --> FMS: (true, "OK")
+FMS -> FMC: release_uas(uas_id, operator_id)
+
+FMC -> FMC: set status = AVAILABLE
+FMC -> FMC: clear reserved_by
+FMC --> FMS: (true, "OK")
+
+FMS -> FMS: clear reservation cache
+FMS -> FMS: log operation
+FMS --> FM: {success: true}
+FM --> BUS: release confirmed
+BUS --> MP: success response
+
+@enduml
