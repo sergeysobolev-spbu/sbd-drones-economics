@@ -25,7 +25,9 @@
 - [`integration/fabric_traceability_matrix.md`](integration/fabric_traceability_matrix.md) — матрица requirement -> method -> event -> test -> evidence;
 - [`integration/issues/ISSUE-PR-E3-fabric-e2e-mode.md`](integration/issues/ISSUE-PR-E3-fabric-e2e-mode.md) — checklist решения PR-E3;
 - [`integration/fabric_agent_task_packages.md`](integration/fabric_agent_task_packages.md) — agent task packages для Fabric-работ;
-- [`lab_works/fabric_contract_review_lab.md`](lab_works/fabric_contract_review_lab.md) — лабораторная ревизии Fabric-контрактов.
+- [`lab_works/fabric_contract_review_lab.md`](lab_works/fabric_contract_review_lab.md) — лабораторная ревизии Fabric-контрактов;
+- [`education/fabric_smart_contracts_track.md`](education/fabric_smart_contracts_track.md) — учебный трек;
+- [`education/fabric_smart_contracts_rubrics.md`](education/fabric_smart_contracts_rubrics.md) — рубрики.
 
 ## Архитектура
 
@@ -180,6 +182,8 @@ result = self.bus.request(
 ### OrderContract
 
 Заказы на полёты и распределение платежей.
+
+`DistributeFunds` имеет статус **demo-only / P2-P3** до отдельного review финансовой модели. Fabric фиксирует расчёт или решение, но не является платёжной системой и не выполняет перечисление денег.
 
 | Метод | Параметры (`args`) | Кто может вызывать |
 |-------|--------------------|--------------------|

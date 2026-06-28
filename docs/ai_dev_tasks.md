@@ -924,6 +924,8 @@ flowchart LR
 | `docs/integration/issues/ISSUE-PR-E3-fabric-e2e-mode.md` | Issue-шаблон решения PR-E3: manual-only, nightly или blocking. |
 | `docs/integration/fabric_agent_task_packages.md` | Issue-scoped пакеты для Fabric-агентов и readiness gates. |
 | `docs/lab_works/fabric_contract_review_lab.md` | Лабораторная ревизии Fabric-контрактов и доказательности. |
+| `docs/education/fabric_smart_contracts_track.md` | Продвинутый учебный трек Fabric smart contracts. |
+| `docs/education/fabric_smart_contracts_rubrics.md` | Рубрики для contract review, traceability, privacy и demo evidence. |
 
 ### Новые task_type в registry
 

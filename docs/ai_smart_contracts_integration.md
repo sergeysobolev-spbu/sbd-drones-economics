@@ -126,6 +126,7 @@ flowchart LR
 - [`integration/issues/ISSUE-PR-E3-fabric-e2e-mode.md`](integration/issues/ISSUE-PR-E3-fabric-e2e-mode.md) — checklist для решения PR-E3;
 - [`integration/fabric_agent_task_packages.md`](integration/fabric_agent_task_packages.md) — issue-scoped пакеты для Fabric-агентов;
 - [`lab_works/fabric_contract_review_lab.md`](lab_works/fabric_contract_review_lab.md) — учебная лабораторная ревизии Fabric-контрактов.
+- [`education/fabric_smart_contracts_track.md`](education/fabric_smart_contracts_track.md) и [`education/fabric_smart_contracts_rubrics.md`](education/fabric_smart_contracts_rubrics.md) — учебный трек и рубрики.
 
 ## 5. Решения ADR
 
