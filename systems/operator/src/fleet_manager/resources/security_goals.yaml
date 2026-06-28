@@ -1,0 +1,166 @@
+# Цели безопасности компонента Fleet Manager
+# Формат совместим с реестром типовых целей безопасности Регулятора
+
+component:
+  id: fleet_manager
+  name: "Менеджер парка БАС"
+  type: "operator_component"
+  security_domain: "D1_TRUSTED/D2_OPERATIONAL"
+  version: "1.0.0"
+
+security_goals:
+  - id: "SG-FM-001"
+    name: "Контроль доступа к операциям с БАС"
+    description: "При любых обстоятельствах компонент должен обеспечивать авторизацию всех операций с БАС на основе ролей и прав доступа"
+    standard_goal_id: "SG-STD-ACCESS-001"  # Ссылка на типовую ЦБ от Регулятора
+    gost_72118_mapping:
+      category: "Управление доступом"
+      level: "Высокий"
+      requirements:
+        - "FIA_UAU.2"  # Идентификация и аутентификация пользователя
+        - "FDP_ACC.1"  # Управление доступом на основе атрибутов
+    implementation:
+      mechanism: "Role-based access control"
+      domain: "D1_TRUSTED"
+      functions:
+        - "authorize_uas_operation"
+        - "reserve_uas"
+        - "release_uas"
+    verification:
+      method: "Automated testing + Formal verification"
+      coverage: "100%"
+
+  - id: "SG-FM-002"
+    name: "Целостность состояния парка БАС"
+    description: "Компонент должен гарантировать консистентность и целостность данных о состоянии всех БАС в парке"
+    standard_goal_id: "SG-STD-INTEGRITY-001"
+    gost_72118_mapping:
+      category: "Целостность данных"
+      level: "Высокий"
+      requirements:
+        - "FDP_SDI.2"  # Мониторинг целостности хранимых данных
+        - "FPT_TRC.1"  # Согласованность внутренних данных TSF
+    implementation:
+      mechanism: "Atomic operations + State validation"
+      domain: "D1_TRUSTED"
+      functions:
+        - "update_uas_state"
+        - "add_uas"
+        - "get_uas_state"
+    verification:
+      method: "Unit tests + Integration tests"
+      coverage: "95%"
+
+  - id: "SG-FM-003"
+    name: "Контроль сертификации БАС"
+    description: "Компонент должен предотвращать использование БАС с недействительными или истекшими сертификатами"
+    standard_goal_id: "SG-STD-CERT-001"
+    gost_72118_mapping:
+      category: "Аутентичность"
+      level: "Высокий"
+      requirements:
+        - "FIA_ATD.1"  # Определение атрибутов пользователя
+        - "FMT_MSA.3"  # Инициализация статических атрибутов
+    implementation:
+      mechanism: "Certificate validation"
+      domain: "D1_TRUSTED"
+      functions:
+        - "_is_certificate_valid"
+        - "authorize_uas_operation"
+    verification:
+      method: "Automated testing"
+      coverage: "100%"
+
+  - id: "SG-FM-004"
+    name: "Аудит операций с БАС"
+    description: "Все операции с БАС должны регистрироваться для последующего анализа и расследования инцидентов"
+    standard_goal_id: "SG-STD-AUDIT-001"
+    gost_72118_mapping:
+      category: "Регистрация и учет"
+      level: "Средний"
+      requirements:
+        - "FAU_GEN.1"  # Генерация данных аудита
+        - "FAU_SAR.1"  # Просмотр аудита
+    implementation:
+      mechanism: "Structured logging"
+      domain: "D2_OPERATIONAL"
+      functions:
+        - "_log_search_result"
+        - "_operation_history"
+    verification:
+      method: "Log analysis"
+      coverage: "90%"
+
+  - id: "SG-FM-005"
+    name: "Доступность парка БАС"
+    description: "Компонент должен обеспечивать оптимальное распределение БАС и предотвращать их блокировку"
+    standard_goal_id: "SG-STD-AVAIL-002"
+    gost_72118_mapping:
+      category: "Доступность"
+      level: "Средний"
+      requirements:
+        - "FRU_FLT.1"  # Ограниченная отказоустойчивость
+        - "FRU_RSA.1"  # Минимальная доступность ресурсов
+    implementation:
+      mechanism: "Timeout management + Resource optimization"
+      domain: "D2_OPERATIONAL"
+      functions:
+        - "find_suitable_uas"
+        - "_calculate_suitability_score"
+        - "_get_reservation_suggestions"
+    verification:
+      method: "Performance testing"
+      coverage: "85%"
+
+# Трассировка к целям безопасности системы
+traceability:
+  system_goals:
+    - system_goal_id: "SG-OPS-001"
+      component_goals: ["SG-FM-001", "SG-FM-003"]
+      justification: "Контроль доступа и сертификации обеспечивает безопасность операций"
+    
+    - system_goal_id: "SG-OPS-002"
+      component_goals: ["SG-FM-002", "SG-FM-005"]
+      justification: "Целостность данных и доступность ресурсов критичны для непрерывности операций"
+    
+    - system_goal_id: "SG-OPS-003"
+      component_goals: ["SG-FM-004"]
+      justification: "Аудит необходим для расследования инцидентов и соответствия требованиям"
+
+# Метрики безопасности
+security_metrics:
+  tcb_size:
+    target: "< 20%"
+    current: "18%"
+    measurement: "Lines of code in D1_TRUSTED / Total LOC"
+  
+  tcb_test_coverage:
+    target: "> 95%"
+    current: "98%"
+    measurement: "Test coverage for FleetManagerCore"
+  
+  complexity:
+    target: "< 10"
+    current: "7"
+    measurement: "Average cyclomatic complexity in D1_TRUSTED"
+  
+  response_time:
+    target: "< 10ms"
+    current: "5ms"
+    measurement: "Average authorization check time"
+
+# Риски и митигации
+risks:
+  - id: "RISK-FM-001"
+    description: "Несанкционированное резервирование БАС"
+    likelihood: "Средняя"
+    impact: "Высокий"
+    mitigation: "Строгая авторизация в D1_TRUSTED"
+    residual_risk: "Низкий"
+  
+  - id: "RISK-FM-002"
+    description: "Использование БАС с истекшим сертификатом"
+    likelihood: "Низкая"
+    impact: "Критический"
+    mitigation: "Автоматическая проверка сертификатов"
+    residual_risk: "Минимальный"
