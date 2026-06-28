@@ -25,12 +25,7 @@
 - [stage-1-plan](#stage-1-plan) — Этап 1: контракт, стабилизация CI/E2E, PR-E1
 - [backlog-sync](#backlog-sync) — синхронизация с бэклогом этапа 0 (T1–T17)
 - [next-actions](#next-actions) — ближайшие действия оркестратора
-- [e2e-stabilization-sprint](#e2e-stabilization-sprint) — стабилизация E2E (2026-06-28)
-- [sprint-120min-2026-06-28](#sprint-120min-2026-06-28)
-- [master-merge-agent-group](#master-merge-agent-group) — phase A/B consolidate и merge master — автономный спринт 120 мин (phase 0 artifacts)
-- [agent-vuca-history-100-review](#agent-vuca-history-100-review) — анализ 100 коммитов, VUCA/ЗУН дообучение и базовый план улучшений
-- [sprint-autonomy-policy](#sprint-autonomy-policy) — политика автономности QA/DevOps спринта
-- [vuca-block-merge](#vuca-block-merge) — block-by-block push/merge 2026-06-28 (GitFlic pack limit)
+- [sprint-120min-2026-06-28](#sprint-120min-2026-06-28) — автономный спринт 120 мин (phase 0 artifacts)
 
 ---
 
@@ -597,17 +592,9 @@ flowchart LR
 
 | Фаза | Ветка GitFlic | Статус |
 |------|---------------|--------|
-| 1 `-economics` | `master` @ `8132c19` | ✅ PR-E1 merged/pushed; `ci-test` + `e2e-codespace` green (agent e4481536) |
+| 1 `-economics` | `feature/uas-dev-company` @ `638a24b` | ✅ gate green; pushed |
 | 2 `-ai` docs | `docs/orchestrator-v1.1` @ `c0a124a` | ✅ on remote |
 | 3 `-ai` slice | `docs/pr-a2-integration-process` @ `688f7cb` | ✅ pushed (integration_process, без slides) |
-| 4 `-ai` slim | `docs/integration-phase0-consolidated` @ `bda83a48` | ✅ pushed |
-| 5 `-ai` vuca C–E | `vuca/block-c/d/e-*` | ✅ merged → `master` @ `48eae2fa` |
-| integration | `test/integration-phase0-initiation` @ `bda83a48` | ✅ slim FF push (8 commits) |
-| bulk history | slides/72118 in old integration history | ⛔ never bulk-push |
-
-<!-- merged from integration branch -->
-
-| 4 `-ai` slim | `docs/integration-phase0-consolidated` | docs-only; push после commit |
 | bulk | `test/integration-phase0-initiation` | ⛔ pack >100 MB |
 
 **Немедленно (оркестратор / координатор):**
@@ -641,9 +628,9 @@ flowchart LR
 
 **1c (merge):**
 
-- [x] QA sign-off на gate report — `ci-test` + `e2e-codespace` green (agent e4481536)
-- [x] PR-E1: reconcile с `origin/master`, повтор gate — green
-- [x] PR-E1 merge → `master` + push — `origin/master` @ `8132c19`
+- [ ] QA sign-off на gate report ([phase-1](../sbd-drones-economics/docs/staged-push-reports/2026-06-28-phase-1.md))
+- [ ] PR-E1: **rebase/merge `origin/master`** в `feature/uas-dev-company` (не FF: +11/−5), затем повтор gate
+- [ ] PR-E1 merge → `master` + push при green gate
 
 **Human review (владелец ОП):**
 
@@ -652,39 +639,6 @@ flowchart LR
 - [ ] Утвердить модель заказа `agro_field` (T3)
 - [ ] Утвердить rollout coding-агентов (таблица [stage-1-plan](#stage-1-plan))
 - [x] Merge: **PR-E1**; push master только при green tests
-
----
-
-
-## e2e-stabilization-sprint {#e2e-stabilization-sprint}
-
-<!-- doc-meta: status=active version=1.0 updated=2026-06-28 -->
-
-Автономный прогон агент-команды: стабилизация `make e2e-codespace`, `make phase0-smoke`, `make ci-test` в `sbd-drones-economics` (ветка `master`, commit `5a887b9`).
-
-### Распределение задач
-
-| Agent | Tasks | Result |
-|-------|--------|--------|
-| **DevOps** | e2e-up/down cleanup, port conflicts (8081/9092/29092), warmup 120s, compose fixes | `scripts/e2e_preflight_host_ports.sh`, `DOCKER_NETWORK=drones_net_e2e_gate`, Kafka `nc` gate, `PIPENV_PIPFILE` |
-| **QA** | reduce pytest.skip on happy path; ORVD/REST retries; phase0 smoke alignment | `mission_registered` guard, `rest_post_with_retries`; `phase0-smoke` **2 passed** |
-| **tem-bas-operator (coding)** | `KAFKA_OPERATOR_*` for TM-001 consumer | **deferred** — runtime TM-001 still `xfail` in `test_phase0_smoke.py` |
-| **Architect** | topic_map TM-001/002 vs tests | Structural checks **pass** (`v1.aggregator_insurer.local.operator.*`) |
-
-### Итоги прогонов
-
-| Gate | Result |
-|------|--------|
-| `make e2e-codespace` | **28 passed, 0 failed, 2 skipped** (~332s, run final-1); root cause baseline: foreign `agregator-kafka-1` on :29092 → E2E Kafka без :9092 |
-| `make phase0-smoke` | **2 passed** (Structure) |
-| `make ci-test` | **green** after preflight |
-
-### Оставшиеся skip
-
-| Test | Justification |
-|------|----------------|
-| `test_events_present_in_analytics` | `E2E_SKIP_ANALYTICS=1` by design for codespace gate |
-| `test_04_wait_mission_completed` | SITL flight sim: autopilot not IDLE/COMPLETED within 300s; upstream steps through `test_03` pass |
 
 ---
 
@@ -718,294 +672,22 @@ flowchart LR
 
 | Iter | Done | Blocked | Commits | Tests |
 |------|------|---------|---------|-------|
-| I1 | Sprint plan, baseline logged | — | `-ai` `de4f27c` | ci-test: unit fail team1 pydantic (pre-fix) |
-| I2 | smoke skeleton, topic_map v0.2 | Operator Kafka path | `-economics` `2ab89f7`; `-ai` `115a037` | phase0 structural (planned) |
-| I3 | compose stub, gate table, CI exclude | full compose YAML | `-economics` `f386b72` | ci-unit-test green (all suites) |
-| I4 | ADR-003, PlantUML T12, traceability | C4 container diagram update | `-ai` `16a0d45` | — |
-| I5 | agent gaps, tem-bas-operator, ZUN stub | coding worktrees | `-ai` `a1dc490` | — |
-| I6 | Final table, SHAs | ci-integration port 8081 busy; T10 compose | `-ai` `763ae0b` | `ci-unit-test` ✅; `phase0-smoke` 2 passed |
+| I1 | Sprint plan, baseline ci-test logged | ci-test red: team1 pydantic | `-ai`: plan commit | ci-test: unit partial fail (pre-fix) |
+| I2 | smoke skeleton, topic_map v0.2 | Operator Kafka path | both repos | `phase0-smoke` structural |
+| I3 | compose stub, gate table, CI exclude | full compose YAML | `-economics` | ci-test re-run |
+| I4 | ADR-003, PlantUML T12, traceability | C4 container diagram update | `-ai` | — |
+| I5 | agent gaps, tem-bas-operator, ZUN stub | coding worktrees | `-ai` | — |
+| I6 | Final table, SHAs | T10 compose, TM-001 xfail | both repos | ci-test + phase0-smoke |
 
-**HEAD (2026-06-28):** `-economics` `feature/uas-dev-company` @ `f386b72`; `-ai` `test/integration-phase0-initiation` @ `763ae0b`.
-
-**Test summary I6:** `make ci-unit-test` — all unit suites green (team1 excluded). `make ci-integration-test` — **red** on `systems/Agregator` port 8081 already allocated (environment). `make phase0-smoke` — **2 passed** (structural TM-001/002).
+*SHA и финальные counts — см. после I6 commits ниже.*
 
 ### Push-ready branches
 
 | Repo | Branch | Note |
 |------|--------|------|
-| `sbd-drones-economics` | `master` @ `8132c19` | PR-E1 complete |
+| `sbd-drones-economics` | `feature/uas-dev-company` | PR-E1 line |
 | `sbd-drones-economics-ai` | `test/integration-phase0-initiation` | slim commits only; no bulk slides push |
 
-**Pushed (follow-up b9d16219):** gitflic `origin/feature/uas-dev-company` @ `f386b72` (ci-test green); `origin/docs/sprint-120min-2026-06-28` @ `5132f18`.
-
-### Retrospective: lesson learned (QA/DevOps autonomy)
-
-| Наблюдение | Урок |
-|---|---|
-| I6 завершён при red `ci-integration-test` и без `make e2e-codespace` | E2E-focused sprint **не закрывается** без e2e gate или явного defer |
-| Блокер «port 8081 busy» не привёл к cleanup/retry/pivot | DevOps обязан освобождать порты и retry; idle на infra — anti-pattern |
-| ~20 мин блока I6 не использованы на альтернативные задачи | Pivot: phase0-smoke hardening, e2e prep, port doc, flake log — в scope |
-| Агенты запрашивали human там, где могли итерировать сами | Повышенная автономность: tests, logs, docker, make — без подтверждения |
-
-### sprint-autonomy-policy {#sprint-autonomy-policy}
-
-**Контракт спринта QA/DevOps** (обязателен для всех time-boxed sprint с целями CI/E2E):
-
-1. **Time budget:** использовать выделенное время (например, 120 мин) полностью, если остаётся незаблокированная работа в scope.
-2. **Pivot on block:** при блокере — следующая приоритетная незаблокированная задача; документировать блокер и предпринятые попытки.
-3. **Repo boundaries:** `-economics` / `-ai` по sprint scope; другие репо — только по явной инструкции.
-4. **Autonomy:** запуск тестов, inspect logs, infra fix (ports, compose, exclude), fix→retest loops — без запроса human на каждый шаг.
-5. **E2E success criterion:** если sprint goal включает E2E — **`make e2e-codespace` green** обязателен перед claim «sprint complete»; red integration при green unit — не достаточное основание для завершения.
-
-Подробности, pivot rules, anti-patterns, checklist: [§4.4 ai_agents_improvements.md](ai_agents_improvements.md#44-замечание-qadevops--автономность-спринта-2026-06-28). Skills: `platform-validation`, `platform-ci-jenkins` § Sprint mode. Rule: `.cursor/rules/sprint-autonomy-qa-devops.mdc`.
-
-**Updated sprint contract (применять к следующим спринтам):**
-
-| Поле | Значение |
-|---|---|
-| Min time utilization | ≥90% budget или all goals met |
-| E2E gate | `make e2e-codespace` green если в goals |
-| On infra block | cleanup → retry → pivot (не stop) |
-| Human escalation | merge, ADR sign-off, T3 model — только эти точки |
-| Complete claim | test summary + blockers + evidence table в этом разделе |
-
-## master-merge-agent-group {#master-merge-agent-group}
-
-**Дата:** 2026-06-28. **Цель:** консолидация `-ai` на `test/integration-phase0-initiation` и подготовка merge с `master` (оба репо).
-
-### Phase A — consolidate `-ai` (выполнено)
-
-| Шаг | Результат |
-|-----|-----------|
-| Checkout `test/integration-phase0-initiation` + fetch | OK |
-| Merge `origin/docs/orchestrator-v1.1` | `23aee17` — конфликты: код/integration wins; docs ai_dev_tasks v1.1 retained |
-| Merge `origin/docs/sprint-120min-2026-06-28` | `100a78e` — push SHA note merged |
-| Merge `origin/docs/pr-a2-integration-process` | `273df39` — ort merge |
-| Economics E2E code in `-ai` | **Not imported** (policy) |
-| Slides/72118 bulk, ksa PII | **Not added** (untracked local only) |
-| **HEAD после agent-group docs** | `e8b8820` (+132 к `origin/test/integration-phase0-initiation`) |
-
-### Phase B — merge with master
-
-| Repo | `merge origin/master` | Master push |
-|------|----------------------|-------------|
-| `-ai` | Already up to date (integration content over skeleton) | **Blocked** — slim push / cherry-pick; `.git` ~150MB loose objects + tracked 72118 blobs |
-| `-economics` | Already up to date on feature | **Blocked** — `make ci-test` RED (Agregator Kafka integration) |
-
-### Agent task matrix
-
-| Роль | Задача | Статус |
-|------|--------|--------|
-| **Orchestrator** | Merge order docs→sprint→pr-a2; conflict policy integration-first | Done |
-| **DevOps** | fetch, merge commits, push attempt, port cleanup | Push blocked (size / gates) |
-| **QA** | `ci-test` + `e2e-codespace` before master | ci-test RED; e2e **signed off** (28+2 skip) |
-| **Architect** | topic_map / ADR coherence post-merge | topic_map kept @ integration HEAD; ADR from pr-a2 merge |
-
-### Push status
-
-- **gitflic `-ai` `test/integration-phase0-initiation`:** not pushed (+133); remote rejected: `Packfile is truncated`. **Slim push:** branch `docs/integration-phase0-consolidated` (docs @ `a2ca219`, no slides).
-- **gitflic `-economics` `master`:** @ `8132c19` — PR-E1 complete; `ci-test` + `e2e-codespace` green (agent e4481536). Prior report: [`../sbd-drones-economics/docs/staged-push-reports/2026-06-28-phase-5-master-merge.md`](../../sbd-drones-economics/docs/staged-push-reports/2026-06-28-phase-5-master-merge.md).
-
-
-### Phase C — follow-up (agent 58ce477e, 2026-06-28)
-
-**PR-E1 complete (agent e4481536, 2026-06-28):** `-economics` `origin/master` @ `8132c19`; `make ci-test` + `make e2e-codespace` green.
-
-- **Agregator ci-test (2026-06-28):** `kafka-init` must finish before aggregator/tests — submodule `Agregator` @ `08533d2` on `feature/uas-dev-company`; `make ci-test` exit 0.
-
-
-| Gate / артеfact | Результат | Evidence |
-|-----------------|-----------|----------|
-| `-economics` `make e2e-codespace` | **GREEN** | 28 passed, 2 skipped (`/tmp/e2e-codespace-phase5.log`; mission-complete skip — Kafka publish timeout to `components.Agrodron.security_monitor`; analytics log test skipped) |
-| `-economics` `make ci-test` | **GREEN** | Gate перед push `master` (agent e4481536); см. PR-E1 @ `8132c19`. |
-| Slim branch `-ai` | **`docs/integration-phase0-consolidated`** | From `origin/test/integration-phase0-initiation` + doc paths @ `a2ca219` (**no** `docs/slides/**`) |
-| `master` merge / push | **Done** | `-economics` `origin/master` @ `8132c19` pushed (PR-E1, agent e4481536) |
-
-### Blockers (остаточные после PR-E1)
-
-1. ~~`-economics` PR-E1 / `master` push~~ — **снято:** `origin/master` @ `8132c19` (agent e4481536).
-2. `-ai`: remote push size limit (>100MB) — slides/72118 in history; local untracked bulk not committed; slim path — `docs/integration-phase0-consolidated`.
-
-
-
-## agent-vuca-history-100-review {#agent-vuca-history-100-review}
-
-**Дата:** 2026-06-28. **Scope:** последние 100 коммитов `sbd-drones-economics-ai`, текущие `.cursor/agents`, `.cursor/skills`, `config/agent_skill_registry.json`, `docs/ai_agents_improvements.md`.
-
-### Сигналы из истории 100 коммитов
-
-| Сигнал | Наблюдение | Риск для проекта | VUCA-класс |
-|---|---|---|---|
-| WIP-итерации вокруг Operator и notebook demo | В истории много правок `systems/operator`, notebooks, shell/integration wrappers | агент чинит локальный сценарий, но не закрывает контур phase 0 целиком | volatility / uncertainty |
-| Broker churn | Частые изменения Kafka/MQTT, `topics.py`, broker factory, docker compose | topic contract становится слабее кода, появляется soft-green | complexity |
-| E2E и integration red/skip | История содержит shell/integration/e2e wrappers, позже `ci-test` red при `e2e-codespace` green | QA может принять частичный green за readiness | ambiguity |
-| Docs/slides/notebooks mixed with runtime | Слайды, notebooks, demos и runtime менялись рядом | риск грязного merge/push, privacy/generated artifacts | complexity |
-| Поздняя phase0 consolidation | ADR/topic map/TOC session добавлены поздно, после WIP-кода | архитектура догоняет реализацию, а не управляет ею | volatility |
-| Push/merge blockers | slim branch, packfile/tracked blobs, master gate red | release readiness отделена от engineering work | uncertainty |
-
-### Недостатки работы агентов
-
-1. **Недостаточно role-specific contracts.** Общий VUCA-блок был полезен, но не заставлял каждого агента давать свой evidence.
-2. **Soft-green risk.** QA/CI могли завершать итерацию по частичным проверкам без полного E2E или owner-approved defer.
-3. **Contract drift.** Архитектурные и broker-контракты появлялись позже кода, поэтому `topic_map -> implementation -> smoke` не был обязательной цепочкой.
-4. **Weak repo hygiene.** Смешение runtime, generated slides, notebooks и локальных systems усложняет merge/push и повышает риск лишних артефактов.
-5. **Недостаточная автономность по VUCA.** При blocker agent должен делать `observe -> classify -> decide -> act -> verify -> record`, а не останавливаться или уходить в соседний repo.
-
-### Доработанные навыки и профили
-
-| Артефакт | Доработка |
-|---|---|
-| `.cursor/agents/*.md` | Добавлен `Role-Specific VUCA Дообучение`: недостаток из истории, навык дообучения, evidence, autonomy rule |
-| `skill_vuca_decision_protocol` | Добавлен history-review workflow по churn areas и VUCA-сигналам |
-| `skill_agent_zun_development` | Добавлен history-based ЗУН-анализ: WIP, broker churn, soft-green, dirty tree, release blockers |
-| `skill_artifact_quality` | Добавлен agent-change quality gate: registry, profiles, role contracts, docs sync |
-
-### VUCA maturity gaps
-
-| Уровень | Текущий риск | Целевой переход |
-|---|---|---|
-| L0 Reactive | agent останавливается на blocker или угадывает | запрет early exit без blocker taxonomy |
-| L1 Structured | facts/risks есть, но next action не проверяемый | каждый gap получает evidence criterion |
-| L2 Adaptive | skill есть, но роль не доказывает свой вклад | role-specific contract + drill |
-| L3 Mission-Oriented | локальный успех не связан с readiness целого | whole-system scorecard и human_review только на high-impact decisions |
-
-### Базовый план улучшений проекта по агентам
-
-| Агент / роль | Базовая задача улучшения | Evidence / gate | Priority |
-|---|---|---|---|
-| `systems-engineer-sbd` | Сформировать phase0 traceability `harm -> ЦБ -> topic -> test -> evidence` для T1-T17 | traceability row + validation owner | P0 |
-| `software-architect-c4` | Закрепить contract-first baseline: `topic_map + ADR + C4 runtime view + compose impact` до coding package | ADR/topic map delta + C4 view | P0 |
-| `qa-marinet-spec` | Ввести broker E2E evidence gate и soft-green policy для skip/xfail/red | test summary + failure taxonomy + defer owner | P0 |
-| `ci-marinet-steward` | Сделать deterministic broker CI profile: readiness, cleanup, port retry, evidence bundle | compose config + health + logs | P0 |
-| `tem-bas-operator` | Закрыть Operator path: env overrides, topic-map aligned subscriptions, shell/integration tests | green shell/integration или точный blocker | P0 |
-| `project-manager-ccpm` | Ввести sprint scorecard: time budget, blockers, pivot log, buffer status | scorecard в sprint section | P1 |
-| `artifact-quality-controller` | Запускать pre-push hygiene gate для generated/slides/notebooks/privacy | release blockers list | P1 |
-| `course-educator-platform` | Подготовить VUCA drills L0-L3 для port busy, topic mismatch, dirty tree, soft-green | rubric + exercise + expected artifact | P1 |
-| `toc-orchestrator` | Выбрать главное ограничение из истории: broker contract vs E2E evidence vs release hygiene | selected constraint + DBR | P1 |
-| `triz-expert-tem` | Разобрать противоречие «скорость автономии vs доказуемость readiness» | function model + IKR + solution directions | P1 |
-| `toc-evidence-curator` | Привязать claims к commit/doc/log evidence, отделить fact/hypothesis | sources gate | P1 |
-| `dt-simulation-lead` | Связать SITL/replay/correlation_id с topic contracts и validation owner | run plan + replay evidence | P2 |
-| `tem-economics-analyst` | Разделить экономику ОП demo, КТ scale и cost of integration risk | assumptions + sensitivity | P2 |
-| `se-school-russian` | Описать activity boundaries и owners для autonomous agents | role/owner map | P2 |
-| `se-school-american` | Уточнить success criteria и V&V для readiness claims | verification/validation matrix | P2 |
-| `se-school-chinese` | Задать whole-system KPI: `topic_map -> compose -> CI/E2E -> evidence -> value` | whole readiness score | P2 |
-| `se-school-ai-native` | Упаковать worktree/agent package contract с execute+audit boundaries | agent package template | P2 |
-
-### Agent evidence scorecard
-
-Каждая автономная итерация агента должна завершаться строкой:
-
-| Поле | Требование |
-|---|---|
-| `vuca_assessment` | volatility / uncertainty / complexity / ambiguity |
-| `autonomy_level` | L1-L3, с обоснованием |
-| `decision_log` | решение, альтернатива, результат, residual risk |
-| `evidence` | команда, файл, тест, log или reviewer owner |
-| `pivot_log` | что сделано при blocker, почему не было early exit |
-| `human_review` | только high-impact decisions: ADR, ЦБ/ЦПБ, security, acceptance, merge/release |
-
-### Ближайшие базовые улучшения
-
-1. **P0:** закрыть broker contract chain: `topic_map.yaml -> Operator topics/env -> compose integration-phase0 -> smoke E2E`.
-2. **P0:** устранить soft-green: любой skip/xfail/red в E2E получает owner, issue/defer и impact.
-3. **P0:** сделать CI broker profile deterministic: no fixed sleeps, cleanup/retry, broker logs.
-4. **P1:** ввести repo hygiene gate перед push/merge: generated/slides/notebooks/privacy.
-5. **P1:** оформить VUCA drills преподавателем и использовать их в agent review.
-6. **P2:** связать digital twin/economics evidence с readiness целого, а не только с demo narrative.
-
-## fabric-smart-contracts-vuca-sprint {#fabric-smart-contracts-vuca-sprint}
-
-**Дата:** 2026-06-28. **Scope:** концепция Hyperledger Fabric smart contracts, PR-E3, EventJournal correlation, учебный handoff и агентные роли.
-
-### Основные решения
-
-| Решение | Статус | Evidence |
-|---|---|---|
-| Fabric не блокирует PR-E1 / phase 0 Kafka smoke | Proposed, требует `human_review` | `docs/ai_smart_contracts_integration.md`, ADR-004 |
-| Fabric вводится как доказательный ledger-слой | Proposed | ADR-004 |
-| EventJournal и Fabric связываются через `correlation_id` / `fabric_tx_id` | Proposed | ADR-005 |
-| Fabric E2E сначала manual/nightly, blocking gate только после решения PR-E3 | Proposed | ADR-008 |
-
-### Новые артефакты
-
-| Артефакт | Назначение |
-|---|---|
-| `docs/ai_smart_contracts_integration.md` | Концепция, фазы F0-F6, DoR/DoD/AC, VUCA, QA, CCPM, навыки и роли. |
-| `docs/integration/adr/ADR-004-fabric-ledger-scope.md` | Граница Fabric как доказательного ledger-слоя. |
-| `docs/integration/adr/ADR-005-ledger-event-correlation.md` | Связь broker event, EventJournal и Fabric tx. |
-| `docs/integration/adr/ADR-006-fabric-org-and-msp-model.md` | P1 MSP-модель и ограничения `admin` override. |
-| `docs/integration/adr/ADR-007-chaincode-domain-boundaries.md` | Границы доменов chaincode и P1/P2/P3 scope. |
-| `docs/integration/adr/ADR-008-fabric-ci-mode.md` | Режимы `fabric-fast`, `fabric-smoke`, `fabric-full` и skip/fail policy. |
-| `docs/integration/adr/ADR-009-ledger-data-privacy.md` | Privacy, private data и on-chain/off-chain граница. |
-| `docs/integration/fabric_traceability_matrix.md` | Рабочая матрица requirement -> method -> event -> test -> evidence. |
-| `docs/integration/issues/ISSUE-PR-E3-fabric-e2e-mode.md` | Issue-шаблон решения PR-E3: manual-only, nightly или blocking. |
-| `docs/integration/fabric_agent_task_packages.md` | Issue-scoped пакеты для Fabric-агентов и readiness gates. |
-| `docs/lab_works/fabric_contract_review_lab.md` | Лабораторная ревизии Fabric-контрактов и доказательности. |
-| `docs/education/fabric_smart_contracts_track.md` | Продвинутый учебный трек Fabric smart contracts. |
-| `docs/education/fabric_smart_contracts_rubrics.md` | Рубрики для contract review, traceability, privacy и demo evidence. |
-
-### Новые task_type в registry
-
-| `task_type` | Для чего |
-|---|---|
-| `fabric_chaincode_contracts` | Chaincode, MSP-роли, endorsement policy, state machine, negative tests. |
-| `ledger_eventjournal_traceability` | Трассировка broker event -> EventJournal -> Fabric tx -> pytest evidence. |
-| `fabric_e2e_sdet` | Fabric unit/mock/smoke/full E2E и flake/skip policy. |
-| `fabric_devops_cicd` | Fabric network, proxy health, ports/env, PR-E3 CI/manual decision. |
-| `contract_lab_design` | Учебные лабораторные по Fabric, broker contracts и EventJournal. |
-| `ledger_privacy_review` | On-chain/off-chain граница, secrets, private data и generated crypto. |
-
-### Новые agent profiles
-
-| Агент | Роль |
-|---|---|
-| `fabric-chaincode-engineer` | Chaincode contracts, MSP role checks, unit/negative tests. |
-| `ledger-integration-architect` | Fabric Proxy / Ledger Gateway / EventJournal boundary и ADR. |
-| `fabric-devops-cicd-steward` | CI/manual/nightly profiles, readiness, cleanup, evidence. |
-| `eventjournal-traceability-sdet` | Evidence chain и pytest traceability. |
-| `fabric-lab-instructor` | Labs, rubrics, troubleshooting, student evidence. |
-| `ledger-privacy-reviewer` | Privacy, private data, secrets, generated crypto hygiene. |
-
-### Ближайшие действия по PR-E3
-
-1. **P0:** выполнить contract review `docs/smart_contracts.md`: методы, роли, args, E2E 14 steps.
-2. **P0:** принять `human_review` по ADR-004/005/008.
-3. **P1:** добавить матрицу `requirement -> method -> event -> test -> evidence`.
-4. **P1:** подготовить fast checks без Fabric-сети: mapping, mock proxy, schema validation.
-5. **P2:** переводить Fabric smoke в nightly только после детерминированного startup и cleanup.
-
 ---
 
-## vuca-block-merge {#vuca-block-merge}
-
-**Дата:** 2026-06-28. **Цель:** сохранить WIP, синхронизировать `test/integration-phase0-initiation` и влить intended changes в `master` без превышения лимита GitFlic pack (~100 MB).
-
-### Блоки и SHA
-
-| Block | Branch | Tip | QA | Push | `master` |
-|-------|--------|-----|-----|------|----------|
-| WIP | `docs/integration-phase0-consolidated` | `bda83a48` | docs-only | ✅ | via D |
-| C | `vuca/block-c-operator-2026-06-28` | `b435a3c8` (merge) | `make unit-test` 70 pass | ✅ | ✅ |
-| D | `vuca/block-d-docs-2026-06-28` | `655b7bbd` | `make unit-test` 70 pass | ✅ | ✅ FF |
-| E | `vuca/block-e-operator-tests-2026-06-28` | `48eae2fa` | `make unit-test` 70 pass | ✅ | ✅ FF |
-| Integration | `test/integration-phase0-initiation` | `bda83a48` | docs-only | ✅ slim FF | — |
-
-### VUCA pivot
-
-Bulk push `test/integration-phase0-initiation` (+144) → **slim path:** reset to `origin/test/integration-phase0-initiation`, fast-forward `docs/integration-phase0-consolidated` (objects already on remote), push 8 commits. Slides/72118 и `docs/slides/ksa/` **не** в scope push.
-
-### DoD evidence (2026-06-28)
-
-| Criterion | Status | Evidence |
-|-----------|--------|----------|
-| `origin/test/integration-phase0-initiation..HEAD` empty | **PASS** | tip `bda83a48` |
-| `origin/master..master` empty | **PASS** | tip `48eae2fa` |
-| QA per block | **PASS** (unit); operator isolated pytest — defer | [final report](staged-push-reports/2026-06-28-vuca-block-merge-final.md) |
-
----
-
-*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.7 — § vuca-block-merge: block C–E merged, integration slim push, master @ `48eae2fa`.*
-
-<!-- merged from integration branch -->
-
-*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.6 — добавлен активный VUCA-спринт по Fabric smart contracts, ADR, skills, agent profiles и registry routes.*
+*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.1 — двухуровневая модель агентов и детализация Этапа 1 (1a–1c).*
