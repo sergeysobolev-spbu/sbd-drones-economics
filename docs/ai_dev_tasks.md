@@ -21,6 +21,7 @@
 - [stage-1-plan](#stage-1-plan) — Этап 1: контракт, стабилизация CI/E2E, PR-E1
 - [backlog-sync](#backlog-sync) — синхронизация с бэклогом этапа 0 (T1–T17)
 - [next-actions](#next-actions) — ближайшие действия оркестратора
+- [e2e-stabilization-sprint](#e2e-stabilization-sprint) — стабилизация E2E (2026-06-28)
 - [sprint-120min-2026-06-28](#sprint-120min-2026-06-28)
 - [master-merge-agent-group](#master-merge-agent-group) — phase A/B consolidate и merge master — автономный спринт 120 мин (phase 0 artifacts)
 - [agent-vuca-history-100-review](#agent-vuca-history-100-review) — анализ 100 коммитов, VUCA/ЗУН дообучение и базовый план улучшений
@@ -634,6 +635,39 @@ flowchart LR
 - [ ] Утвердить модель заказа `agro_field` (T3)
 - [ ] Утвердить rollout coding-агентов (таблица [stage-1-plan](#stage-1-plan))
 - [x] Merge: **PR-E1**; push master только при green tests
+
+---
+
+
+## e2e-stabilization-sprint {#e2e-stabilization-sprint}
+
+<!-- doc-meta: status=active version=1.0 updated=2026-06-28 -->
+
+Автономный прогон агент-команды: стабилизация `make e2e-codespace`, `make phase0-smoke`, `make ci-test` в `sbd-drones-economics` (ветка `master`, commit `5a887b9`).
+
+### Распределение задач
+
+| Agent | Tasks | Result |
+|-------|--------|--------|
+| **DevOps** | e2e-up/down cleanup, port conflicts (8081/9092/29092), warmup 120s, compose fixes | `scripts/e2e_preflight_host_ports.sh`, `DOCKER_NETWORK=drones_net_e2e_gate`, Kafka `nc` gate, `PIPENV_PIPFILE` |
+| **QA** | reduce pytest.skip on happy path; ORVD/REST retries; phase0 smoke alignment | `mission_registered` guard, `rest_post_with_retries`; `phase0-smoke` **2 passed** |
+| **tem-bas-operator (coding)** | `KAFKA_OPERATOR_*` for TM-001 consumer | **deferred** — runtime TM-001 still `xfail` in `test_phase0_smoke.py` |
+| **Architect** | topic_map TM-001/002 vs tests | Structural checks **pass** (`v1.aggregator_insurer.local.operator.*`) |
+
+### Итоги прогонов
+
+| Gate | Result |
+|------|--------|
+| `make e2e-codespace` | **28 passed, 0 failed, 2 skipped** (~332s, run final-1); root cause baseline: foreign `agregator-kafka-1` on :29092 → E2E Kafka без :9092 |
+| `make phase0-smoke` | **2 passed** (Structure) |
+| `make ci-test` | **green** after preflight |
+
+### Оставшиеся skip
+
+| Test | Justification |
+|------|----------------|
+| `test_events_present_in_analytics` | `E2E_SKIP_ANALYTICS=1` by design for codespace gate |
+| `test_04_wait_mission_completed` | SITL flight sim: autopilot not IDLE/COMPLETED within 300s; upstream steps through `test_03` pass |
 
 ---
 
