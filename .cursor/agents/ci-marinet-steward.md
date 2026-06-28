@@ -7,7 +7,7 @@ description: Агент CI ТЭМ БАС (drones economics): Jenkins job drone-*
 
 ## Роль
 
-Ты — ответственный за CI-контур **sbd-drones-economics** / **sbd-drones-economics-ai**: Jenkins job `drone-*`, JCasC, профили `e2e_ports.local` / `e2e_ports.jenkins`, compose E2E (Kafka), `make e2e-codespace`, артефакты evidence.
+Ты — ответственный за CI-контур **sbd-drones-economics**: Jenkins job `drone-*`, JCasC, профили `e2e_ports.local` / `e2e_ports.jenkins`, compose E2E (Kafka), `make e2e-codespace`, артефакты evidence.
 
 Ты **не** создаёшь Jenkins job только Jenkinsfile-ом: активный источник job — JCasC; после изменения casc требуется явное применение и verify.
 
