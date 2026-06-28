@@ -1,0 +1,125 @@
+% Kaspersky-like beamer styling (not official brand)
+% Compile with lualatex or xelatex
+
+\usepackage{fontspec}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\setbeamertemplate{navigation symbols}{}
+\setdefaultlanguage{russian}
+
+% --- Fonts (choose installed fonts with Cyrillic support) ---
+% Хорошие нейтральные варианты: Inter, IBM Plex Sans, Noto Sans, PT Sans.
+% \setmainfont{Inter}[
+% \setmainfont{TeX Gyre Termes}[
+%   Extension      = .ttf,
+% %   UprightFont    = *-Regular,
+% %   ItalicFont     = *-Italic,
+%   BoldFont       = *-Bold,
+%   BoldItalicFont = *-BoldItalic
+% ]
+% \setsansfont{TeX Gyre Termes}[
+%   Extension      = .ttf,
+% %   UprightFont    = *-Regular,
+%   ItalicFont     = *-Italic,
+%   BoldFont       = *-Bold,
+%   BoldItalicFont = *-BoldItalic
+% ]
+% \setmonofont{DejaVu Sans Mono}
+
+% Если Inter не установлен, замените на Noto Sans:
+% setmainfont{Noto Sans}
+% setsansfont{Noto Sans}
+
+% --- Color palette (approximate) ---
+\definecolor{KaspGreen}{HTML}{00A88F} % акцент
+\definecolor{KaspDark}{HTML}{0B0F14}  % почти чёрный
+\definecolor{KaspGray}{HTML}{6B7280}  % серый текст
+\definecolor{KaspLight}{HTML}{F5F7FA} % светлый фон
+
+% --- Beamer base ---
+\mode<presentation>
+{
+  \setbeamertemplate{navigation symbols}{}
+  \setbeamersize{text margin left=8mm, text margin right=8mm}
+}
+
+% --- Global colors ---
+\setbeamercolor{normal text}{fg=KaspDark,bg=white}
+\setbeamercolor{frametitle}{fg=KaspDark,bg=white}
+\setbeamercolor{title}{fg=KaspDark}
+\setbeamercolor{subtitle}{fg=KaspGray}
+\setbeamercolor{structure}{fg=KaspGreen}
+
+% --- Typography ---
+\setbeamerfont{title}{series=\bfseries,size=\LARGE}
+\setbeamerfont{frametitle}{series=\bfseries,size=\Large}
+\setbeamerfont{subtitle}{size=\large}
+\setbeamerfont{footline}{size=\scriptsize}
+
+% % --- Blocks ---
+\setbeamercolor{block title}{fg=white,bg=KaspDark}
+\setbeamercolor{block body}{fg=KaspDark,bg=KaspLight}
+\setbeamercolor{block title alerted}{fg=white,bg=KaspGreen}
+\setbeamercolor{block body alerted}{fg=KaspDark,bg=KaspLight}
+
+% % --- Itemize ---
+\setbeamertemplate{itemize item}{\color{KaspGreen}\large\textbullet}
+\setbeamertemplate{itemize subitem}{\color{KaspGreen}\small\textbullet}
+
+% --- Title page template ---
+\setbeamertemplate{title page}{
+  \vspace*{6mm}
+  {\usebeamerfont{title}\inserttitle\par}
+  \vspace*{3mm}
+  {\usebeamerfont{subtitle}\color{KaspGray}\insertsubtitle\par}
+  \vspace*{8mm}
+  {\color{KaspGray}\insertauthor\par}
+  {\color{KaspGray}\insertinstitute\par}
+  \vspace*{2mm}
+  {\color{KaspGray}\insertdate\par}
+  \vfill
+  {\color{KaspGreen}\rule{\linewidth}{1.2pt}}
+}
+
+% --- Frame title with accent line ---
+\setbeamertemplate{frametitle}{
+  \vspace*{1mm}
+  {\usebeamerfont{frametitle}\insertframetitle\par}
+  \vspace*{1mm}
+  {\color{KaspGreen}\rule{0.22\linewidth}{0.8pt}}
+  \vspace*{1mm}
+}
+
+%--- Footline (left: section, right: slide number) ---
+% \setbeamertemplate{footline}{
+%   \hbox{
+%     \begin{beamercolorbox}[wd=.78\paperwidth,ht=3.2ex,dp=1.4ex,left]{footline}
+%       {\hspace*{8mm}\color{KaspGray}\insertsection}
+%     \end{beamercolorbox}
+%     \begin{beamercolorbox}[wd=.22\paperwidth,ht=3.2ex,dp=1.4ex,right]{footline}
+%       {\color{KaspGray}\insertframenumber{} / \inserttotalframenumber\hspace*{8mm}}
+%     \end{beamercolorbox}
+%   }
+% }
+
+% В преамбуле после usetheme{...} (если есть)
+
+% Убираем стандартные значки навигации
+% \setbeamertemplate{navigation symbols}{}
+
+% Нижний колонтитул
+\setbeamertemplate{footline}{
+  \leavevmode%
+  \hbox{%
+    \begin{beamercolorbox}[wd=.33\paperwidth,ht=2.5ex,dp=1.2ex,left]{author in head/foot}%
+      \hspace*{1ex}\insertshortauthor
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.34\paperwidth,ht=2.5ex,dp=1.2ex,center]{title in head/foot}%
+      \insertshorttitle
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.33\paperwidth,ht=2.5ex,dp=1.2ex,right]{date in head/foot}%
+      \insertframenumber{} / \inserttotalframenumber\hspace*{1ex}
+    \end{beamercolorbox}%
+  }%
+  \vskip0pt%
+}

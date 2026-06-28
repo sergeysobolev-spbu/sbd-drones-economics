@@ -26,16 +26,6 @@
 | FAB-P1-LAB | `fabric-lab-instructor` | `contract_lab_design` | Лабораторная карточка и рубрика для contract review. |
 | FAB-P2-DUAL-WRITE | `ledger-integration-architect` + `tem-bas-operator` | `integration_contract_governance` | Draft design `ledger_explicit` -> `dual_write`, без включения в PR-E1. |
 
-## Issue-ready Files
-
-| Фаза | Issue file |
-|---|---|
-| F1 | [`issues/ISSUE-F1-fabric-contract-matrix.md`](issues/ISSUE-F1-fabric-contract-matrix.md) |
-| F2 | [`issues/ISSUE-F2-fabric-negative-tests.md`](issues/ISSUE-F2-fabric-negative-tests.md) |
-| F3 | [`issues/ISSUE-F3-fabric-smoke-runbook.md`](issues/ISSUE-F3-fabric-smoke-runbook.md) |
-| F4 | [`issues/ISSUE-F4-eventjournal-correlation.md`](issues/ISSUE-F4-eventjournal-correlation.md) |
-| F5 / PR-E3 | [`issues/ISSUE-PR-E3-fabric-e2e-mode.md`](issues/ISSUE-PR-E3-fabric-e2e-mode.md) |
-
 ## Package Contract
 
 Каждый агент возвращает:

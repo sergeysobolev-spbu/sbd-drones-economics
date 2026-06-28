@@ -1,0 +1,31 @@
+@startuml
+title SBOM generation in CI/CD
+
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam rectangle {
+  RoundCorner 15
+}
+
+actor Developer
+rectangle "SCM / Repository" as SCM
+rectangle "CI Pipeline" {
+  rectangle "Build" as BUILD
+  rectangle "Resolve dependencies" as DEPS
+  rectangle "Generate SBOM" as SBOM
+  rectangle "Validate quality" as VALIDATE
+  rectangle "Sign / attest" as SIGN
+}
+database "Artifact Registry" as REG
+cloud "Consumers:\nSecurity / Audit / Customer" as CONS
+Developer --> SCM : commit / merge
+SCM --> BUILD : trigger pipeline
+BUILD --> DEPS : manifest + lockfiles
+DEPS --> SBOM : packages + binaries + image layers
+SBOM --> VALIDATE : schema + policy checks
+VALIDATE --> SIGN : approved SBOM
+SIGN --> REG : publish artifact + SBOM
+REG --> CONS : release delivery / audit
+CONS --> REG : retrieve artifact,\nSBOM, metadata
+
+@enduml

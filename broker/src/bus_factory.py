@@ -7,8 +7,11 @@ import os
 from typing import Dict, Optional
 
 from .system_bus import SystemBus
-from broker.kafka.kafka_system_bus import KafkaSystemBus
-from broker.mqtt.mqtt_system_bus import MQTTSystemBus
+
+# Явно экспортируем классы конкретных шин, чтобы их можно было патчить в тестах
+# через broker.src.bus_factory.KafkaSystemBus / MQTTSystemBus.
+from broker.kafka.kafka_system_bus import KafkaSystemBus  # noqa: F401
+from broker.mqtt.mqtt_system_bus import MQTTSystemBus  # noqa: F401
 
 
 def create_system_bus(
@@ -34,7 +37,7 @@ def create_system_bus(
         if config and "broker" in config and "type" in config["broker"]:
             bus_type = config["broker"]["type"]
         else:
-            bus_type = os.getenv("BROKER_TYPE", "kafka")
+            bus_type = os.getenv("BROKER_TYPE", "mqtt")
 
     bus_type = bus_type.lower()
 

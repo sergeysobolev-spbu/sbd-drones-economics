@@ -1,0 +1,130 @@
+developers:
+- contact_info:
+    email: sales@aerotech.com
+    phone: +7-495-123-4567
+  developer_id: dev-001
+  developer_name: AeroTech Solutions
+  models:
+  - available_quantity: 10
+    category: light_cargo
+    certification:
+      issued_by: Regulator
+      number: TC-2024-001
+      type: Type Certificate
+      valid_until: '2029-01-01'
+    delivery_time_days: 14
+    manufacturer: AeroTech Solutions
+    model_id: AT-LC100
+    name: CargoLite 100
+    price: 150000.0
+    safety_features:
+    - Redundant flight controller
+    - Parachute recovery system
+    - Obstacle avoidance sensors
+    - RTH (Return to Home) function
+    specifications:
+      battery_capacity_wh: 500.0
+      cruise_speed_kmh: 60.0
+      dimensions:
+        height_m: 0.4
+        length_m: 1.2
+        width_m: 1.5
+      max_altitude_m: 500.0
+      max_payload_kg: 5.0
+      max_range_km: 50.0
+  - available_quantity: 5
+    category: heavy_cargo
+    certification:
+      issued_by: Regulator
+      number: TC-2024-002
+      type: Type Certificate
+      valid_until: '2029-01-01'
+    delivery_time_days: 21
+    manufacturer: AeroTech Solutions
+    model_id: AT-HC200
+    name: CargoMax 200
+    price: 350000.0
+    safety_features:
+    - Triple redundant flight controller
+    - Dual parachute system
+    - 360° obstacle avoidance
+    - Emergency landing system
+    - Real-time telemetry
+    specifications:
+      battery_capacity_wh: 1000.0
+      cruise_speed_kmh: 50.0
+      dimensions:
+        height_m: 0.6
+        length_m: 2.0
+        width_m: 2.5
+      max_altitude_m: 400.0
+      max_payload_kg: 20.0
+      max_range_km: 30.0
+  updated_at: '2026-03-17T13:51:46.927942'
+- contact_info:
+    email: orders@droneworks.ru
+    phone: +7-812-987-6543
+  developer_id: dev-002
+  developer_name: DroneWorks Industries
+  models:
+  - available_quantity: 8
+    category: agro
+    certification:
+      issued_by: Regulator
+      number: TC-2024-003
+      type: Type Certificate
+      valid_until: '2029-01-01'
+    delivery_time_days: 30
+    manufacturer: DroneWorks Industries
+    model_id: DW-AG300
+    name: AgroSpray 300
+    price: 280000.0
+    safety_features:
+    - Terrain following radar
+    - Precision spray control
+    - Chemical resistant design
+    - Auto-return on low battery
+    - Geofencing support
+    specifications:
+      battery_capacity_wh: 800.0
+      cruise_speed_kmh: 40.0
+      dimensions:
+        height_m: 0.5
+        length_m: 1.8
+        width_m: 2.2
+      max_altitude_m: 300.0
+      max_payload_kg: 15.0
+      max_range_km: 20.0
+      spray_tank_l: 10.0
+      spray_width_m: 6.0
+  - available_quantity: 15
+    category: inspector
+    certification:
+      issued_by: Regulator
+      number: TC-2024-004
+      type: Type Certificate
+      valid_until: '2029-01-01'
+    delivery_time_days: 7
+    manufacturer: DroneWorks Industries
+    model_id: DW-IN400
+    name: Inspector Pro
+    price: 200000.0
+    safety_features:
+    - Collision avoidance AI
+    - Encrypted data transmission
+    - 30x optical zoom
+    - Night vision capability
+    - Weather resistant (IP54)
+    specifications:
+      battery_capacity_wh: 600.0
+      camera_resolution: 4K
+      cruise_speed_kmh: 70.0
+      dimensions:
+        height_m: 0.3
+        length_m: 0.8
+        width_m: 1.0
+      max_altitude_m: 1000.0
+      max_payload_kg: 2.0
+      max_range_km: 100.0
+      thermal_camera: true
+  updated_at: '2026-03-17T13:51:46.927981'

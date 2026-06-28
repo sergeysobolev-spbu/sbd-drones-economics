@@ -2,6 +2,10 @@
 
 <!-- doc-meta: status=active version=1.7 updated=2026-06-28 -->
 
+<!-- merged from integration branch -->
+
+<!-- doc-meta: status=active version=1.6 updated=2026-06-28 -->
+
 Документ — **контракт агент-оркестратора** для подготовки и проведения работ по открытой платформе моделирования экономики эксплуатации безопасных дронов (направление **ОП**, см. [concept.md](concept.md)). Программный стенд — экспорт [`sbd-open-platform-and-trainings-development/code`](../../../sbd-open-platform-and-trainings-development/code).
 
 ---
@@ -48,6 +52,11 @@
 
 **Ветка:** `test/integration-phase0-initiation` (HEAD `bda83a48`, synced with `origin`).  
 **`master`:** @ `48eae2fa` on `origin` — operator, docs, vuca blocks C–E merged.
+
+<!-- merged from integration branch -->
+
+**Ветка:** `test/integration-phase0-initiation` (HEAD `c6cccf7`, +17 непушенных коммитов к origin).  
+**`master`:** скелет (~86 файлов, только `dummy_system`) — **не отражает** состояние проекта.
 
 ### Что добавлено относительно `master`
 
@@ -596,6 +605,11 @@ flowchart LR
 | integration | `test/integration-phase0-initiation` @ `bda83a48` | ✅ slim FF push (8 commits) |
 | bulk history | slides/72118 in old integration history | ⛔ never bulk-push |
 
+<!-- merged from integration branch -->
+
+| 4 `-ai` slim | `docs/integration-phase0-consolidated` | docs-only; push после commit |
+| bulk | `test/integration-phase0-initiation` | ⛔ pack >100 MB |
+
 **Немедленно (оркестратор / координатор):**
 
 1. [x] Поэтапный push — см. таблицу выше; bulk integration-ветка **не пушить** (лимит GitFlic)  
@@ -991,3 +1005,7 @@ Bulk push `test/integration-phase0-initiation` (+144) → **slim path:** reset t
 ---
 
 *Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.7 — § vuca-block-merge: block C–E merged, integration slim push, master @ `48eae2fa`.*
+
+<!-- merged from integration branch -->
+
+*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.6 — добавлен активный VUCA-спринт по Fabric smart contracts, ADR, skills, agent profiles и registry routes.*
