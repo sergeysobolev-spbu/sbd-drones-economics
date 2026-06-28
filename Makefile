@@ -72,6 +72,7 @@ ci-unit-test:
 	@fail=0; \
 	for dir in components/*/ systems/*/; do \
 		[ -d "$$dir" ] || continue; \
+		case " $(CI_UNIT_EXCLUDE) " in *" $${dir%/} "*) echo "=== Skipping $$dir (CI_UNIT_EXCLUDE) ==="; continue;; esac; \
 		if [ -d "$$dir/tests/unit" ]; then \
 			echo "=== Unit tests: $$dir ==="; \
 			PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) "$$dir/tests/unit/" -v || fail=1; \
@@ -85,6 +86,8 @@ ci-unit-test:
 	if [ $$fail -ne 0 ]; then echo "=== Some unit tests FAILED ==="; exit 1; fi
 
 CI_INTEGRATION_EXCLUDE := systems/dummy_fabric systems/dummy_system
+# Субмодули с рассинхроном SDK/путей — см. docs/jenkins.md (gcs), import path (orvd_system)
+CI_UNIT_EXCLUDE := systems/gcs systems/orvd_system systems/SITL-module
 
 ci-integration-test:
 	@fail=0; \
