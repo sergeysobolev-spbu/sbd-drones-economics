@@ -690,6 +690,8 @@ flowchart LR
 | `sbd-drones-economics` | `feature/uas-dev-company` | PR-E1 line |
 | `sbd-drones-economics-ai` | `test/integration-phase0-initiation` | slim commits only; no bulk slides push |
 
+**Pushed (follow-up b9d16219):** gitflic `origin/feature/uas-dev-company` @ `f386b72` (ci-test green); `origin/docs/sprint-120min-2026-06-28` @ pending.
+
 ---
 
 *Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.1 — двухуровневая модель агентов и детализация Этапа 1 (1a–1c).*
