@@ -1,7 +1,31 @@
 # Fabric Ledger Integration
 
+<!-- doc-meta: status=active version=1.1 updated=2026-06-28 audience=internal -->
+
 Интеграция Hyperledger Fabric в sbd-drones-economics.
 Компоненты вызывают смарт-контракты через шину (`bus.request("components.ledger", ...)`).
+
+## Статус и фазовая рамка
+
+Канонический план развития Fabric-контуров описан в [`ai_smart_contracts_integration.md`](ai_smart_contracts_integration.md).
+
+Текущее решение: Fabric рассматривается как **доказательный ledger-слой** для сертификатов, firmware, страхования, контрольных состояний заказа и связи с EventJournal. Fabric **не блокирует** phase 0 Kafka-интеграции и PR-E1 до отдельного решения по PR-E3. Кандидаты решений:
+
+- [`ADR-004: область применения Fabric ledger`](integration/adr/ADR-004-fabric-ledger-scope.md);
+- [`ADR-005: корреляция событий EventJournal и Fabric ledger`](integration/adr/ADR-005-ledger-event-correlation.md);
+- [`ADR-006: модель организаций и MSP для Fabric`](integration/adr/ADR-006-fabric-org-and-msp-model.md);
+- [`ADR-007: границы доменов chaincode`](integration/adr/ADR-007-chaincode-domain-boundaries.md);
+- [`ADR-008: режимы CI для Fabric E2E`](integration/adr/ADR-008-fabric-ci-mode.md);
+- [`ADR-009: privacy и on-chain/off-chain граница Fabric ledger`](integration/adr/ADR-009-ledger-data-privacy.md).
+
+Перед изменением методов chaincode, ролей MSP, режима CI или on-chain данных использовать соответствующие skills: `skill_fabric_chaincode_contracts`, `skill_ledger_eventjournal_traceability`, `skill_fabric_e2e_sdet`, `skill_fabric_devops_cicd`, `skill_ledger_privacy_review`.
+
+Рабочие follow-up артефакты:
+
+- [`integration/fabric_traceability_matrix.md`](integration/fabric_traceability_matrix.md) — матрица requirement -> method -> event -> test -> evidence;
+- [`integration/issues/ISSUE-PR-E3-fabric-e2e-mode.md`](integration/issues/ISSUE-PR-E3-fabric-e2e-mode.md) — checklist решения PR-E3;
+- [`integration/fabric_agent_task_packages.md`](integration/fabric_agent_task_packages.md) — agent task packages для Fabric-работ;
+- [`lab_works/fabric_contract_review_lab.md`](lab_works/fabric_contract_review_lab.md) — лабораторная ревизии Fabric-контрактов.
 
 ## Архитектура
 
