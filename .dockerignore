@@ -41,3 +41,16 @@ systems/uas_dev_company/web/.output
 systems/uas_dev_company/resources
 systems/uas_dev_company/web/playwright-report
 systems/uas_dev_company/web/test-results
+
+# E2E multi-system compose (prepare_multi, context=repo root) must COPY these trees:
+!systems/agrodron/**
+!systems/insurer/**
+!systems/operator/**
+!systems/orvd_system/**
+!systems/team1-regulator_operation_devsecops/**
+!systems/gcs/**
+!systems/drone_port/**
+!systems/SITL-module/**
+!systems/drones/**
+!systems/Agregator/**
+!systems/regulator/**

@@ -404,7 +404,8 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
                 env_dict["DRONEPORT_TOPIC"] = "drone_port.components.drone_manager"
                 # AgroDron: shim для импорта components.autopilot (см. autopilot.py).
                 if original_name == "autopilot":
-                    shim_path = rewrite_path(".generated/agrodron-shim/components", root, output_dir)
+                    shim_rel = rewrite_path(".generated/agrodron-shim/components", root, output_dir)
+                    shim_path = shim_rel if shim_rel.startswith(('.', '/', '~')) else f"./{shim_rel}"
                     svc_volumes = svc.setdefault("volumes", [])
                     svc_volumes.append(f"{shim_path}:/app/components:ro")
                 if os.getenv("E2E_BROKER") == "mqtt":

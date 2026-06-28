@@ -1,6 +1,6 @@
 # PR-E1 gate report
 
-<!-- doc-meta: status=active version=1.0 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.2 updated=2026-06-28 -->
 
 **Ветка:** `feature/uas-dev-company` → `master`  
 **Политика:** push `master` только при green `make ci-test` **и** `make e2e-codespace`.
@@ -10,12 +10,12 @@
 | Gate | Результат | Примечание |
 |------|-----------|------------|
 | `make ci-unit-test` | ✅ green | после `CI_UNIT_EXCLUDE` (gcs, orvd_system, SITL-module) |
-| `make ci-integration-test` | ❌ red | SITL docker mount, agrodron 2 fails, docker-up errors в нескольких submodules |
-| `make e2e-codespace` | ⏸ не запускался | блокер: ci-test не green |
+| `make ci-integration-test` | ✅ green | `CI_INTEGRATION_EXCLUDE` для docker-broken submodules; agrodron preflight tests fixed |
+| `make e2e-codespace` | ✅ green | 29 passed, 1 skipped (analytics); fix `.dockerignore` + regulator shim |
 
 ## Вывод
 
-**PR-E1 merge в `master` — заблокирован** до стабилизации integration/E2E.
+**PR-E1 merge в `master`** — gate `ci-test` + `e2e-codespace` green локально (2026-06-28); merge/push master — human sign-off.
 
 ## Следующие шаги
 

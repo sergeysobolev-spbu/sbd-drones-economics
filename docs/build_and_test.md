@@ -46,6 +46,12 @@ make init
 | `make ci-unit-test` | Unit-тесты по всем `components/*/tests` и системам (`test_*unit*.py`) |
 | `make ci-integration-test` | Интеграционные тесты систем (docker/pytest по Makefile систем) |
 | `make ci-test` | `ci-unit-test` + `ci-integration-test` |
+
+
+### Исключения CI (`CI_UNIT_EXCLUDE` / `CI_INTEGRATION_EXCLUDE`)
+
+Корневой `Makefile` пропускает субмодули с известным рассинхроном SDK, сломанным docker-up на чистом стенде или отсутствующими артефактами (например, `mosquitto.conf` в `SITL-module`). Список — в `Makefile` (`CI_UNIT_EXCLUDE`, `CI_INTEGRATION_EXCLUDE`). Gate PR-E1: `make ci-test` (с учётом исключений) и `make e2e-codespace`.
+
 | `make e2e-up` | Генерация `.generated/e2e`, подъём полного стека E2E + ожидание health |
 | `make e2e-test` | `pytest tests/e2e/` |
 | `make e2e-down` | Остановка E2E-окружения |

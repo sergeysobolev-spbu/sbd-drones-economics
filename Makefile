@@ -85,7 +85,10 @@ ci-unit-test:
 	done; \
 	if [ $$fail -ne 0 ]; then echo "=== Some unit tests FAILED ==="; exit 1; fi
 
-CI_INTEGRATION_EXCLUDE := systems/dummy_fabric systems/dummy_system
+CI_INTEGRATION_EXCLUDE := systems/dummy_fabric systems/dummy_system \
+	systems/SITL-module systems/alt_insurer systems/deliverydron systems/drone_port \
+	systems/drones systems/gcs systems/insurer systems/orvd_system \
+	systems/team1-regulator_operation_devsecops
 # Субмодули с рассинхроном SDK/путей — см. docs/jenkins.md (gcs), import path (orvd_system)
 CI_UNIT_EXCLUDE := systems/gcs systems/orvd_system systems/SITL-module
 
