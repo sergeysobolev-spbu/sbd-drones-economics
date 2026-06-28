@@ -1,10 +1,10 @@
 # Сборка, тесты и Jenkins локально
 
-<!-- doc-meta: status=active version=1.1 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.2 updated=2026-06-28 -->
 
-Руководство для нового окружения: зависимости, субмодули, Docker, полный набор автотестов (unit, integration, E2E) и запуск Jenkins в контейнере.
+Руководство для нового окружения: зависимости, субмодули, Docker, автотесты и Jenkins (`ci/jenkins/`).
 
-См. также: [integration-phase0-compose.md](integration-phase0-compose.md) (профиль T10), topic map в [`sbd-drones-economics-ai/docs/integration/topic_map.yaml`](../../sbd-drones-economics-ai/docs/integration/topic_map.yaml).
+См. также: [jenkins.md](jenkins.md), [ports.md](ports.md), [integration-phase0-compose.md](integration-phase0-compose.md).
 
 ## Требования
 
@@ -50,7 +50,9 @@ make init
 | `make ci-unit-test` | Unit-тесты по всем `components/*/tests` и системам (`test_*unit*.py`) |
 | `make ci-integration-test` | Интеграционные тесты систем (docker/pytest по Makefile систем) |
 | `make ci-test` | `ci-unit-test` + `ci-integration-test` |
-| `make phase0-smoke` | Smoke phase 0 (T14): `tests/e2e/test_phase0_smoke.py` |
+| `make phase0-smoke` | Smoke phase 0 (T14): structural checks в `tests/e2e/test_phase0_smoke.py` |
+| `make ci-config-check` | `ports-check` + `phase0-smoke` (быстрый CI gate без Docker) |
+| `make ports-check` | Реестр портов `config/e2e_ports.*.env` ↔ `docs/ports.md` |
 
 ### Ворота CI / профили тестов (gate table)
 
@@ -75,16 +77,27 @@ Sprint autonomy (QA/DevOps): time-boxed спринты с E2E-целями не 
 | `make e2e-test` | `pytest tests/e2e/` |
 | `make e2e-down` | Остановка E2E-окружения |
 | `make e2e` | `e2e-up` → `e2e-test` → логи → `e2e-down` |
-| `make jenkins-build` | Сборка `Dockerfile.jenkins` и `Dockerfile.jenkins-agent` (теги из `docker/.env`) |
-| `make jenkins-up` | Запуск контроллера Jenkins в Docker (`jenkins_drones_home`, `docker.sock`, `--env-file docker/.env`) |
-| `make jenkins-down` | Остановка и удаление контейнера (`JENKINS_CONTAINER_NAME`) |
-| `make jenkins-deploy` | `jenkins-build` + `jenkins-up` |
-| `make jenkins-e2e` | Сквозные тесты **в образе CI-агента** (скрипт `scripts/jenkins_agent_e2e.sh`: submodule, `pipenv`, `make e2e-up` / `e2e-test` / `e2e-down`, очистка как в `Jenkinsfile`) |
-| `make jenkins-setup-e2e` | `jenkins-deploy`, затем `jenkins-e2e` — контроллер поднят, E2E прогнаны в том же окружении, что у worker Pipeline |
+| `make jenkins-up` | Jenkins в Docker (`ci/jenkins/`), JCasC, `jenkins-apply-jobs` |
+| `make jenkins-apply-jobs` | JCasC reload + проверка job в UI |
+| `make jenkins-build-unit WAIT=1` | Триггер job `drone-unit` и ожидание результата |
+| `make jenkins-build-phase0-smoke WAIT=1` | Триггер job `drone-phase0-smoke` |
 
-Локально без Jenkins: **`make e2e`** (на хосте с `pipenv` и Docker). Проверка «как на агенте Jenkins»: **`make jenkins-e2e`** (не требует запущенного UI Jenkins; образ и сокет совпадают с `Jenkinsfile`). Job Pipeline из SCM настраивается вручную в UI после `make jenkins-up`.
+Локально без Jenkins: **`make e2e`** или **`make ci-test`**. Jenkins: **`make jenkins-up`**, затем job из [jenkins.md](jenkins.md).
 
-Брокер для локальной работы: `make docker-up` (нужен `docker/.env`, см. `docker/example.env`).
+Брокер: `make docker-up` (`docker/.env` из `docker/example.env`).
+
+## Jenkins (JCasC)
+
+Каноническая конфигурация — **`ci/jenkins/`** (не корневые `Dockerfile.jenkins`). Подробности: [jenkins.md](jenkins.md).
+
+```bash
+make jenkins-up
+make jenkins-apply-jobs    # после правки casc.yaml
+make ports-check           # local vs jenkins порты
+make jenkins-build-unit WAIT=1
+```
+
+E2E из Jenkins использует `E2E_RUN_MODE=jenkins` и порты из `config/e2e_ports.jenkins.env` (не пересекаются с local).
 
 ## Docker и Jenkins: не «Docker-in-Docker»
 
@@ -92,63 +105,11 @@ Sprint autonomy (QA/DevOps): time-boxed спринты с E2E-целями не 
 
 Классический **DinD** (отдельный `dockerd` внутри контейнера) здесь не используется.
 
-## Образы Jenkins
+## Образ Jenkins
 
-- **`Dockerfile.jenkins`** — образ **контроллера** (UI, очередь сборок): `jenkins/jenkins:lts` + Docker CLI + Compose v2 plugin, чтобы плагин Docker мог поднимать агентов.
-- **`Dockerfile.jenkins-agent`** — образ **агента CI**: Python **3.12+**, `make`, `git`, `curl`, Docker CLI и Compose v2 (демон по-прежнему хостовый через socket).
+Сборка и запуск — **`make jenkins-up`** (`ci/jenkins/Dockerfile`, образ `drones-jenkins:local`). Пайплайны используют docker-агент `python:3.11` или host-agent с `docker.sock` хоста.
 
-Сборка агента (тег должен совпадать с `JENKINS_AGENT_IMAGE` в `docker/example.env`, по умолчанию `drones-jenkins-agent:local`):
-
-```bash
-docker build -f Dockerfile.jenkins-agent -t drones-jenkins-agent:local .
-```
-
-Проверки:
-
-```bash
-docker run --rm drones-jenkins-agent:local make --version
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock drones-jenkins-agent:local docker version
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock drones-jenkins-agent:local docker compose version
-```
-
-Сборка контроллера:
-
-```bash
-docker build -f Dockerfile.jenkins -t drones-jenkins:local .
-```
-
-### Переменные Jenkins в `docker/example.env`
-
-| Переменная | Назначение |
-|------------|------------|
-| `JENKINS_CONTROLLER_IMAGE` | Тег образа контроллера (по умолчанию `drones-jenkins:local`) |
-| `JENKINS_CONTAINER_NAME` | Имя контейнера контроллера для `make jenkins-up` / `jenkins-down` (по умолчанию `jenkins-drones`) |
-| `JENKINS_HTTP_PORT` | Порт UI контроллера на хосте (например `8080`) |
-| `JENKINS_AGENT_IMAGE` | Тег образа агента; тот же образ должен быть указан в корневом `Jenkinsfile` (через `env.JENKINS_AGENT_IMAGE` на контроллере или fallback в файле) |
-| `JENKINS_PIPELINE_TIMEOUT_MINUTES` | Рекомендуемая длительность пайплайна; в Declarative `options { timeout }` задайте то же число вручную в `Jenkinsfile` при смене |
-| `JENKINS_JAVA_OPTS` | Опционально, для JVM контроллера (передаётся при `docker run`, например `-e JENKINS_JAVA_OPTS=...`) |
-
-На контроллере Jenkins переменная **`JENKINS_AGENT_IMAGE`** должна быть доступна процессу Jenkins (например через `--env-file docker/.env` при `docker run`, либо **Manage Jenkins → System → Global properties → Environment variables**). Если она не задана, в `Jenkinsfile` используется значение по умолчанию `drones-jenkins-agent:local`.
-
-### Пример запуска контроллера Jenkins
-
-Краткий путь: **`make jenkins-up`** (эквивалентно ручному `docker run` с теми же параметрами).
-
-Подставьте порт и volume для домашнего каталога Jenkins:
-
-```bash
-set -a && . docker/.env && set +a
-docker run -d --name jenkins \
-  --env-file docker/.env \
-  -p "${JENKINS_HTTP_PORT:-8080}:8080" \
-  -v jenkins_home:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  drones-jenkins:local
-```
-
-Опционально задать память JVM контроллера (если задан `JENKINS_JAVA_OPTS` в `docker/.env`): добавьте к `docker run` аргумент `-e "JAVA_OPTS=${JENKINS_JAVA_OPTS}"` после загрузки `.env` в shell.
-
-Установите плагины: **Pipeline**, **Docker**, **Docker Pipeline**, **Git**. Создайте Pipeline job **из SCM**, укажите путь к `Jenkinsfile` в корне репозитория.
+Конфигурация UI и job — JCasC (`ci/jenkins/casc.yaml`). Переменные — `ci/jenkins/.env` (см. [jenkins.md](jenkins.md)).
 
 ## Чеклист пайплайна (Jenkins)
 
