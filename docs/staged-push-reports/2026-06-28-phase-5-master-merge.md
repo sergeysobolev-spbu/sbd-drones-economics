@@ -25,7 +25,7 @@ Agent group: merge `origin/master` into PR-E1 line and, when gates green, fast-f
 | Gate | Result | Evidence |
 |------|--------|----------|
 | `make ci-test` | **RED** | `systems/Agregator` Go integration: Kafka timeout / aggregator health (`TestKafkaMalformedMessageGoesToDLT`, lifecycle tests); first run also hit **port 8081** conflict with leftover E2E stack |
-| `make e2e-codespace` | **NOT RUN** (blocked on ci-test policy for this phase) | — |
+| `make e2e-codespace` | **GREEN** (28 passed, 2 skipped, ~245s) | `test_e2e_scenario.py`; mission completion + analytics skipped |
 
 ### DevOps mitigations attempted
 
@@ -35,7 +35,7 @@ Agent group: merge `origin/master` into PR-E1 line and, when gates green, fast-f
 
 ## QA sign-off
 
-- **E2E codespace:** pending green `ci-test` + successful `make e2e-codespace`.
+- **E2E codespace:** green (2026-06-28 run). **ci-test** still red on Agregator integration.
 - **Master push:** **blocked**.
 
 ## Next steps
