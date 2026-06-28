@@ -9,3 +9,6 @@ requires-python = ">=3.12"
 pythonpath = [".."]
 testpaths = ["../tests", "../dummy_component", "../dummy_system"]
 addopts = "-v"
+markers = [
+    "phase0_smoke: Phase 0 integration smoke (T14) — structural and runtime checks",
+]

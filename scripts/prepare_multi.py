@@ -650,6 +650,12 @@ def prepare_multi(systems: List[str], output: Optional[str]) -> None:
         merged["volumes"] = merged_volumes
 
     merged_env = parse_env_file(broker_env_path)
+    ports_profile = os.getenv("E2E_RUN_MODE", "").strip()
+    if ports_profile:
+        ports_path = root / "config" / f"e2e_ports.{ports_profile}.env"
+        if ports_path.exists():
+            merged_env.update(parse_env_file(ports_path))
+            print(f"Applied E2E port profile: {ports_profile} ({ports_path})")
 
     compose_out = output_dir / "docker-compose.yml"
     env_out = output_dir / ".env"

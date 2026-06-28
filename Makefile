@@ -1,8 +1,12 @@
-.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local e2e-mqtt-up e2e-mqtt-test e2e-mqtt-down e2e-mqtt jenkins-up jenkins-down jenkins-restart jenkins-logs jenkins-ps jenkins-build-unit jenkins-build-integration jenkins-build-e2e jenkins-build-agrodron-security-monitor jenkins-build-dummy-fabric-unit smart-contract-init smart-contract-up smart-contract-down e2e-smart-contracts-test e2e-smart-contracts
+.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test ci-config-check docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local e2e-mqtt-up e2e-mqtt-test e2e-mqtt-down e2e-mqtt jenkins-up jenkins-down jenkins-restart jenkins-logs jenkins-ps jenkins-preflight jenkins-apply-jobs jenkins-jobs-verify jenkins-reload-casc jenkins-build-unit jenkins-build-integration jenkins-build-e2e jenkins-build-agrodron-security-monitor jenkins-build-dummy-fabric-unit jenkins-build-phase0-smoke ports-check smart-contract-init smart-contract-up smart-contract-down e2e-smart-contracts-test e2e-smart-contracts
 
 PROJECT_ROOT := $(CURDIR)
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
 LOAD_ENV = set -a && . docker/.env && set +a
+E2E_RUN_MODE ?= local
+E2E_PORTS_FILE = config/e2e_ports.$(E2E_RUN_MODE).env
+LOAD_E2E_PORTS = set -a && test -f $(E2E_PORTS_FILE) && . $(E2E_PORTS_FILE) || true && set +a
+E2E_ENV = $(LOAD_ENV) && $(LOAD_E2E_PORTS)
 PIPENV_PIPFILE = config/Pipfile
 PYTEST_CONFIG = config/pyproject.toml
 REQUIREMENTS = config/requirements.txt
@@ -50,6 +54,11 @@ help:
 	@echo "make jenkins-build-e2e          - Триггер job drone-e2e"
 	@echo "make jenkins-build-agrodron-security-monitor - Триггер job drone-agrodron-security-monitor"
 	@echo "make jenkins-build-dummy-fabric-unit - Триггер job drone-dummy-fabric-unit"
+	@echo "make jenkins-build-phase0-smoke   - Триггер job drone-phase0-smoke"
+	@echo "make jenkins-preflight            - Проверка GIT_BRANCH на remote (ci/jenkins/.env)"
+	@echo "make jenkins-apply-jobs           - JCasC reload + проверка job в UI"
+	@echo "make ports-check                  - Реестр портов local/jenkins (docs/ports.md)"
+	@echo "make ci-config-check              - ports-check + phase0-smoke structural"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
@@ -129,6 +138,14 @@ ci-integration-test:
 
 ci-test: ci-unit-test ci-integration-test
 
+ci-config-check: ports-check phase0-smoke
+	@python3 scripts/check_jenkins_e2e_makefile.py
+	@test -f $(JENKINS_DIR)/.env && $(MAKE) jenkins-preflight || true
+
+ports-check:
+	@test -f docs/ports.md
+	@python3 scripts/check_ports_registry.py
+
 docker-up:
 	@test -f docker/.env || cp docker/example.env docker/.env
 	@set -a && . docker/.env && set +a && \
@@ -175,35 +192,37 @@ E2E_FABRIC_PROFILES = $(if $(filter true,$(ENABLE_FABRIC)),--profile fabric,)
 # (Agregator, Operator, Regulator, ORVD, GCS и т.д.) вступить в consumer group,
 # иначе первые тесты нестабильны (гейтвеи ловят таймауты до первой ребалансировки).
 E2E_WARMUP_SECONDS ?= 120
+E2E_WAIT_HEALTH = bash scripts/e2e_wait_health.sh
+E2E_VERIFY_KAFKA = bash scripts/e2e_verify_kafka.sh
 
 e2e-up:
-	@echo "=== Generating multi-system compose (ENABLE_FABRIC=$(ENABLE_FABRIC)) ==="
-	@$(LOAD_ENV) && E2E_ANALYTICS=1 ENABLE_FABRIC=$(ENABLE_FABRIC) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py \
+	@echo "=== Generating multi-system compose (E2E_RUN_MODE=$(E2E_RUN_MODE), ENABLE_FABRIC=$(ENABLE_FABRIC)) ==="
+	@$(E2E_ENV) && E2E_ANALYTICS=1 E2E_RUN_MODE=$(E2E_RUN_MODE) ENABLE_FABRIC=$(ENABLE_FABRIC) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py \
 		--systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
 	@echo "ANALYTICS_URL=http://analytics-backend:8080" >> $(E2E_OUTPUT)/.env
 	@echo "ANALYTICS_API_KEY=test-api-key-e2e-12345" >> $(E2E_OUTPUT)/.env
-	@echo "ANALYTICS_PORT=8090" >> $(E2E_OUTPUT)/.env
-	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
+	@$(E2E_ENV) && echo "ANALYTICS_PORT=$${ANALYTICS_PORT:-8090}" >> $(E2E_OUTPUT)/.env
+	@$(E2E_ENV) && echo "DELIVERY_DRONE_HEALTH_PORT=$${DELIVERY_DRONE_HEALTH_PORT:-8095}" >> $(E2E_OUTPUT)/.env
 	@echo "DELIVERYDRON_ROOT=systems/drones" >> $(E2E_OUTPUT)/.env
-	@echo "AGRODRON_GATEWAY_HOST_PORT=18081" >> $(E2E_OUTPUT)/.env
-	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env
-	@$(LOAD_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
-	@$(LOAD_ENV) && echo "BROKER_PASSWORD=$${ADMIN_PASSWORD:-admin_secret_123}" >> $(E2E_OUTPUT)/.env
+	@$(E2E_ENV) && echo "AGRODRON_GATEWAY_HOST_PORT=$${AGRODRON_GATEWAY_HOST_PORT:-18081}" >> $(E2E_OUTPUT)/.env
+	@$(E2E_ENV) && echo "SYSTEM_MONITOR_HOST_PORT=$${SYSTEM_MONITOR_HOST_PORT:-18090}" >> $(E2E_OUTPUT)/.env
+	@$(E2E_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
+	@$(E2E_ENV) && echo "BROKER_PASSWORD=$${ADMIN_PASSWORD:-admin_secret_123}" >> $(E2E_OUTPUT)/.env
 	@sed -i 's/^DOCKER_NETWORK=.*/DOCKER_NETWORK=drones_net_e2e_gate/' $(E2E_OUTPUT)/.env 2>/dev/null || echo "DOCKER_NETWORK=drones_net_e2e_gate" >> $(E2E_OUTPUT)/.env
 	@echo "=== E2E preflight (host ports / stale stacks) ==="
 	-$(E2E_COMPOSE) --profile $(E2E_PROFILE) $(E2E_FABRIC_PROFILES) down -v 2>/dev/null
-	@bash scripts/e2e_preflight_host_ports.sh
+	@$(E2E_ENV) && bash scripts/e2e_preflight_host_ports.sh
 	@echo "=== Starting E2E environment ==="
 	$(E2E_COMPOSE) --profile $(E2E_PROFILE) $(E2E_FABRIC_PROFILES) up -d --build
 	@echo "=== Waiting for Kafka ($${KAFKA_PORT:-9092}) ==="
-	@for i in $$(seq 1 60); do nc -z localhost $${KAFKA_PORT:-9092} 2>/dev/null && echo "Kafka port is open" && break; [ $$i -eq 60 ] && echo "ERROR: Kafka did not open port $${KAFKA_PORT:-9092}" && exit 1 || sleep 5; done
-	@echo "=== Waiting for Agregator (8081) ==="
-	@for i in $$(seq 1 60); do curl -sf http://localhost:8081/health >/dev/null 2>&1 && echo "Agregator is up" && break; [ $$i -eq 60 ] && echo "WARNING: Agregator did not respond after 300s" || sleep 5; done
-	@echo "=== Waiting for Regulator (8088) ==="
-	@for i in $$(seq 1 30); do curl -sf http://localhost:8088/health >/dev/null 2>&1 && echo "Regulator is up" && break; [ $$i -eq 30 ] && echo "WARNING: Regulator did not respond after 150s" || sleep 5; done
-	@echo "=== Waiting for DroneAnalytics (8090) ==="
-	@for i in $$(seq 1 60); do curl -sf http://localhost:8090/ >/dev/null 2>&1 && echo "DroneAnalytics is up" && break; [ $$i -eq 60 ] && echo "WARNING: DroneAnalytics did not respond after 300s" || sleep 5; done
-	@$(LOAD_ENV) && bash scripts/e2e_warmup.sh
+	@$(E2E_ENV) && for i in $$(seq 1 60); do nc -z localhost $${KAFKA_PORT:-9092} 2>/dev/null && echo "Kafka port is open" && break; [ $$i -eq 60 ] && echo "ERROR: Kafka did not open port $${KAFKA_PORT:-9092}" && exit 1 || sleep 5; done
+	@echo "=== Waiting for Agregator ($${AGREGATOR_PORT:-8081}) ==="
+	@$(E2E_ENV) && for i in $$(seq 1 60); do curl -sf http://localhost:$${AGREGATOR_PORT:-8081}/health >/dev/null 2>&1 && echo "Agregator is up" && break; [ $$i -eq 60 ] && echo "WARNING: Agregator did not respond after 300s" || sleep 5; done
+	@echo "=== Waiting for Regulator ($${REGULATOR_PORT:-8088}) ==="
+	@$(E2E_ENV) && for i in $$(seq 1 30); do curl -sf http://localhost:$${REGULATOR_PORT:-8088}/health >/dev/null 2>&1 && echo "Regulator is up" && break; [ $$i -eq 30 ] && echo "WARNING: Regulator did not respond after 150s" || sleep 5; done
+	@echo "=== Waiting for DroneAnalytics ($${ANALYTICS_PORT:-8090}) ==="
+	@$(E2E_ENV) && for i in $$(seq 1 60); do curl -sf http://localhost:$${ANALYTICS_PORT:-8090}/ >/dev/null 2>&1 && echo "DroneAnalytics is up" && break; [ $$i -eq 60 ] && echo "WARNING: DroneAnalytics did not respond after 300s" || sleep 5; done
+	@$(E2E_ENV) && bash scripts/e2e_warmup.sh
 	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
 	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== E2E environment is up ==="
@@ -294,35 +313,35 @@ e2e-codespace:
 	@test -f docker/.env || cp docker/example.env docker/.env
 	@echo "=== Cleaning leftover build artifacts ==="
 	@rm -rf systems/Agregator/postgres_data 2>/dev/null || true
-	@echo "=== Generating multi-system compose ==="
-	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
-	@echo "DELIVERY_DRONE_HEALTH_PORT=8095" >> $(E2E_OUTPUT)/.env
-	@echo "AGRODRON_GATEWAY_HOST_PORT=18081" >> $(E2E_OUTPUT)/.env
-	@echo "SYSTEM_MONITOR_HOST_PORT=18090" >> $(E2E_OUTPUT)/.env
+	@echo "=== Generating multi-system compose (E2E_RUN_MODE=$(E2E_RUN_MODE)) ==="
+	@$(E2E_ENV) && E2E_RUN_MODE=$(E2E_RUN_MODE) PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run python scripts/prepare_multi.py --systems $(E2E_SYSTEMS) --output $(E2E_OUTPUT)
+	@$(E2E_ENV) && echo "DELIVERY_DRONE_HEALTH_PORT=$${DELIVERY_DRONE_HEALTH_PORT:-8095}" >> $(E2E_OUTPUT)/.env
+	@$(E2E_ENV) && echo "AGRODRON_GATEWAY_HOST_PORT=$${AGRODRON_GATEWAY_HOST_PORT:-18081}" >> $(E2E_OUTPUT)/.env
+	@$(E2E_ENV) && echo "SYSTEM_MONITOR_HOST_PORT=$${SYSTEM_MONITOR_HOST_PORT:-18090}" >> $(E2E_OUTPUT)/.env
 	@sed -i 's/^DOCKER_NETWORK=.*/DOCKER_NETWORK=drones_net_e2e_gate/' $(E2E_OUTPUT)/.env 2>/dev/null || echo "DOCKER_NETWORK=drones_net_e2e_gate" >> $(E2E_OUTPUT)/.env
-	@$(LOAD_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
-	@$(LOAD_ENV) && echo "BROKER_PASSWORD=$${ADMIN_PASSWORD:-admin_secret_123}" >> $(E2E_OUTPUT)/.env
+	@$(E2E_ENV) && echo "BROKER_USER=$${ADMIN_USER:-admin}" >> $(E2E_OUTPUT)/.env
+	@$(E2E_ENV) && echo "BROKER_PASSWORD=$${ADMIN_PASSWORD:-admin_secret_123}" >> $(E2E_OUTPUT)/.env
 	@echo "=== E2E preflight (host ports / stale stacks) ==="
 	-$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null
-	@bash scripts/e2e_preflight_host_ports.sh
+	@$(E2E_ENV) && bash scripts/e2e_preflight_host_ports.sh
 	@echo "=== Resetting Docker network ==="
 	@docker network rm drones_net_e2e_gate 2>/dev/null || true
-	@echo "=== Starting E2E environment (no analytics) ==="
+	@echo "=== Starting E2E environment (no analytics, E2E_RUN_MODE=$(E2E_RUN_MODE)) ==="
 	$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) up -d --build
-	@echo "=== Waiting for Kafka ($${KAFKA_PORT:-9092}) ==="
-	@for i in $$(seq 1 60); do nc -z localhost $${KAFKA_PORT:-9092} 2>/dev/null && echo "Kafka port is open" && break; [ $$i -eq 60 ] && echo "ERROR: Kafka did not open port $${KAFKA_PORT:-9092}" && exit 1 || sleep 5; done
-	@echo "=== Waiting for Agregator (8081) ==="
-	@for i in $$(seq 1 60); do curl -sf http://localhost:8081/health >/dev/null 2>&1 && echo "Agregator is up" && break; [ $$i -eq 60 ] && echo "WARNING: Agregator did not respond after 300s" || sleep 5; done
-	@echo "=== Waiting for Regulator (8088) ==="
-	@for i in $$(seq 1 30); do curl -sf http://localhost:8088/health >/dev/null 2>&1 && echo "Regulator is up" && break; [ $$i -eq 30 ] && echo "WARNING: Regulator did not respond after 150s" || sleep 5; done
-	@$(LOAD_ENV) && bash scripts/e2e_warmup.sh
+	@$(E2E_ENV) && E2E_COMPOSE_DIR=$(E2E_OUTPUT) $(E2E_VERIFY_KAFKA)
+	@$(E2E_ENV) && $(E2E_WAIT_HEALTH) Agregator "$${AGREGATOR_URL:-http://localhost:8081}/health" 60
+	@$(E2E_ENV) && $(E2E_WAIT_HEALTH) Regulator "$${REGULATOR_URL:-http://localhost:8088}/health" 30
+	@$(E2E_ENV) && E2E_COMPOSE_DIR=$(E2E_OUTPUT) bash scripts/e2e_warmup.sh
 	@echo "=== Warming up Kafka consumer groups ($(E2E_WARMUP_SECONDS)s) ==="
 	@sleep $(E2E_WARMUP_SECONDS)
 	@echo "=== Running E2E tests ==="
-	@$(LOAD_ENV) && E2E_SKIP_ANALYTICS=1 PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
+	@$(E2E_ENV) && E2E_SKIP_ANALYTICS=1 PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/e2e/test_e2e_scenario.py -v -s --tb=short 2>&1 || (echo "E2E tests failed"; $(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null; exit 1)
 	@echo "=== Stopping E2E environment ==="
 	-$(E2E_COMPOSE_NO_ANALYTICS) --profile $(E2E_PROFILE) down -v 2>/dev/null
 	@echo "=== Done ==="
+
+e2e-jenkins-core:
+	@$(MAKE) e2e-codespace E2E_RUN_MODE=jenkins
 
 # ---------------------------------------------------------------------------
 # E2E Local: полный локальный запуск со всеми системами и DroneAnalytics
@@ -429,18 +448,32 @@ jenkins-up: $(JENKINS_DIR)/.env
 	$(JENKINS_COMPOSE) up -d --build
 	@PORT=$$(grep '^JENKINS_HTTP_PORT=' $(JENKINS_DIR)/.env | cut -d= -f2); \
 	echo "Jenkins стартует на http://localhost:$${PORT:-8080}"
+	@echo "Применение JCasC (job definitions)..."
+	@sleep 15
+	@$(MAKE) jenkins-apply-jobs || echo "WARN: jenkins-apply-jobs не выполнен — подождите и запустите make jenkins-apply-jobs"
 
 jenkins-down:
 	-$(JENKINS_COMPOSE) down
 
-jenkins-restart:
-	$(JENKINS_COMPOSE) restart
+jenkins-restart: jenkins-down
+	@$(MAKE) jenkins-up
 
 jenkins-logs:
 	$(JENKINS_COMPOSE) logs -f --tail=200
 
 jenkins-ps:
 	$(JENKINS_COMPOSE) ps
+
+jenkins-preflight:
+	@bash scripts/check_jenkins_env.sh
+
+jenkins-reload-casc: jenkins-apply-jobs
+
+jenkins-apply-jobs: jenkins-preflight
+	@bash scripts/jenkins_apply_casc.sh
+
+jenkins-jobs-verify:
+	@bash scripts/jenkins_apply_casc.sh --verify-only
 
 jenkins-build-unit:
 	@$(JENKINS_DIR)/build.sh drone-unit $(if $(WAIT),--wait,)
@@ -456,3 +489,6 @@ jenkins-build-agrodron-security-monitor:
 
 jenkins-build-dummy-fabric-unit:
 	@$(JENKINS_DIR)/build.sh drone-dummy-fabric-unit $(if $(WAIT),--wait,)
+
+jenkins-build-phase0-smoke:
+	@$(JENKINS_DIR)/build.sh drone-phase0-smoke $(if $(WAIT),--wait,)
