@@ -146,7 +146,7 @@ sbd-drones-economics-ai (operator + учебный контент)
 | **ADR-001** — Kafka для Aggregator↔Operator **на phase 0** | ✅ Accepted |
 | **ADR-002** — broker-agnostic платформа после phase 0 (env + профиль теста) | ✅ Accepted |
 | Merge line — **PR-E1** (`feature/uas-dev-company` → `master` в `-economics`) | ✅ Выбрано |
-| Push `master` | ⛔ Только после green `make ci-test` + `make e2e-codespace` |
+| Push `master` | ⛔ **Заблокирован** — `ci-integration-test` red (2026-06-28); см. `-economics/docs/pr-e1-gate-report.md` |
 | PR-A1 (`-ai` operator) | После PR-E1 + topic map v0.2 |
 
 ### Влить в `master` (поэтапно, отдельные PR)
