@@ -99,6 +99,8 @@ REGULATOR_URL = os.environ.get("REGULATOR_URL", "http://localhost:8088")
 @pytest.fixture(scope="session", autouse=True)
 def wait_for_services() -> None:
     """Block until all E2E services respond."""
+    if os.environ.get("PHASE0_SMOKE_FORCE", "0") in ("1", "true", "True"):
+        return
     _wait_for_http(f"{AGREGATOR_URL}/health", "Agregator")
     _wait_for_http(f"{REGULATOR_URL}/health", "Regulator")
     if not SKIP_ANALYTICS:
