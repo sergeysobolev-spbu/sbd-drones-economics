@@ -9,6 +9,7 @@ __pycache__
 *.pyc
 .generated/
 fabric/
+vendor/
 .DS_Store
 **/postgres_data/
 .coverage
