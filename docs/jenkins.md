@@ -132,6 +132,8 @@ Pipeline `drone-e2e` не должен обращаться к `127.0.0.1:<local
 
 **`Couldn't find any revision to build`** — `GIT_BRANCH` в `.env` не существует на remote; `make jenkins-preflight` или `GIT_BRANCH=master`.
 
+**`403` при триггере из CLI** — проверьте `JENKINS_ADMIN_PASSWORD` в `.env`.
+
 **E2E red: порт занят** — `make e2e-down`, `bash scripts/e2e_preflight_host_ports.sh`, `make ports-check`.
 
 ## См. также
