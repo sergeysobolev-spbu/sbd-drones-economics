@@ -23,7 +23,9 @@
 - [next-actions](#next-actions) — ближайшие действия оркестратора
 - [e2e-stabilization-sprint](#e2e-stabilization-sprint) — стабилизация E2E (2026-06-28)
 - [sprint-120min-2026-06-28](#sprint-120min-2026-06-28)
-- [master-merge-agent-group](#master-merge-agent-group) — phase A/B consolidate и merge master — автономный спринт 120 мин (phase 0 artifacts)
+- [master-merge-agent-group](#master-merge-agent-group)
+- [vuca-block-merge-2026-06-28](#vuca-block-merge-2026-06-28) — staged push blocks A–D, QA, master tip
+ — phase A/B consolidate и merge master — автономный спринт 120 мин (phase 0 artifacts)
 - [agent-vuca-history-100-review](#agent-vuca-history-100-review) — анализ 100 коммитов, VUCA/ЗУН дообучение и базовый план улучшений
 - [sprint-autonomy-policy](#sprint-autonomy-policy) — политика автономности QA/DevOps спринта
 
@@ -952,6 +954,27 @@ flowchart LR
 3. **P1:** добавить матрицу `requirement -> method -> event -> test -> evidence`.
 4. **P1:** подготовить fast checks без Fabric-сети: mapping, mock proxy, schema validation.
 5. **P2:** переводить Fabric smoke в nightly только после детерминированного startup и cleanup.
+
+## vuca-block-merge-2026-06-28 {#vuca-block-merge-2026-06-28}
+
+**Дата:** 2026-06-28. **Протокол:** `skill_vuca_decision_protocol`, sprint-autonomy QA gates.
+
+| Block | Branch | SHA (tip) | Push | На `master` |
+|-------|--------|-----------|------|-------------|
+| A docs/agents/registry | `vuca/block-a-docs-2026-06-28` | `b40c10d0` | OK | merge `f4cdd9f` |
+| B process/demos/notebook | `vuca/block-b-process-demos-2026-06-28` | `1045b327` | OK | merge `6b96fd0` |
+| C operator | `vuca/block-c-operator-2026-06-28` | `1f19e024` | OK | **ожидает** ci-test + e2e-codespace |
+| D slides/72118 | — | — | **запрещён** | нет |
+| E2E WIP | `master` | `5a887b9` | в составе master | да |
+
+**QA:** Block B demo pytest 4/4 pass; `make ci-test` — fail без Docker (Agregator); `make e2e-codespace` — fail (notebook submodule без URL); bulk push `test/integration-phase0-initiation` — `Packfile is truncated`.
+
+**Отчёт:** [staged-push-reports/2026-06-28-vuca-block-merge.md](staged-push-reports/2026-06-28-vuca-block-merge.md) (путь от корня репо: `docs/staged-push-reports/...`).
+
+**Локальная консолидация `-ai`:** `test/integration-phase0-initiation` @ `438f29df` (+ merges consolidated + sprint-autonomy-policy); WIP commits `a2102505`, `8a03f365`, `b82e91a4`.
+
+**`origin/master` tip:** `6b96fd0c1499c535c2068cb8c501eedd0fb66c07`.
+
 
 ---
 
