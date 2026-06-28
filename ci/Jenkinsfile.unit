@@ -14,6 +14,7 @@ pipeline {
     environment {
         PIPENV_PIPFILE = 'config/Pipfile'
         PIP_DISABLE_PIP_VERSION_CHECK = '1'
+        PIP_DEFAULT_TIMEOUT = '120'
         PYTHONDONTWRITEBYTECODE = '1'
     }
 
