@@ -1,22 +1,24 @@
 ---
-description: Политика автономности QA/DevOps в time-boxed спринтах — time budget, pivot, e2e gate
+description: Политика автономности QA/DevOps в time-boxed спринтах — time budget, pivot, e2e gate, mandatory CI preflight
 globs:
   - "**/tests/**"
   - "**/Makefile"
   - "**/docker/**"
   - "docs/**"
+  - "ci/**"
 alwaysApply: false
 ---
 
-# Sprint autonomy — QA и DevOps
+# Sprint autonomy — QA и DevOps (ТЭМ БАС drones)
 
 ## Триггеры
 
 Подключай правило, когда:
 
 - оркестратор назначил **time-boxed sprint** (например, 120 мин) с целями CI/E2E;
-- работают агенты **`qa-marinet-spec`**, **`ci-marinet-steward`** или skills `platform-validation`, `platform-ci-jenkins`, `skill_sdet_broker_e2e`, `skill_devops_broker_cicd`;
-- в sprint goals упомянуты `make e2e-codespace`, `ci-integration-test`, T14, phase 0 smoke.
+- работают агенты **`qa-marinet-spec`**, **`ci-marinet-steward`** или skills `platform-validation`, `platform-ci-jenkins`, `skill_sdet_broker_e2e`, `skill_devops_broker_cicd`, `skill_ci_failure_triage`, `skill_ci_port_profile`, `skill_jenkins_casc_lifecycle`;
+- в sprint goals упомянуты `make e2e-codespace`, `ci-integration-test`, T14, phase 0 smoke, Jenkins `drone-*`;
+- **mass CI fail** или изменение casc/ports/Makefile e2e — см. [ci_failure_joint_plan.md](../../docs/ci_failure_joint_plan.md).
 
 ## Обязательное поведение
 
@@ -24,17 +26,42 @@ alwaysApply: false
 2. **Pivot on block** — при блокере переключаться на следующую приоритетную незаблокированную задачу; не простаивать.
 3. **Repo boundaries** — `-economics` / `-ai` по sprint scope; другие репо только по явной инструкции.
 4. **Autonomy** — tests, logs, docker, port cleanup, fix→retest без запроса human на каждый шаг.
-5. **E2E gate** — если E2E в goals: **`make e2e-codespace` green** обязателен перед claim «sprint complete».
+5. **E2E gate** — если E2E в goals: **`make e2e-codespace` green** обязателен перед claim «sprint complete» (или documented defer + owner/issue).
+
+## Mandatory CI preflight (до claim «CI complete»)
+
+DevOps **и** QA при sign-off изменений Jenkins/CI config:
+
+```bash
+make ci-config-check
+make jenkins-preflight          # если remote SCM (ci/jenkins/.env)
+```
+
+Дополнительно DevOps после casc/ports:
+
+```bash
+make jenkins-apply-jobs
+make jenkins-jobs-verify
+make ports-check
+```
+
+QA regression: минимум **один** Jenkins smoke (`make jenkins-build-phase0-smoke WAIT=1`) с evidence при red.
+
+**Запрещено** объявлять CI complete только по локальному structural green.
 
 ## Anti-patterns
 
 - Early exit при red integration/e2e при E2E-focused sprint.
-- «Blocked on port» без `docker compose down` / retry.
-- Остановка на green unit, если цель — full E2E.
+- «Blocked on port 8081» без `docker compose down` / retry / `E2E_RUN_MODE=jenkins`.
+- Остановка на green unit, если цель — full E2E или Jenkins regression.
 - Уход в open-platform без явной инструкции.
+- Merge CI config без `jenkins-preflight` при remote checkout.
+- QA sign-off без Jenkins smoke evidence.
 
 ## Канон
 
 - [docs/ai_dev_tasks.md#sprint-autonomy-policy](../../docs/ai_dev_tasks.md#sprint-autonomy-policy)
-- [docs/ai_agents_improvements.md §4.4](../../docs/ai_agents_improvements.md#44-замечание-qadevops--автономность-спринта-2026-06-28)
-- Skills: `platform-validation`, `platform-ci-jenkins` § Sprint mode
+- [docs/ai_agents_improvements.md §4.4–§4.5](../../docs/ai_agents_improvements.md#44-замечание-qadevops--автономность-спринта-2026-06-28)
+- [docs/ci_failure_joint_plan.md](../../docs/ci_failure_joint_plan.md)
+- [docs/ci_agent_upskilling_plan.md](../../docs/ci_agent_upskilling_plan.md)
+- Skills: `platform-validation`, `platform-ci-jenkins`, `skill_ci_failure_triage`

@@ -60,6 +60,21 @@ Apply at the start of any **учебно-методической** задачи
 - семестр, часы (лекция/семинар/практика/СР), ограничения площадки и CI;
 - связь с **ТЭМ**, **ОП**, gate **ДЭ0** (`make ci-unit-test`).
 
+### 1.1. CI literacy (ТЭМ БАС drones track)
+
+При лабораториях phase 0 и demo-pack 45 min:
+
+| Артефакт | Путь |
+|---|---|
+| Рубрика L0–L3 | `docs/labs/rubric_ci_literacy_agents.md` |
+| Lab «Разбор CI-отказа» | `docs/labs/lab_ci_failure_triage.md` |
+| Upskilling (агенты) | `docs/ci_agent_upskilling_plan.md` |
+| Инцидент / joint plan | `docs/ci_failure_joint_plan.md` |
+
+**ЗУН-формулировки:** structural green (`make ci-config-check`) ≠ runtime E2E ≠ Jenkins smoke.
+
+**Зачёт:** не засчитывать green unit как доказательство phase 0 readiness; partial green demo-pack — явный defer в занятии.
+
 ### 2. Sub-skills (маршрутизация)
 
 | Sub-skill | Когда |

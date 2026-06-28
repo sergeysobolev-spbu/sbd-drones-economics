@@ -19,6 +19,13 @@ description: Методист и преподаватель учебных ку�
 - `skill_human_review` — утверждение методистом, преподавателем или владельцем программы.
 - `documentation-governance` — doc-meta, термины СКИБ в учебных материалах.
 - `skill_artifact_quality` — полнота УМК и рубрик перед публикацией.
+- `skill_agent_zun_development` — ЗУН агентов, maturity L0–L3.
+
+## CI literacy (ТЭМ БАС)
+
+- Рубрика: `docs/labs/rubric_ci_literacy_agents.md`
+- Lab: `docs/labs/lab_ci_failure_triage.md` (фрагмент demo-pack 45 min)
+- Upskilling plan: `docs/ci_agent_upskilling_plan.md`
 
 ## Связанные агенты (не дублировать)
 

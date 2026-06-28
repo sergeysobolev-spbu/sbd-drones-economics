@@ -35,8 +35,29 @@
     },
     "jenkins_or_ci_change": {
       "required_skills": ["platform-ci-jenkins", "platform-validation"],
-      "recommended_skills": ["documentation-governance"],
+      "recommended_skills": [
+        "skill_devops_broker_cicd",
+        "skill_sdet_broker_e2e",
+        "skill_ci_port_profile",
+        "skill_jenkins_casc_lifecycle",
+        "documentation-governance"
+      ],
       "description_ru": "Jenkins JCasC, GitHub Actions, E2E profiles для sbd-drones-economics."
+    },
+    "ci_failure_recovery": {
+      "required_skills": [
+        "skill_ci_failure_triage",
+        "platform-ci-jenkins",
+        "skill_human_review"
+      ],
+      "recommended_skills": [
+        "skill_ci_port_profile",
+        "skill_jenkins_casc_lifecycle",
+        "skill_devops_broker_cicd",
+        "skill_sdet_broker_e2e",
+        "documentation-governance"
+      ],
+      "description_ru": "Mass Jenkins red, triage, восстановление CI после регрессии."
     },
     "docs_change": {
       "required_skills": ["documentation-governance"],
