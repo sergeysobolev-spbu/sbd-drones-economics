@@ -54,7 +54,7 @@
 | `docs/integration_process/` | Анализ phase 0, бэклог T1–T17, change requests CR5–CR10 | ✅ активный источник требований |
 | `demos/sbd-model-simple-demo/` | Stub-экосистема + pytest | ⚠️ частично |
 | `notebooks/` | systems_api, sbd-model, aggregator_operator live demo | ⚠️ live demo WIP |
-| `docs/slides/**` | LaTeX/PDF (72118, SBOM, TARA, integration) | 📚 учебный контент, не runtime |
+| `docs/courses_specific/slides/` (канон: **open-platform**) | LaTeX/PDF (SBOM, TARA, integration, DLT) | 📚 учебный контент, не runtime |
 | CI | Корневых workflows **нет**; DronePortGCS CI **несовместим** с Makefile (`unit-test` vs `tests-unit`) | ❌ |
 
 ### Phase 0 (честная оценка)
@@ -119,7 +119,7 @@
 | **PR-A1** | Platform: `systems/operator`, `shared/`, `sdk/`, broker, `demos/`, `tests/` | После T1–T2 (контракт топиков) |
 | **PR-A2** | Docs: `docs/integration_process/`, обновлённый `requirements_spec.md` | Независимо от кода |
 | **PR-A3** | CI: адаптация из `origin/feature/github-actions` + выравнивание имён целей Makefile | Согласовать с PR-E1 |
-| **PR-A4** | Slides: `docs/slides/72118`, `sbom`, `tara` | Отдельный track; без персональных данных |
+| **PR-A4** | Slides: перенесены в `open-platform/docs/courses_specific/slides/` (`sbom`, `tara`, …) | Без персональных данных |
 | **PR-A5** | `docker-compose` профиль `integration-phase0` (T10) | После T1–T3 |
 
 ### Отказаться / закрыть без merge
