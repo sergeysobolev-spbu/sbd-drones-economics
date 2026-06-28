@@ -1,0 +1,50 @@
+<!-- doc-meta: status=active version=1.0 updated=2026-06-28 -->
+
+# Staged push report — phase 5 master merge (2026-06-28)
+
+## Scope
+
+Agent group: merge `origin/master` into PR-E1 line and, when gates green, fast-forward `master` on gitflic (`sbd-drones-economics`).
+
+## Branch SHAs
+
+| Ref | SHA | Note |
+|-----|-----|------|
+| `feature/uas-dev-company` (local) | `5707920` | Ahead of `origin/feature/uas-dev-company`; includes E2E sprint docs cross-link |
+| `origin/feature/uas-dev-company` | `f386b72` | Last known remote; ci-test green per sprint note |
+| `origin/master` | `b9f73df` | Baseline |
+| Local `master` | `54e365e` | Differs from origin — **do not push** without reconcile |
+
+## Merge with master
+
+- `git merge origin/master` on `feature/uas-dev-company`: **Already up to date** (prior `165efef`).
+- **PR-E1 → master:** **NOT executed** (gate red).
+
+## Gate results (2026-06-28)
+
+| Gate | Result | Evidence |
+|------|--------|----------|
+| `make ci-test` | **RED** | `systems/Agregator` Go integration: Kafka timeout / aggregator health (`TestKafkaMalformedMessageGoesToDLT`, lifecycle tests); first run also hit **port 8081** conflict with leftover E2E stack |
+| `make e2e-codespace` | **NOT RUN** (blocked on ci-test policy for this phase) | — |
+
+### DevOps mitigations attempted
+
+1. `make e2e-down` — freed host port 8081 from E2E compose.
+2. Re-ran `make ci-test` — Agregator Kafka flake/timeout (600s suite fail on retry).
+3. Sandbox run without Docker socket failed early on Agregator compose pull.
+
+## QA sign-off
+
+- **E2E codespace:** pending green `ci-test` + successful `make e2e-codespace`.
+- **Master push:** **blocked**.
+
+## Next steps
+
+1. Stabilize `systems/Agregator` integration Kafka tests (health wait, topic pre-create, isolate compose project).
+2. Re-run `make ci-test` then `make e2e-codespace` on `feature/uas-dev-company` @ `5707920`+.
+3. Fast-forward local `master` to match `origin/master` before merge commit if needed.
+4. Push `feature/uas-dev-company` (non-master) when WIP E2E fixes committed.
+
+## Orchestrator policy
+
+No force-push to `master`. Merge feature → master only after QA/DevOps green row in this report.
