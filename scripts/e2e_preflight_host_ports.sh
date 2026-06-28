@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
-# Release host ports used by E2E (9092, 29092, 8081) from foreign Docker stacks.
-# DevOps gate: prevents silent Kafka start failure when agregator-kafka holds 29092.
+# Release host ports used by E2E from foreign Docker stacks.
+# Ports from config/e2e_ports.*.env (via caller: make e2e-up sources E2E_ENV).
 set -euo pipefail
 
-E2E_PORTS=(9092 29092 8081 8088)
+E2E_PORTS=(
+  "${KAFKA_PORT:-9092}"
+  "${KAFKA_INTERNAL_PORT:-29092}"
+  "${AGREGATOR_PORT:-8081}"
+  "${REGULATOR_PORT:-8088}"
+  "${ANALYTICS_PORT:-8090}"
+)
 
 echo "=== E2E preflight: checking host ports ${E2E_PORTS[*]} ==="
 
