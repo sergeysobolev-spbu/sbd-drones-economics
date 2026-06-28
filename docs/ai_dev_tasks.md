@@ -672,14 +672,16 @@ flowchart LR
 
 | Iter | Done | Blocked | Commits | Tests |
 |------|------|---------|---------|-------|
-| I1 | Sprint plan, baseline ci-test logged | ci-test red: team1 pydantic | `-ai`: plan commit | ci-test: unit partial fail (pre-fix) |
-| I2 | smoke skeleton, topic_map v0.2 | Operator Kafka path | both repos | `phase0-smoke` structural |
-| I3 | compose stub, gate table, CI exclude | full compose YAML | `-economics` | ci-test re-run |
-| I4 | ADR-003, PlantUML T12, traceability | C4 container diagram update | `-ai` | — |
-| I5 | agent gaps, tem-bas-operator, ZUN stub | coding worktrees | `-ai` | — |
-| I6 | Final table, SHAs | T10 compose, TM-001 xfail | both repos | ci-test + phase0-smoke |
+| I1 | Sprint plan, baseline logged | — | `-ai` `de4f27c` | ci-test: unit fail team1 pydantic (pre-fix) |
+| I2 | smoke skeleton, topic_map v0.2 | Operator Kafka path | `-economics` `2ab89f7`; `-ai` `115a037` | phase0 structural (planned) |
+| I3 | compose stub, gate table, CI exclude | full compose YAML | `-economics` `f386b72` | ci-unit-test green (all suites) |
+| I4 | ADR-003, PlantUML T12, traceability | C4 container diagram update | `-ai` `16a0d45` | — |
+| I5 | agent gaps, tem-bas-operator, ZUN stub | coding worktrees | `-ai` `a1dc490` | — |
+| I6 | Final table, SHAs | ci-integration port 8081 busy; T10 compose | `-ai` I6 doc commit | `ci-unit-test` ✅; `phase0-smoke` 2 passed |
 
-*SHA и финальные counts — см. после I6 commits ниже.*
+**HEAD (2026-06-28):** `-economics` `feature/uas-dev-company` @ `f386b72`; `-ai` `test/integration-phase0-initiation` @ `a1dc490` (+I6 pending).
+
+**Test summary I6:** `make ci-unit-test` — all unit suites green (team1 excluded). `make ci-integration-test` — **red** on `systems/Agregator` port 8081 already allocated (environment). `make phase0-smoke` — **2 passed** (structural TM-001/002).
 
 ### Push-ready branches
 
