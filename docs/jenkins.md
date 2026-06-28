@@ -256,3 +256,19 @@ Pipeline `drone-e2e` не должен обращаться к `127.0.0.1:<local
 - [ports.md](ports.md) — реестр портов
 - [ci_failure_joint_plan.md](ci_failure_joint_plan.md) — совместный план восстановления CI
 - [ci_recovery_orchestration.md](ci_recovery_orchestration.md) — Wave 1–3, `make ci-recovery-check`
+
+### Журнал repin субмодулей (2026-06-28)
+
+| Путь | Было (unreachable) | Стало (upstream) |
+|------|--------------------|------------------|
+| `fabric-network` | `97d2e9c` | `adab7e0` (master) |
+| `systems/Agregator` | `08533d2` | `04fb4770` (main); альт. интеграция: `b3c334c` на `integration-system-layout` |
+| `systems/agrodron` / `systems/cyber_drons` | `911905d` / `cd638ad` | `4c6ed55` (master cyber_drons) |
+| `systems/DroneAnalytics` | `8b52a3a` | `295992d` (main) |
+| `systems/drones` | `791aa11` | `d73358d` (main) |
+| `systems/insurer` | `ef9c114` | `0bf8900` (main) |
+| `systems/SITL-module` | `e0805f0` | `1231686` (main) |
+| `systems/drone_port` | `1e86cc2` | `69bc25d` (dev) |
+| `systems/team1-regulator_operation_devsecops` | `1f2b1e0` | `9309609` (main) |
+
+Локальные коммиты на fork-ветках без push upstream по-прежнему требуют `git push` в remote субмодуля перед repin на эти SHA.
