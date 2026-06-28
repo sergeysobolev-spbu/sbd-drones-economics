@@ -30,7 +30,7 @@ systems:
     repo_path: systems/operator
     language: python
     broker_default: mqtt
-    broker_phase0: kafka  # ADR-001: BROKER_TYPE=kafka на phase 0
+  broker_phase0: kafka  # ADR-001 (phase 0 only); ADR-002 broker-agnostic target
     instance_env:
       - AGGREGATOR_ID
       - INSURER_ID
@@ -143,7 +143,6 @@ verification:
 
 human_review:
   owner: "владелец ОП / Architect"
-  status: pending
-  decisions:
-    - "Утвердить resolved names TM-001..002"
-    - "Выбрать option_a vs option_b для Operator"
+  status: accepted_phase0
+  adr001: accepted 2026-06-28
+  adr002: broker-agnostic target accepted 2026-06-28

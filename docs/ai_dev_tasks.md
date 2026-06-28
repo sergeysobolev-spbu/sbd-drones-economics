@@ -99,7 +99,11 @@
 
 | PR | Содержание | Условие |
 |----|------------|---------|
-| **PR-E1** | Fast-forward `feature/uas-dev-company` → `master` | Прогон `make ci-test` + `make e2e-codespace`; убрать бинарный sqlite из git |
+**Правило оркестратора:** PR-E1 в `-economics` первым; затем topic map v0.2 и PR-A1 (`-ai` operator).
+
+---
+
+## e2e-problem {#e2e-problem}
 | **PR-E2** | Cherry-pick negative E2E из `feature/negative-e2e-scenario` | Если нужен отдельный негативный сценарий (дополняет `test_e2e_incident_scenario.py`) |
 | **PR-E3** | Восстановить Fabric E2E job или явно пометить manual-only | Root `Jenkinsfile` удалён на feature — зафиксировать решение |
 
@@ -133,7 +137,39 @@ sbd-drones-economics (полигон)  ←── экспорт/синх ──�
 sbd-drones-economics-ai (operator + учебный контент)
 ```
 
-**Правило оркестратора:** сначала **единый topic map** в `-economics`, затем merge Operator из `-ai`.
+**Правило merge в `master`:** push только при **зелёных** обязательных тестах (см. PR-E1 gate ниже).
+
+### Решения human_review (2026-06-28)
+
+| Решение | Статус |
+|---------|--------|
+| **ADR-001** — Kafka для Aggregator↔Operator **на phase 0** | ✅ Accepted |
+| **ADR-002** — broker-agnostic платформа после phase 0 (env + профиль теста) | ✅ Accepted |
+| Merge line — **PR-E1** (`feature/uas-dev-company` → `master` в `-economics`) | ✅ Выбрано |
+| Push `master` | ⛔ Только после green `make ci-test` + `make e2e-codespace` |
+| PR-A1 (`-ai` operator) | После PR-E1 + topic map v0.2 |
+
+### Влить в `master` (поэтапно, отдельные PR)
+
+#### `sbd-drones-economics`
+
+| PR | Содержание | Gate (обязательно green) |
+|----|------------|---------------------------|
+| **PR-E1** | Fast-forward `feature/uas-dev-company` → `master` | `make ci-test` **и** `make e2e-codespace`; sqlite не в git |
+| **PR-E2** | Cherry-pick negative E2E из `feature/negative-e2e-scenario` | По необходимости |
+| **PR-E3** | Fabric E2E job или manual-only | После PR-E1 |
+
+#### `sbd-drones-economics-ai`
+
+| PR | Содержание | Условие |
+|----|------------|---------|
+| **PR-A1** | Platform: operator, shared, sdk, demos, tests | После PR-E1 + topic map v0.2 |
+| **PR-A2** | Docs: integration_process, requirements_spec | Независимо |
+| **PR-A3** | CI из feature/github-actions | Согласовать с PR-E1 |
+| **PR-A4** | Slides без PII | Отдельный track |
+| **PR-A5** | compose `integration-phase0` | После T1–T3 |
+
+**Правило оркестратора:** PR-E1 в `-economics` первым; затем topic map v0.2 и PR-A1.
 
 ---
 
@@ -443,9 +479,10 @@ gantt
 
 **Human review (владелец ОП):**
 
-- [ ] Утвердить ADR-001 (Kafka для Aggregator↔Operator)  
-- [ ] Утвердить модель заказа `agro_field` (T3)  
-- [ ] Утвердить план merge PR-E1 vs PR-A1 sequencing  
+- [x] Утвердить ADR-001 (Kafka) **для phase 0** — 2026-06-28
+- [x] Broker-agnostic после phase 0 → [ADR-002](integration/adr/ADR-002-broker-agnostic-platform.md)
+- [ ] Утвердить модель заказа `agro_field` (T3)
+- [x] Merge: **PR-E1**; push master только при green tests
 
 ---
 
