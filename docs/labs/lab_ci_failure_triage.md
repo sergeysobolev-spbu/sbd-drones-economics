@@ -33,7 +33,7 @@
 ### Шаг 2 — Structural gate (10 мин)
 
 ```bash
-cd /path/to/sbd-drones-economics-ai
+cd /path/to/sbd-drones-economics
 make ci-config-check
 make jenkins-preflight   # при наличии ci/jenkins/.env
 ```

@@ -1,13 +1,12 @@
 <!-- doc-meta: status=active version=1.3 updated=2026-06-28 audience=internal -->
 
-# Улучшение AI-агентов и навыков для `sbd-drones-economics-ai`
+# Улучшение AI-агентов и навыков для `sbd-drones-economics`
 
 Документ фиксирует анализ истории изменений, слабые места реализации, пробелы навыков агентов, план усиления и ход выполнения.
 
 ## 1. Контекст анализа
 
-Репозиторий: `sbd-drones-economics-ai`  
-Ветка: `test/integration-phase0-initiation`  
+Репозиторий: `sbd-drones-economics` (канон; worktree `-ai` retired 2026-06-28)  
 Целевой контур: ТЭМ БАС (ОП), phase 0 integration, Operator, broker-backed E2E, учебные материалы.
 
 Использованные источники:

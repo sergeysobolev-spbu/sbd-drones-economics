@@ -67,7 +67,7 @@ make init
 
 Policy skip/xfail (E2E-2): mandatory business steps **не** должны быть `pytest.skip` на green gate; допустим `xfail` с issue до закрытия контракта (см. `test_phase0_smoke.py` TM-001).
 
-Sprint autonomy (QA/DevOps): time-boxed спринты с E2E-целями не закрываются без `make e2e-codespace` green — см. [`sprint-autonomy-policy`](../../sbd-drones-economics-ai/docs/ai_dev_tasks.md#sprint-autonomy-policy).
+Sprint autonomy (QA/DevOps): time-boxed спринты с E2E-целями не закрываются без `make e2e-codespace` green — см. [`sprint-autonomy-policy`](ai_dev_tasks.md#sprint-autonomy-policy).
 
 ### Исключения CI (`CI_UNIT_EXCLUDE` / `CI_INTEGRATION_EXCLUDE`)
 

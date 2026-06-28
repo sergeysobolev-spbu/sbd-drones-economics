@@ -1,16 +1,18 @@
 # Мультиагентная разработка проекта ТЭМ БАС
 
-<!-- doc-meta: status=active version=1.3 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.4 updated=2026-06-28 -->
 
 Документ — **контракт агент-оркестратора** для подготовки и проведения работ по открытой платформе моделирования экономики эксплуатации безопасных дронов (направление **ОП**, см. [concept.md](concept.md)). Программный стенд — экспорт [`sbd-open-platform-and-trainings-development/code`](../../../sbd-open-platform-and-trainings-development/code).
+
+> **2026-06-28:** локальный worktree `sbd-drones-economics-ai` **выведен**; канон — один каталог [`sbd-drones-economics`](../). См. [migration_ai_worktree_retire.md](migration_ai_worktree_retire.md).
 
 ---
 
 ## Содержание
 
 - [context](#context) — контекст и связь репозиториев
-- [repo-analysis-ai](#repo-analysis-ai) — анализ `sbd-drones-economics-ai`
-- [repo-analysis-core](#repo-analysis-core) — анализ `sbd-drones-economics`
+- [repo-analysis-ai](#repo-analysis-ai) — исторический снимок (worktree `-ai` retired)
+- [repo-analysis-core](#repo-analysis-core) — канонический репозиторий `sbd-drones-economics`
 - [merge-decisions](#merge-decisions) — что влить в `master`, от чего отказаться
 - [e2e-problem](#e2e-problem) — проблема сквозных тестов
 - [agents-connect](#agents-connect) — подключение агентов и навыков
@@ -32,11 +34,12 @@
 
 | Репозиторий | Роль | Основная ветка работ |
 |-------------|------|----------------------|
-| [`sbd-drones-economics`](../../sbd-drones-economics) | Код платформы (субмодули, E2E, Jenkins) | `master` (канон после VUCA merge) |
-| [`sbd-drones-economics-ai`](.) | AI-интеграция, Operator, учебные материалы, phase 0 | `master` (общий remote с `-economics`) |
+| [`sbd-drones-economics`](.) | Код платформы: `systems/operator`, субмодули, E2E, Jenkins, agent docs | `master` |
 | [`sbd-open-platform-and-trainings-development`](../../../sbd-open-platform-and-trainings-development) | Канонический стенд ТЭМ, агенты, CI-ворота | `main` / `code/` |
 
-**Расхождение линий развития:** в `-ai` основной deliverable — `systems/operator` (Python, MQTT/Kafka); в `-economics` — полный полигон с субмодулями (`Agregator`, `agrodron`, `SITL-module`, …) и `systems/uas_dev_company`. Слияние веток **без согласования контрактов топиков (T1–T2)** даст конфликт архитектур.
+**Канон локально:** один каталог `sbd-drones-economics` (GitFlic). Worktree `-ai` был зеркальной копией того же remote — удалён 2026-06-28.
+
+**Deliverables в одном репозитории:** `systems/operator` (Python, MQTT/Kafka), полный полигон с субмодулями (`Agregator`, `agrodron`, `SITL-module`, …), `systems/uas_dev_company`, `docs/integration_process/`.
 
 **Цель оркестратора:** выровнять контракты → стабилизировать CI → подключить агентов → вести бэклог этапа 0 и учебного трека ОП.
 
@@ -44,8 +47,7 @@
 
 ## repo-analysis-ai {#repo-analysis-ai}
 
-**Ветка:** `test/integration-phase0-initiation` (HEAD `c6cccf7`, +17 непушенных коммитов к origin).  
-**`master`:** скелет (~86 файлов, только `dummy_system`) — **не отражает** состояние проекта.
+> **Статус:** historical snapshot (2026-06-28). Worktree `sbd-drones-economics-ai` удалён; содержимое на `master` идентично `-economics` @ `f1c044e5`.
 
 ### Что добавлено относительно `master`
 
@@ -101,46 +103,36 @@
 
 ### Влить в `master` (поэтапно, отдельные PR)
 
-#### `sbd-drones-economics`
+| PR | Содержание | Gate / условие |
+|----|------------|------------------|
+| **PR-E1** | Fast-forward `feature/uas-dev-company` → `master` | `make ci-test` **и** `make e2e-codespace`; sqlite не в git |
+| **PR-E2** | Cherry-pick negative E2E из `feature/negative-e2e-scenario` | По необходимости |
+| **PR-E3** | Fabric E2E job или manual-only | После PR-E1 |
+| **PR-A1** | Platform: `systems/operator`, `shared/`, `sdk/`, broker, `demos/`, `tests/` | ✅ В `master` (2026-06-28) |
+| **PR-A2** | Docs: `docs/integration_process/`, `requirements_spec.md` | Независимо от кода |
+| **PR-A3** | CI: адаптация из `origin/feature/github-actions` + выравнивание Makefile | Согласовать с PR-E1 |
+| **PR-A4** | Slides: канон в `open-platform/docs/courses_specific/slides/` | Без персональных данных |
+| **PR-A5** | compose-профиль `integration-phase0` (T10) | После T1–T3 |
 
-| PR | Содержание | Условие |
-|----|------------|---------|
-**Правило оркестратора:** PR-E1 в `-economics` первым; затем topic map v0.2 и PR-A1 (`-ai` operator).
-
----
-
-## e2e-problem {#e2e-problem}
-| **PR-E2** | Cherry-pick negative E2E из `feature/negative-e2e-scenario` | Если нужен отдельный негативный сценарий (дополняет `test_e2e_incident_scenario.py`) |
-| **PR-E3** | Восстановить Fabric E2E job или явно пометить manual-only | Root `Jenkinsfile` удалён на feature — зафиксировать решение |
-
-#### `sbd-drones-economics-ai`
-
-| PR | Содержание | Условие |
-|----|------------|---------|
-| **PR-A1** | Platform: `systems/operator`, `shared/`, `sdk/`, broker, `demos/`, `tests/` | После T1–T2 (контракт топиков) |
-| **PR-A2** | Docs: `docs/integration_process/`, обновлённый `requirements_spec.md` | Независимо от кода |
-| **PR-A3** | CI: адаптация из `origin/feature/github-actions` + выравнивание имён целей Makefile | Согласовать с PR-E1 |
-| **PR-A4** | Slides: перенесены в `open-platform/docs/courses_specific/slides/` (`sbom`, `tara`, …) | Без персональных данных |
-| **PR-A5** | `docker-compose` профиль `integration-phase0` (T10) | После T1–T3 |
+**Правило оркестратора:** PR-E1 первым; затем topic map v0.2 и PR-A-слайсы (исторически PR-A* — worktree `-ai`, retired 2026-06-28).
 
 ### Отказаться / закрыть без merge
 
 | Ветка / артеfact | Причина |
 |------------------|---------|
-| `tests-e2e-design`, `feature/component_redesign` (-ai) | Устарели (= master) |
-| `feature/Jenkins`, `feature/mqtt-e2e`, `feature/uas-dev-company-integration` (-economics) | Поглощены `feature/uas-dev-company` |
+| `tests-e2e-design`, `feature/component_redesign` | Устарели (= master) |
+| `feature/Jenkins`, `feature/mqtt-e2e`, `feature/uas-dev-company-integration` | Поглощены `feature/uas-dev-company` |
 | `tests/phase0-integration--ai` | 6 коммитов, superseded |
-| `origin/feature/uas-dev-company*` (-ai) wholesale | Конфликт с `systems/operator`; reconcile после T17 |
-| `docs/courses_specific/ksa/` (open-platform) | Scripts, resources, ЗУН tooling | 📚 перенесено и санитизировано |
+| `origin/feature/uas-dev-company*` (legacy `-ai` worktree) | Конфликт с `systems/operator`; reconcile после T17 |
+| `docs/courses_specific/ksa/` (open-platform) | Scripts, resources, ЗУН tooling — перенесено и санитизировано |
 | `.venv/`, LaTeX aux/pdf в git | Добавить в `.gitignore`, не коммитить |
 
-### Согласование двух репозиториев
+### Согласование с open-platform
 
 ```
-sbd-drones-economics (полигон)  ←── экспорт/синх ──→  sbd-open-platform/code
-         ↑                                              ↑
-         └──── контракт топиков (T1–T2) ────────────────┘
-sbd-drones-economics-ai (operator + учебный контент)
+sbd-drones-economics  ←── экспорт/синх ──→  sbd-open-platform/code
+         ↑
+         └── контракт топиков (T1–T2), operator, phase 0 docs
 ```
 
 **Правило merge в `master`:** push только при **зелёных** обязательных тестах (см. PR-E1 gate ниже).
@@ -151,31 +143,9 @@ sbd-drones-economics-ai (operator + учебный контент)
 |---------|--------|
 | **ADR-001** — Kafka для Aggregator↔Operator **на phase 0** | ✅ Accepted |
 | **ADR-002** — broker-agnostic платформа после phase 0 (env + профиль теста) | ✅ Accepted |
-| Merge line — **PR-E1** (`feature/uas-dev-company` → `master` в `-economics`) | ✅ Выбрано |
-| Push `master` | ✅ **2026-06-28 final merge** @ `7a0c87de` ([report](staged-push-reports/2026-06-28-final-merge-purge.md)); PR-E1 CI still open — `ci-integration-test` red (2026-06-28); см. `-economics/docs/pr-e1-gate-report.md` |
-| PR-A1 (`-ai` operator) | После PR-E1 + topic map v0.2 |
-
-### Влить в `master` (поэтапно, отдельные PR)
-
-#### `sbd-drones-economics`
-
-| PR | Содержание | Gate (обязательно green) |
-|----|------------|---------------------------|
-| **PR-E1** | Fast-forward `feature/uas-dev-company` → `master` | `make ci-test` **и** `make e2e-codespace`; sqlite не в git |
-| **PR-E2** | Cherry-pick negative E2E из `feature/negative-e2e-scenario` | По необходимости |
-| **PR-E3** | Fabric E2E job или manual-only | После PR-E1 |
-
-#### `sbd-drones-economics-ai`
-
-| PR | Содержание | Условие |
-|----|------------|---------|
-| **PR-A1** | Platform: operator, shared, sdk, demos, tests | После PR-E1 + topic map v0.2 |
-| **PR-A2** | Docs: integration_process, requirements_spec | Независимо |
-| **PR-A3** | CI из feature/github-actions | Согласовать с PR-E1 |
-| **PR-A4** | Slides без PII | Отдельный track |
-| **PR-A5** | compose `integration-phase0` | После T1–T3 |
-
-**Правило оркестратора:** PR-E1 в `-economics` первым; затем topic map v0.2 и PR-A1.
+| Merge line — **PR-E1** (`feature/uas-dev-company` → `master`) | ✅ Выбрано |
+| Push `master` | ✅ **2026-06-28 final merge** @ `7a0c87de` ([report](staged-push-reports/2026-06-28-final-merge-purge.md)); PR-E1 CI still open — `ci-integration-test` red (2026-06-28); см. [pr-e1-gate-report.md](pr-e1-gate-report.md) |
+| PR-A1 (`operator` + platform slice) | ✅ В `master` (единый репозиторий) |
 
 ---
 
@@ -185,9 +155,9 @@ sbd-drones-economics-ai (operator + учебный контент)
 
 | Симптом | Корневая причина |
 |---------|------------------|
-| E2E отключены в CI по умолчанию | `-ai`: `RUN_DOCKER_TESTS!=1` → skip; `-economics`: только Jenkins `drone-e2e`, не на каждый push |
+| E2E отключены в CI по умолчанию | Jenkins `drone-e2e` — не на каждый push; локально нужен `RUN_DOCKER_TESTS=1` |
 | «Зелёный» CI при неполном прогоне | 29+ `pytest.skip` в `test_e2e_scenario.py` — мягкий fail |
-| Два репозитория — два E2E контура | Operator shell-тесты (-ai) vs полный Kafka stack (-economics) |
+| Разрозненные E2E контуры | Operator shell-тесты vs полный Kafka stack — нужен единый smoke (T14) |
 | Flaky ORVD/SITL/DronePort | Таймауты шлюзов, cold-start Kafka consumer groups |
 | Нет единого compose phase 0 | Разрозненные compose в подсистемах (З9) |
 
@@ -216,7 +186,7 @@ flowchart TB
 | E2E-1 | **Smoke E2E** (T14): заказ → Kafka → Operator ack; без SITL/ORVD | DevOps + QA |
 | E2E-2 | Заменить часть `pytest.skip` на **xfail с issue** или hard fail для обязательных шагов smoke | QA |
 | E2E-3 | Профиль `integration-phase0` compose (T10) | DevOps |
-| E2E-4 | Единый warmup + topic pre-create (перенести паттерн из `-economics` в `-ai`) | DevOps |
+| E2E-4 | Единый warmup + topic pre-create (паттерн из `e2e_warmup.sh`) | DevOps |
 | E2E-5 | GitHub Actions: unit+integration на push; e2e-smoke nightly; e2e-full manual | DevOps |
 | E2E-6 | Заглушки Дронопорт/ОрВД (T6–T7) — детерминированный smoke без внешних таймаутов | Architect + SE |
 

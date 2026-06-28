@@ -2,7 +2,7 @@
 
 # Совместный план восстановления Jenkins CI/CD и развития агентов
 
-Документ фиксирует **совместную** (DevOps, QA/SDET, методист, архитектор, системный инженер СКИБ, оркестратор) стратегию восстановления Jenkins-пайплайнов репозиториев `sbd-drones-economics` и `sbd-drones-economics-ai` после массового отказа CI, введённого недавними изменениями: профили `e2e_ports.local` / `e2e_ports.jenkins`, `make jenkins-apply-jobs`, job `drone-phase0-smoke`, поддержка `E2E_RUN_MODE` в `prepare_multi.py`.
+Документ фиксирует **совместную** (DevOps, QA/SDET, методист, архитектор, системный инженер СКИБ, оркестратор) стратегию восстановления Jenkins-пайплайнов репозитория `sbd-drones-economics` после массового отказа CI, введённого недавними изменениями: профили `e2e_ports.local` / `e2e_ports.jenkins`, `make jenkins-apply-jobs`, job `drone-phase0-smoke`, поддержка `E2E_RUN_MODE` в `prepare_multi.py`.
 
 **Контекст:** локально `make ports-check` и `make ci-config-check` проходят. **Подтверждённый RCA (2026-06-28):** все `drone-*` job падали на SCM checkout — `GIT_BRANCH=feature/Jenkins` в `ci/jenkins/.env` при отсутствии ветки на GitFlic (только `master`); volume `jenkins_jenkins_home` смешивал job платформы (`tem-*`) с drones. Исправления: `GIT_BRANCH=master`, volume `drones_jenkins_home`, `make jenkins-preflight`. Следующий класс отказов: субмодули (например `systems/Agregator` — commit не на remote).
 
@@ -10,8 +10,7 @@
 
 | Репозиторий | Роль |
 |---|---|
-| `sbd-drones-economics` | Полигон, субмодули, Jenkins JCasC, E2E Kafka |
-| `sbd-drones-economics-ai` | Operator, phase 0, агенты, учебный контур |
+| `sbd-drones-economics` | Operator, phase 0, полигон, агенты, учебный контур |
 | `sbd-open-platform-and-trainings-development` | Канон CI-политик, skills, agent-work-orchestration |
 
 ---

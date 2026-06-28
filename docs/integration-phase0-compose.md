@@ -8,9 +8,9 @@
 
 | Артефакт | Путь |
 |----------|------|
-| Topic map v0.2 | [`sbd-drones-economics-ai/docs/integration/topic_map.yaml`](../sbd-drones-economics-ai/docs/integration/topic_map.yaml) |
-| ADR-001 Kafka phase 0 | [`ADR-001`](../sbd-drones-economics-ai/docs/integration/adr/ADR-001-kafka-aggregator-operator.md) |
-| ADR-003 compose profile | [`ADR-003`](../sbd-drones-economics-ai/docs/integration/adr/ADR-003-integration-phase0-compose.md) |
+| Topic map v0.2 | [`integration/topic_map.yaml`](integration/topic_map.yaml) |
+| ADR-001 Kafka phase 0 | [`ADR-001`](integration/adr/ADR-001-kafka-aggregator-operator.md) |
+| ADR-003 compose profile | [`ADR-003`](integration/adr/ADR-003-integration-phase0-compose.md) |
 | Smoke E2E T14 | `tests/e2e/test_phase0_smoke.py` |
 
 ## Сервисы профиля
@@ -20,7 +20,7 @@
 | `kafka` | из `docker/docker-compose.yml` | `integration-phase0` | 9092 |
 | `zookeeper` | idem | `integration-phase0` | 2181 |
 | `aggregator` | `systems/agregator` | `integration-phase0` | 8081 |
-| `operator` | `systems/operator` (-ai sync) | `integration-phase0` | — |
+| `operator` | `systems/operator` | `integration-phase0` | — |
 
 Заглушки ORVD/DronePort/Insurer — **не** входят в минимальный smoke; подключаются в расширенном профиле (T6–T7).
 

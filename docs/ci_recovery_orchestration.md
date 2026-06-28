@@ -4,7 +4,7 @@
 
 Документ координирует **параллельные workstream** восстановления Jenkins после массового red всех `drone-*` pipeline. Канон стратегии и гипотез — [ci_failure_joint_plan.md](ci_failure_joint_plan.md). Методология headless-пакетов — skill `agent-work-orchestration` в репозитории open-platform.
 
-**Репозитории:** `sbd-drones-economics` (полигон) и `sbd-drones-economics-ai` (operator, phase 0, агенты) — один remote GitFlic, зеркальные Makefile/CI.
+**Репозиторий:** `sbd-drones-economics` (GitFlic). Worktree `-ai` retired 2026-06-28 — см. [migration_ai_worktree_retire.md](migration_ai_worktree_retire.md).
 
 ---
 

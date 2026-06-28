@@ -7,7 +7,7 @@ question: >
   Этап 0 интеграции ТЭМ БАС (ОП): какое ограничение системы деятельности
   блокирует воспроизводимый сквозной сценарий «заказ агро-услуги» и стабильный CI?
 scope:
-  - sbd-drones-economics-ai
+  - sbd-drones-economics
   - integration_phase0
   - e2e_stability
 agents_active:
@@ -22,11 +22,11 @@ role_agents:
   - se-school-chinese
   - toc-evidence-curator
 inputs:
-  - /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/ai_dev_tasks.md
-  - /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/integration_process/phase0_remarks_and_technical_tasks.md
-  - /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/integration/topic_map.yaml
-  - /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/integration/adr/ADR-001-kafka-aggregator-operator.md
-  - /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/concept.md
+  - /home/user/projects/sbd-drones-economics/sbd-drones-economics/docs/ai_dev_tasks.md
+  - /home/user/projects/sbd-drones-economics/sbd-drones-economics/docs/integration_process/phase0_remarks_and_technical_tasks.md
+  - /home/user/projects/sbd-drones-economics/sbd-drones-economics/docs/integration/topic_map.yaml
+  - /home/user/projects/sbd-drones-economics/sbd-drones-economics/docs/integration/adr/ADR-001-kafka-aggregator-operator.md
+  - /home/user/projects/sbd-drones-economics/sbd-drones-economics/docs/concept.md
 constraints:
   - "Не предлагать решения в формулировках НЖЯ"
   - "СКИБ — система с конструктивной информационной безопасностью (ГОСТ Р 72118-2025)"
@@ -34,7 +34,7 @@ constraints:
   - "Web — только через toc-evidence-curator с URL"
 p4_mode: auto_orchestrator
 human_owner: "координатор ОП ТЭМ БАС"
-output_dir: /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/ai_sbd/agents/toc/sessions/tem_bas_phase0_constraint_2026-06-28
+output_dir: /home/user/projects/sbd-drones-economics/sbd-drones-economics/docs/ai_sbd/agents/toc/sessions/tem_bas_phase0_constraint_2026-06-28
 optional_agents:
   - software-architect-c4
   - project-manager-ccpm

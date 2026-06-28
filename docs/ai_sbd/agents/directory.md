@@ -37,7 +37,7 @@
 ```bash
 cd /path/to/sbd-open-platform-and-trainings-development/code
 make toc-se-schools-session-dry-run \
-  TOC_SE_SCHOOLS_BRIEF=/path/to/sbd-drones-economics-ai/docs/ai_sbd/agents/toc/sessions/briefs/tem_bas_phase0_constraint_2026-06-28.yaml
+  TOC_SE_SCHOOLS_BRIEF=/path/to/sbd-drones-economics/docs/ai_sbd/agents/toc/sessions/briefs/tem_bas_phase0_constraint_2026-06-28.yaml
 ```
 
 ## Оркестратор
