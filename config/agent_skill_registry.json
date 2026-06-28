@@ -8,113 +8,64 @@
   "task_types": {
     "general_platform_change": {
       "required_skills": ["platform-validation"],
-      "recommended_skills": ["skill_vuca_decision_protocol"],
+      "recommended_skills": [],
       "description_ru": "Обычное изменение платформы ТЭМ БАС (ОП)."
     },
     "systems_engineer_task": {
       "required_skills": ["skill_systems_engineer_sbd", "skill_human_review"],
-      "recommended_skills": ["skill_select_pattern", "skill_cpb_review", "skill_traceability", "skib-domain-review", "skill_artifact_quality", "skill_integration_phase0_contracts", "skill_repo_hygiene_release_gate", "skill_vuca_decision_protocol", "documentation-governance"],
+      "recommended_skills": [
+        "skill_select_pattern",
+        "skill_cpb_review",
+        "skill_traceability",
+        "skib-domain-review",
+        "skill_artifact_quality",
+        "documentation-governance"
+      ],
       "description_ru": "СКИБ, ConOps phase 0, V&V, трассировка harm→ЦБ→test."
     },
     "software_architecture_c4": {
       "required_skills": ["skill_software_architecture_c4", "documentation-governance"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_integration_phase0_contracts", "skill_devops_broker_cicd", "skill_sdet_broker_e2e", "skill_traceability", "skill_systems_engineer_sbd"],
+      "recommended_skills": ["skill_traceability", "skill_systems_engineer_sbd"],
       "description_ru": "C4, ADR, topic map, integration-phase0 compose."
     },
     "artifact_quality_review": {
       "required_skills": ["skill_artifact_quality", "skill_human_review"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_repo_hygiene_release_gate", "skill_integration_phase0_contracts", "skill_sdet_broker_e2e", "skill_traceability", "documentation-governance"],
+      "recommended_skills": ["skill_traceability", "documentation-governance"],
       "description_ru": "Качество артефактов перед merge учебного релиза."
     },
     "jenkins_or_ci_change": {
       "required_skills": ["platform-ci-jenkins", "platform-validation"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_devops_broker_cicd", "skill_sdet_broker_e2e", "documentation-governance"],
+      "recommended_skills": ["documentation-governance"],
       "description_ru": "Jenkins JCasC, GitHub Actions, E2E profiles для sbd-drones-economics."
     },
     "docs_change": {
       "required_skills": ["documentation-governance"],
-      "recommended_skills": ["skill_vuca_decision_protocol"],
+      "recommended_skills": [],
       "description_ru": "Документация, slides (без PII), integration docs."
     },
     "course_educator_task": {
       "required_skills": ["skill_course_educator_platform", "skill_human_review"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_agent_zun_development", "skill_integration_phase0_contracts", "skill_systems_engineer_sbd", "documentation-governance"],
+      "recommended_skills": ["skill_systems_engineer_sbd", "documentation-governance"],
       "description_ru": "УМК, лабораторные phase 0, рубрики, demo-pack."
     },
     "project_management_ccpm": {
       "required_skills": ["skill_project_management_ccpm", "skill_human_review"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_integration_phase0_contracts", "skill_repo_hygiene_release_gate", "skill_artifact_quality", "documentation-governance"],
+      "recommended_skills": ["skill_artifact_quality", "documentation-governance"],
       "description_ru": "WBS, milestones M1–M4, буферы спринтов."
     },
     "toc_dtr_session": {
       "required_skills": ["skill_toc_dtr_session", "skill_toc_se_schools"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_triz_tem", "documentation-governance"],
+      "recommended_skills": ["documentation-governance"],
       "description_ru": "TOC-сессия по brief в docs/ai_sbd/agents/toc/sessions/briefs/."
     },
     "integration_phase0": {
-      "required_skills": ["skill_software_architecture_c4", "skill_traceability", "documentation-governance"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_integration_phase0_contracts", "skill_devops_broker_cicd", "skill_sdet_broker_e2e", "skill_systems_engineer_sbd", "platform-validation"],
+      "required_skills": [
+        "skill_software_architecture_c4",
+        "skill_traceability",
+        "documentation-governance"
+      ],
+      "recommended_skills": ["skill_systems_engineer_sbd", "platform-validation"],
       "description_ru": "Задачи T1–T17: контракты, compose, smoke E2E."
-    },
-    "integration_contract_governance": {
-      "required_skills": ["skill_integration_phase0_contracts", "skill_software_architecture_c4", "skill_systems_engineer_sbd"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_traceability", "skill_sdet_broker_e2e", "platform-validation", "documentation-governance"],
-      "description_ru": "Управление контрактами phase 0: topic map, ADR, Kafka/MQTT boundary, PR-E1/PR-A1, smoke E2E."
-    },
-    "agent_zun_development": {
-      "required_skills": ["skill_agent_zun_development", "skill_course_educator_platform", "skill_human_review"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_artifact_quality", "documentation-governance", "skill_integration_phase0_contracts"],
-      "description_ru": "Методичное описание и развитие ЗУН агентов."
-    },
-    "repo_hygiene_release_gate": {
-      "required_skills": ["skill_repo_hygiene_release_gate", "skill_artifact_quality", "skill_human_review"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "documentation-governance", "platform-validation"],
-      "description_ru": "Аудит dirty tree, generated artifacts, privacy и release readiness."
-    },
-    "broker_cicd_infrastructure": {
-      "required_skills": ["skill_devops_broker_cicd", "platform-ci-jenkins", "platform-validation"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_sdet_broker_e2e", "documentation-governance", "skill_artifact_quality"],
-      "description_ru": "DevOps/CI-CD инфраструктура с Kafka, Mosquitto или MQTT."
-    },
-    "sdet_broker_e2e": {
-      "required_skills": ["skill_sdet_broker_e2e", "platform-validation", "skill_artifact_quality"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_devops_broker_cicd", "skill_traceability", "skill_human_review", "documentation-governance"],
-      "description_ru": "QA/SDET E2E тесты поверх Kafka/Mosquitto/MQTT."
-    },
-    "fabric_chaincode_contracts": {
-      "required_skills": ["skill_fabric_chaincode_contracts", "skill_human_review"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_ledger_privacy_review", "skill_ledger_eventjournal_traceability", "skill_fabric_e2e_sdet", "documentation-governance"],
-      "description_ru": "Hyperledger Fabric chaincode, MSP-роли, endorsement policy, state machine и negative tests."
-    },
-    "ledger_eventjournal_traceability": {
-      "required_skills": ["skill_ledger_eventjournal_traceability", "skill_traceability", "skill_artifact_quality"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_fabric_e2e_sdet", "skill_sdet_broker_e2e", "skill_human_review", "documentation-governance"],
-      "description_ru": "Трассировка broker event, EventJournal, Fabric tx и pytest evidence."
-    },
-    "fabric_e2e_sdet": {
-      "required_skills": ["skill_fabric_e2e_sdet", "platform-validation", "skill_artifact_quality"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_fabric_devops_cicd", "skill_ledger_eventjournal_traceability", "skill_human_review", "documentation-governance"],
-      "description_ru": "Fabric unit/mock/smoke/full E2E, negative tests, skip/flake policy и evidence."
-    },
-    "fabric_devops_cicd": {
-      "required_skills": ["skill_fabric_devops_cicd", "platform-validation"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_fabric_e2e_sdet", "skill_ledger_privacy_review", "skill_human_review", "documentation-governance"],
-      "description_ru": "Fabric network, Fabric Proxy, Ledger Gateway, ports/env, CI/manual/nightly профили и PR-E3."
-    },
-    "contract_lab_design": {
-      "required_skills": ["skill_contract_lab_design", "skill_course_educator_platform"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_agent_zun_development", "skill_fabric_chaincode_contracts", "skill_ledger_eventjournal_traceability", "skill_human_review", "documentation-governance"],
-      "description_ru": "Учебные лабораторные по Fabric, broker contracts и EventJournal traceability."
-    },
-    "ledger_privacy_review": {
-      "required_skills": ["skill_ledger_privacy_review", "skill_repo_hygiene_release_gate", "skill_human_review"],
-      "recommended_skills": ["skill_vuca_decision_protocol", "skill_fabric_chaincode_contracts", "skill_artifact_quality", "documentation-governance"],
-      "description_ru": "On-chain/off-chain граница, private data, secrets, generated crypto и privacy evidence."
-    },
-    "vuca_decision_support": {
-      "required_skills": ["skill_vuca_decision_protocol", "skill_human_review"],
-      "recommended_skills": ["skill_toc_dtr_session", "skill_toc_se_schools", "skill_triz_tem", "skill_software_architecture_c4", "skill_systems_engineer_sbd", "skill_course_educator_platform", "skill_artifact_quality", "documentation-governance"],
-      "description_ru": "Работа агентов в VUCA: автономность, TOC/TRIZ/СИ/архитектура, evidence и human_review."
     }
   }
 }

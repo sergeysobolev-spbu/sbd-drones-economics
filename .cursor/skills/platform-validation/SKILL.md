@@ -36,33 +36,3 @@ Apply this skill after code, test, CI, configuration, documentation, or agent-or
 ## Output
 
 Return: changed zones, selected checks, command results, remaining risk, and any checks not run.
-
-## Sprint mode (QA / SDET time-boxed sprints)
-
-Apply when the orchestrator assigns a **time-boxed QA sprint** (e.g. 120 min) with CI/E2E goals. Canonical policy: `docs/ai_dev_tasks.md#sprint-autonomy-policy`, `docs/ai_agents_improvements.md` §4.4.
-
-### Time budget
-
-- Use the **full allocated time** unless all sprint goals are met **or** no unblocked useful work remains in repo scope.
-- If goals are met early, pivot to the next priority from backlog (`next-actions`, `backlog-sync`) — do not exit idle.
-- Document early exit: list remaining time, why no unblocked work, and what was attempted.
-
-### Pivot on block
-
-| Block type | Pivot (do not idle) |
-|---|---|
-| Infra (stack down, flake) | Classify failure; run structural/unit tests; improve smoke/xfail policy; gate table docs |
-| Integration red, unit green | **Not** sprint success if E2E is a goal — coordinate port/stack fixes or run `phase0-smoke` / prep e2e |
-| Product assertion | xfail/skip taxonomy; traceability row; issue stub — then next test file |
-| Human-only (merge, ADR, T3) | Pivot to doc gates, flake logs, test skeleton, exclude list review |
-
-### E2E gate (mandatory when in sprint goals)
-
-- **Do not claim sprint complete** without running **`make e2e-codespace`** and confirming **green**, unless the sprint scope explicitly excludes full E2E (document exception).
-- Partial green (`ci-unit-test` only, `phase0-smoke` structural) is **insufficient** for E2E-focused sprints.
-- Report: command, exit code, pass/skip/xfail counts, and classification of any red step.
-
-### Autonomy
-
-- Run tests, read logs, iterate fix→retest **without asking human** for each `make`/`pytest` step.
-- Stay within `-economics` / `-ai` boundaries unless explicitly told otherwise.

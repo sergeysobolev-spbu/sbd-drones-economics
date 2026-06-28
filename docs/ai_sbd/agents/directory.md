@@ -23,17 +23,6 @@
 | `toc-evidence-curator` | Evidence gate |
 | `dt-simulation-lead` | SITL, калибровка |
 | `tem-economics-analyst` | CAPEX/OPEX, TCO (адаптация) |
-| `tem-bas-operator` | Coding: `systems/operator`, Kafka/topic map, T14 |
-
-## Coding-пакеты (vertical agents, planned)
-
-| Пакет | Репозиторий / path | Статус |
-|-------|-------------------|--------|
-| `tem-bas-operator` | `systems/operator` | profile ✅; issue/worktree pending |
-| `tem-bas-aggregator` | `systems/agregator` | planned (T3) |
-| `tem-bas-integration-stubs` | ORVD/DronePort stubs | planned (T6–T7) |
-| `tem-bas-insurer-adapter` | insurer topic align | Фаза 2 (T4) |
-| `tem-bas-uas-dev-company` | `-economics` UAS | после PR-E1 |
 
 ## Реестр task types
 

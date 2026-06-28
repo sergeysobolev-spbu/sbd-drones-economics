@@ -11,6 +11,26 @@ __pycache__
 fabric/
 .DS_Store
 **/postgres_data/
-*.tmp
-test.log
+.coverage
 Pipfile
+*.log
+.jupyter/
+messages.html
+
+# Privacy: учебные данные ksa (см. docs/integration/privacy_review_ksa.md)
+docs/slides/ksa/ЗУНы/.venv/
+docs/slides/ksa/ЗУНы.zip
+docs/slides/ksa/**/final_results_*/
+docs/slides/ksa/**/*Ответы*.csv
+
+# LaTeX build artifacts
+docs/slides/**/*.aux
+docs/slides/**/*.log
+docs/slides/**/*.nav
+docs/slides/**/*.out
+docs/slides/**/*.snm
+docs/slides/**/*.synctex*
+docs/slides/**/*.toc
+docs/slides/**/*.vrb
+docs/slides/**/*.fdb_latexmk
+docs/slides/**/*.fls
