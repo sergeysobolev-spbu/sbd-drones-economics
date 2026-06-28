@@ -1,6 +1,6 @@
 # Мультиагентная разработка проекта ТЭМ БАС
 
-<!-- doc-meta: status=active version=1.1 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.2 updated=2026-06-28 -->
 
 Документ — **контракт агент-оркестратора** для подготовки и проведения работ по открытой платформе моделирования экономики эксплуатации безопасных дронов (направление **ОП**, см. [concept.md](concept.md)). Программный стенд — экспорт [`sbd-open-platform-and-trainings-development/code`](../../../sbd-open-platform-and-trainings-development/code).
 
@@ -148,7 +148,7 @@ sbd-drones-economics-ai (operator + учебный контент)
 | **ADR-001** — Kafka для Aggregator↔Operator **на phase 0** | ✅ Accepted |
 | **ADR-002** — broker-agnostic платформа после phase 0 (env + профиль теста) | ✅ Accepted |
 | Merge line — **PR-E1** (`feature/uas-dev-company` → `master` в `-economics`) | ✅ Выбрано |
-| Push `master` | ⛔ **Заблокирован** — `ci-integration-test` red (2026-06-28); см. `-economics/docs/pr-e1-gate-report.md` |
+| Push `master` | ✅ **2026-06-28 final merge** @ `7a0c87de` ([report](staged-push-reports/2026-06-28-final-merge-purge.md)); PR-E1 CI still open — `ci-integration-test` red (2026-06-28); см. `-economics/docs/pr-e1-gate-report.md` |
 | PR-A1 (`-ai` operator) | После PR-E1 + topic map v0.2 |
 
 ### Влить в `master` (поэтапно, отдельные PR)
@@ -581,7 +581,7 @@ flowchart LR
 
 **Немедленно (оркестратор / координатор):**
 
-1. [ ] Push `test/integration-phase0-initiation` (+18 commits) — *gitflic: `remote unpack failed: Packfile is truncated` (2026-06-28); повторить push или связаться с админом remote*  
+1. [x] Final merge integration + docs → `master` @ `7a0c87de`; ветка `test/integration-phase0-initiation` удалена (см. [final merge report](staged-push-reports/2026-06-28-final-merge-purge.md))  
 2. [x] Создать issue «T1+T2: topic map» → [ISSUE-T1-T2-topic-map.md](integration/issues/ISSUE-T1-T2-topic-map.md) *(gh token invalid — локальный шаблон)*  
 3. [x] Скопировать `.cursor/agents` subset (15 agents, 19 skills) + [directory.md](ai_sbd/agents/directory.md)  
 4. [x] TOC brief + синтез ограничения → [tem_bas_phase0_constraint_2026-06-28.md](ai_sbd/agents/toc/sessions/tem_bas_phase0_constraint_2026-06-28/tem_bas_phase0_constraint_2026-06-28.md) *(полный headless — output_dir в open-platform)*  
@@ -612,7 +612,7 @@ flowchart LR
 
 - [ ] QA sign-off на gate report
 - [ ] PR-E1 merge при green `ci-test` + `e2e-codespace`
-- [ ] Push `master` `-economics`
+- [x] Push `master` `-economics` @ `7a0c87de` (2026-06-28 final merge)
 
 **Human review (владелец ОП):**
 
@@ -623,5 +623,20 @@ flowchart LR
 - [x] Merge: **PR-E1**; push master только при green tests
 
 ---
+
+
+
+## final-merge-purge-2026-06-28 {#final-merge-purge-2026-06-28}
+
+| Поле | Значение |
+|------|----------|
+| `origin/master` | `7a0c87de529616f848c46887ace3d4f7d2fbb791` |
+| Отчёт | [2026-06-28-final-merge-purge.md](staged-push-reports/2026-06-28-final-merge-purge.md) |
+| Ветки | Только `master` (local + origin); purge **PASS** |
+| QA unit | `make unit-test` — 70 passed (`-ai`) |
+| QA ci-test | SKIP (нет Docker) |
+
+Ключевые merge: `ee4bd7a8` (integration → master), `7a0c87de` (economics e2e/submodule).
+
 
 *Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.1 — двухуровневая модель агентов и детализация Этапа 1 (1a–1c).*
