@@ -160,36 +160,6 @@ verification:
       topic: TM-001, TM-002
       test: test_topic_names_match_topic_map_v02
 
-ledger_events:
-  status: draft
-  scope: evidence-only
-  note: >
-    Fabric ledger events are not part of the phase 0 Kafka source of truth.
-    They are downstream evidence records for ADR-004/005/008 and PR-E3.
-  events:
-    - id: LEDGER-001
-      name: ledger.tx.committed
-      producer: ledger_gateway
-      consumer: eventjournal
-      required_fields:
-        - correlation_id
-        - event_id
-        - domain_id
-        - fabric_tx_id
-        - method
-        - status
-    - id: LEDGER-002
-      name: ledger.tx.failed
-      producer: ledger_gateway
-      consumer: eventjournal
-      required_fields:
-        - correlation_id
-        - event_id
-        - domain_id
-        - method
-        - status
-        - error_code
-
 human_review:
   owner: "владелец ОП / Architect"
   status: accepted_by_orchestrator
