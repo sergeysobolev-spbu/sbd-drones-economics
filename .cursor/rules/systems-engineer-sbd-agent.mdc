@@ -1,0 +1,14 @@
+---
+description: Системно-инженерные задачи — systems-engineer-sbd
+alwaysApply: true
+---
+
+# Агент системного инженера СКИБ
+
+При SE/SKIB задачах прочитай `.cursor/skills/skill_systems_engineer_sbd/SKILL.md`.
+
+Реестр: `config/agent_skill_registry.json` → `systems_engineer_task`.
+
+Каталог: `docs/ai_sbd/agents/directory.md`.
+
+Термин **СКИБ** — система с конструктивной информационной безопасностью (ГОСТ Р 72118-2025).

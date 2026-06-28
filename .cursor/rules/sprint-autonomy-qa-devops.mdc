@@ -1,0 +1,40 @@
+---
+description: Политика автономности QA/DevOps в time-boxed спринтах — time budget, pivot, e2e gate
+globs:
+  - "**/tests/**"
+  - "**/Makefile"
+  - "**/docker/**"
+  - "docs/**"
+alwaysApply: false
+---
+
+# Sprint autonomy — QA и DevOps
+
+## Триггеры
+
+Подключай правило, когда:
+
+- оркестратор назначил **time-boxed sprint** (например, 120 мин) с целями CI/E2E;
+- работают агенты **`qa-marinet-spec`**, **`ci-marinet-steward`** или skills `platform-validation`, `platform-ci-jenkins`, `skill_sdet_broker_e2e`, `skill_devops_broker_cicd`;
+- в sprint goals упомянуты `make e2e-codespace`, `ci-integration-test`, T14, phase 0 smoke.
+
+## Обязательное поведение
+
+1. **Time budget** — использовать выделенное время полностью, если есть незаблокированная работа в scope репозитория.
+2. **Pivot on block** — при блокере переключаться на следующую приоритетную незаблокированную задачу; не простаивать.
+3. **Repo boundaries** — `-economics` / `-ai` по sprint scope; другие репо только по явной инструкции.
+4. **Autonomy** — tests, logs, docker, port cleanup, fix→retest без запроса human на каждый шаг.
+5. **E2E gate** — если E2E в goals: **`make e2e-codespace` green** обязателен перед claim «sprint complete».
+
+## Anti-patterns
+
+- Early exit при red integration/e2e при E2E-focused sprint.
+- «Blocked on port» без `docker compose down` / retry.
+- Остановка на green unit, если цель — full E2E.
+- Уход в open-platform без явной инструкции.
+
+## Канон
+
+- [docs/ai_dev_tasks.md#sprint-autonomy-policy](../../docs/ai_dev_tasks.md#sprint-autonomy-policy)
+- [docs/ai_agents_improvements.md §4.4](../../docs/ai_agents_improvements.md#44-замечание-qadevops--автономность-спринта-2026-06-28)
+- Skills: `platform-validation`, `platform-ci-jenkins` § Sprint mode

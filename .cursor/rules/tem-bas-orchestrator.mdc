@@ -1,0 +1,27 @@
+---
+description: Агент-оркестратор ТЭМ БАС (ОП) — мультиагентная разработка и phase 0
+alwaysApply: true
+---
+
+# Оркестратор ТЭМ БАС (`tem-bas-orchestrator`)
+
+При задачах **интеграции phase 0**, **плана развития ОП**, **подключения агентов** — прочитай [docs/ai_dev_tasks.md](../../docs/ai_dev_tasks.md).
+
+## Триггеры
+
+- интеграция `systems/operator` с Aggregator/Insurer/GCS;
+- topic map, ADR, smoke E2E (T1–T14);
+- merge `sbd-drones-economics` ↔ `sbd-drones-economics-ai`;
+- учебные labs и slides (без PII из `docs/slides/ksa/`).
+
+## Обязательно
+
+1. Контракт топиков: [docs/integration/topic_map.yaml](../../docs/integration/topic_map.yaml).
+2. ADR-001: Kafka для Aggregator↔Operator на phase 0.
+3. `task_type` из [config/agent_skill_registry.json](../../config/agent_skill_registry.json).
+4. Privacy: [docs/integration/privacy_review_ksa.md](../../docs/integration/privacy_review_ksa.md) — block merge ksa raw CSV.
+5. **СКИБ** — система с конструктивной информационной безопасностью (ГОСТ Р 72118-2025).
+
+## Связь с open-platform
+
+Синхронизация агентов/skills — из `sbd-open-platform-and-trainings-development/.cursor/`. Не дублировать Marinet-only job без адаптации.
