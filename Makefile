@@ -95,7 +95,8 @@ CI_INTEGRATION_EXCLUDE := systems/dummy_fabric systems/dummy_system \
 	systems/drones systems/gcs systems/insurer systems/orvd_system \
 	systems/team1-regulator_operation_devsecops
 # Субмодули с рассинхроном SDK/путей — см. docs/jenkins.md (gcs), import path (orvd_system)
-CI_UNIT_EXCLUDE := systems/gcs systems/orvd_system systems/SITL-module
+CI_UNIT_EXCLUDE := systems/gcs systems/orvd_system systems/SITL-module \
+	systems/team1-regulator_operation_devsecops
 
 # Системы используют фиксированные container_name (insurer: kafka/zookeeper/mosquitto/kafdrop,
 # SITL-module: sitl-*) — если предыдущий прогон упал и оставил контейнеры, следующий ловит
@@ -205,6 +206,14 @@ e2e-test:
 	@echo "=== Running E2E tests ==="
 	@$(LOAD_ENV) && PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest tests/e2e/test_e2e_scenario.py -v -s \
 		--tb=short 2>&1 || (echo "E2E tests failed"; exit 1)
+
+phase0-smoke:
+	@echo "=== Phase 0 smoke (T14) — structural checks ==="
+	@PHASE0_SMOKE_FORCE=1 PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/e2e/test_phase0_smoke.py -v -m phase0_smoke -k Structure --tb=short
+
+phase0-smoke-full:
+	@echo "=== Phase 0 smoke (T14) — full (requires stack) ==="
+	@PIPENV_PIPFILE=$(PIPENV_PIPFILE) pipenv run pytest -c $(PYTEST_CONFIG) tests/e2e/test_phase0_smoke.py -v -m phase0_smoke --tb=short
 
 e2e-logs:
 	@echo "=== Fetching events from DroneAnalytics ==="

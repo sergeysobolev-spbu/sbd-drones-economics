@@ -1,6 +1,10 @@
 # Сборка, тесты и Jenkins локально
 
+<!-- doc-meta: status=active version=1.1 updated=2026-06-28 -->
+
 Руководство для нового окружения: зависимости, субмодули, Docker, полный набор автотестов (unit, integration, E2E) и запуск Jenkins в контейнере.
+
+См. также: [integration-phase0-compose.md](integration-phase0-compose.md) (профиль T10), topic map в [`sbd-drones-economics-ai/docs/integration/topic_map.yaml`](../../sbd-drones-economics-ai/docs/integration/topic_map.yaml).
 
 ## Требования
 
@@ -46,7 +50,20 @@ make init
 | `make ci-unit-test` | Unit-тесты по всем `components/*/tests` и системам (`test_*unit*.py`) |
 | `make ci-integration-test` | Интеграционные тесты систем (docker/pytest по Makefile систем) |
 | `make ci-test` | `ci-unit-test` + `ci-integration-test` |
+| `make phase0-smoke` | Smoke phase 0 (T14): `tests/e2e/test_phase0_smoke.py` |
 
+### Ворота CI / профили тестов (gate table)
+
+| Gate / профиль | Команда | Брокер | Системы (минимум) | Обязательные skip |
+|----------------|---------|--------|-------------------|-------------------|
+| PR-E1 unit+integration | `make ci-test` | per-system | agregator, uas_dev_company, … | `CI_*_EXCLUDE` субмодули |
+| Full E2E (Codespace) | `make e2e-codespace` | Kafka | полный полигон | Analytics (`E2E_SKIP_ANALYTICS=1`) |
+| Full E2E (local) | `make e2e-local` | Kafka | полный + Analytics | — |
+| MQTT transport E2E | `make e2e-mqtt` | Kafka + MQTT | как e2e | — |
+| **Phase 0 smoke (T14)** | `make phase0-smoke` | Kafka | Aggregator + Operator (planned T10) | infra skip если stack down |
+| Smart contracts E2E | `make e2e-smart-contracts` | Kafka + Fabric | fabric profile | — |
+
+Policy skip/xfail (E2E-2): mandatory business steps **не** должны быть `pytest.skip` на green gate; допустим `xfail` с issue до закрытия контракта (см. `test_phase0_smoke.py` TM-001).
 
 ### Исключения CI (`CI_UNIT_EXCLUDE` / `CI_INTEGRATION_EXCLUDE`)
 
