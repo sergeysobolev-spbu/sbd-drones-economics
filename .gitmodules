@@ -13,6 +13,9 @@
 	path = systems/agrodron
 	url = https://gitflic.ru/project/itmoniks/cyber_drons.git
 	branch = agrodron_for_andrey
+[submodule "systems/cyber_drons"]
+	path = systems/cyber_drons
+	url = https://gitflic.ru/project/itmoniks/cyber_drons.git
 [submodule "systems/drones"]
 	path = systems/drones
 	url = https://github.com/AMCP-Drones/drones.git
@@ -41,3 +44,9 @@
 	path = systems/drone_port
 	url = https://github.com/Kaitrye/DronePortGCS.git
 	branch = split/drone_port
+[submodule "systems/drone-operator-system"]
+	path = systems/drone-operator-system
+	url = https://github.com/glitcher-how/drone-operator-system.git
+[submodule "notebooks/cyberimmune-systems-example-traffic-light-jupyter-notebook"]
+	path = notebooks/cyberimmune-systems-example-traffic-light-jupyter-notebook
+	url = https://github.com/cyberimmunity-edu/cyberimmune-systems-example-traffic-light-jupyter-notebook.git

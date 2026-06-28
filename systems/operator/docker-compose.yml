@@ -28,7 +28,7 @@ services:
     depends_on:
       - mosquitto
     networks:
-      - operator-network
+      - drones_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
@@ -62,7 +62,7 @@ services:
       - mosquitto
       - security-monitor
     networks:
-      - operator-network
+      - drones_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
@@ -96,7 +96,7 @@ services:
       - mosquitto
       - security-monitor
     networks:
-      - operator-network
+      - drones_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
@@ -130,7 +130,7 @@ services:
       - mosquitto
       - security-monitor
     networks:
-      - operator-network
+      - drones_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
@@ -164,7 +164,7 @@ services:
       - mosquitto
       - security-monitor
     networks:
-      - operator-network
+      - drones_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
@@ -203,7 +203,7 @@ services:
     ports:
       - "8080:8080"  # API порт
     networks:
-      - operator-network
+      - drones_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import os; os.kill(1, 0)\""]
@@ -219,7 +219,7 @@ services:
     ports:
       - "1883:1883"
     networks:
-      - operator-network
+      - drones_net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/#' -C 1 -W 2 >/dev/null 2>&1 || exit 1"]
@@ -232,7 +232,8 @@ services:
   # integration-test compose to keep it portable in constrained environments.
 
 networks:
-  operator-network:
-    driver: bridge
+  drones_net:
+    external: true
+    name: ${DOCKER_NETWORK:-drones_net}
 
 volumes: {}
