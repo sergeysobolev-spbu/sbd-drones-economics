@@ -98,18 +98,22 @@ class KafkaSystemBus(SystemBus):
             self._running[topic] = False
         for topic, thread in list(self._consumer_threads.items()):
             thread.join(timeout=2)
-        for consumer in self._consumers.values():
+        self._callback_executor.shutdown(wait=False, cancel_futures=True)
+
+        def _close(obj, method: str) -> None:
             try:
-                consumer.close()
-            except Exception:
-                pass
-        if self._producer:
-            try:
-                self._producer.close()
+                getattr(obj, method)()
             except Exception:
                 pass
 
-        self._callback_executor.shutdown(wait=True)
+        for consumer in list(self._consumers.values()):
+            closer = threading.Thread(target=_close, args=(consumer, "close"), daemon=True)
+            closer.start()
+            closer.join(timeout=3)
+        if self._producer:
+            closer = threading.Thread(target=_close, args=(self._producer, "close"), daemon=True)
+            closer.start()
+            closer.join(timeout=3)
         self._consumers.clear()
         self._callbacks.clear()
         self._consumer_threads.clear()
