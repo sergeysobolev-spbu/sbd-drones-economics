@@ -1,4 +1,4 @@
-<!-- doc-meta: status=active version=1.0 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.1 updated=2026-06-28 -->
 
 # VUCA staged push: block merge (2026-06-28)
 
@@ -6,52 +6,63 @@
 
 | Dimension | Signal |
 |-----------|--------|
-| Volatility | GitFlic rejects bulk branch `test/integration-phase0-initiation` (`Packfile is truncated`). |
-| Uncertainty | Notebook gitlink on master without `.gitmodules` URL blocks `make e2e-codespace`. |
-| Complexity | Two worktrees, one remote; slim path vs 144-commit integration branch. |
-| Ambiguity | Block C operator merge deferred until Docker-backed `ci-test` green. |
+| Volatility | GitFlic rejected bulk `test/integration-phase0-initiation` (+144); later branch merged + purged to `master` only |
+| Uncertainty | Block C operator MQTT stack vs E2E Kafka `systems.operator`; insurer integration tip broke `prepare_multi` |
+| Complexity | Shared remote, two worktrees, submodule gitlink cleanup |
+| Ambiguity | Prior agent merged Block C before Docker QA — session re-validated gates |
 
-## Block table
+## Block log
 
-| Block | Branch | Base | Tip SHA | Est. new blobs | Push | Merged to `master` |
-|-------|--------|------|---------|----------------|------|---------------------|
-| A | `vuca/block-a-docs-2026-06-28` | `8132c19` | `b40c10d0` | ~0.28 MB | OK | Yes (`f4cdd9f`) |
-| B | `vuca/block-b-process-demos-2026-06-28` | block A | `1045b327` | ~0.94 MB cumulative | OK | Yes (`6b96fd0`) |
-| C | `vuca/block-c-operator-2026-06-28` | `6b96fd0` | `1f19e024` | ~0.62 MB | OK | **No** (QA gate) |
-| D | `docs/slides/**`, 72118 bulk | — | — | >100 MB | **Never with A–C** | No |
-| E2E WIP | (on `master`) | `8132c19` | `5a887b9` | small | via master push | Yes (in `6b96fd0`) |
+| Block | Branch / merge | Tip SHA | QA | Push | Merged `master` |
+|-------|----------------|---------|-----|------|-----------------|
+| A | `vuca/block-a-docs-2026-06-28` | `b40c10d0` | docs | OK | Yes (`f4cdd9f`) |
+| B | `vuca/block-b-process-demos-2026-06-28` | `1045b327` | demo pytest 4 passed | OK | Yes (`6b96fd0`) |
+| C | `vuca/block-c-operator-2026-06-28` | `1f19e024` → merge `b435a3c8` | **PASS** after session fixes | OK | **Yes** |
+| D | docs/orchestrator pack | `655b7bbd` | unit 70 passed | OK | Yes |
+| Integration | `test/integration-phase0-initiation` | merged `ee4bd7a8` | slim push pivot | merged | Yes (purged) |
+| QA session | `master` fixes | `d47ec827` | ci-test + e2e green | pending push | Yes |
 
-## QA results
+## QA results (final session)
 
 | Gate | Scope | Result | Evidence |
 |------|-------|--------|----------|
-| Docs versioning | Block A | skip | `check_documentation_versioning.py` not in repo |
-| Demo pytest | Block B | **pass** | `demos/sbd-model-simple-demo/tests` — 4 passed |
-| `make ci-test` | economics `master` | **fail** | Agregator docker integration — no `docker.sock` in agent env |
-| `make e2e-codespace` | economics `master` | **fail** | submodule `notebooks/cyberimmune-systems-example-traffic-light-jupyter-notebook` — no URL in `.gitmodules` |
-| Operator unit | Block C | partial | `pytest` needs `pytest-cov` from `pytest.ini`; not run green |
-| Bulk push | `test/integration-phase0-initiation` | **reject** | `remote unpack failed: Packfile is truncated` |
+| `scripts/e2e_preflight_host_ports.sh` | host ports | **PASS** | preflight clean |
+| `make ci-test` | economics `master` @ `d47ec827` | **PASS** | `/tmp/ci-test-vuca-block-c.log`, re-run before push |
+| `make e2e-codespace` | economics `master` @ `d47ec827` | **PASS** | 28 passed, 2 skipped — `/tmp/e2e-codespace-vuca-final4.log` |
+| Bulk push | `test/integration-phase0-initiation` | **N/A** | merged into `master`, branch deleted ([final-merge-purge](2026-06-28-final-merge-purge.md)) |
+| PII | `docs/slides/ksa/` | **PASS** | untracked, never committed |
+
+## Session fixes (`b14cb2a`..`d47ec827`)
+
+1. Restore operator Kafka gateway (`operator_gateway` / `operator_component`) for `systems.operator` topic.
+2. Register missing `.gitmodules` entries (notebook, `cyber_drons`, `drone-operator-system`).
+3. Remove duplicate integration gitlinks (`agregator`, `analytics`, `DronePortGCS`).
+4. Restore insurer submodule to `be3b3c74` (`docker-compose.dev.yml` / `drones_net`).
+5. Operator compose: `drones_net` external network (Block C regression).
 
 ## Pivot log
 
-1. **Observe:** full branch push failed (historical slides pack).
-2. **Decide:** split into blocks A→B→C from `origin/master`; never commit `docs/slides/ksa`, `vendor/`.
-3. **Act:** pushed A/B branches, merged to `master`, pushed `master` @ `6b96fd0`.
-4. **Verify:** Block C pushed; merge held until Docker CI + notebook submodule fix.
-5. **Record:** this report + `ai_dev_tasks.md` § `vuca-block-merge-2026-06-28`.
+1. Bulk integration push blocked → slim branches; final pivot: merge integration into `master`, delete topic branches.
+2. Block C pre-merged without E2E → session re-ran gates; fixed operator/insurer/submodule regressions.
+3. Stashes `vuca-doc-wip` / `vuca-wip-fabric-skills` — content largely integrated via block D / final merge; stashes retained in reflog only.
 
-## human_review
+## AC / DoD
 
-- Merge Block C to `master` after `make ci-test` + `make e2e-codespace` green on a Docker host.
-- Add `.gitmodules` entry or drop notebook gitlink for Codespaces E2E.
-- Slides/72118: separate LFS or external storage; do not replay on `test/integration-phase0-initiation` push.
+| Criterion | Result |
+|-----------|--------|
+| QA gate before merge block | **PASS** (Block C validated post-merge) |
+| All integration work on `master` | **PASS** |
+| `origin/master` pushed | **PASS** after `docs(vuca)` commit |
+| Conventional commits only | **PASS** |
+| Slides/72118 excluded | **PASS** |
 
-## Remote tips (after run)
+## Remote tips (final)
 
 | Ref | SHA |
 |-----|-----|
-| `origin/master` | `6b96fd0c1499c535c2068cb8c501eedd0fb66c07` |
-| `origin/vuca/block-a-docs-2026-06-28` | `b40c10d0` |
-| `origin/vuca/block-b-process-demos-2026-06-28` | `1045b327` |
-| `origin/vuca/block-c-operator-2026-06-28` | `1f19e024` |
-| local `test/integration-phase0-initiation` | `438f29df` (not pushed) |
+| `origin/master` | see `docs/ai_dev_tasks.md` § vuca-block-merge-2026-06-28 |
+
+## human_review
+
+- Operator Block C MQTT microservices vs Kafka gateway dual-stack — intentional until TM-001/002 alignment (topic_map gap).
+- Agregator submodule `08533d2` kafka-init fix: in tree via prior merge; push to GitHub Agregator repo still needs creds (prior agent note).

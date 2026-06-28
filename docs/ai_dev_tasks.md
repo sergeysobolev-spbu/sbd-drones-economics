@@ -1,6 +1,6 @@
 # Мультиагентная разработка проекта ТЭМ БАС
 
-<!-- doc-meta: status=active version=1.2 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.3 updated=2026-06-28 -->
 
 Документ — **контракт агент-оркестратора** для подготовки и проведения работ по открытой платформе моделирования экономики эксплуатации безопасных дронов (направление **ОП**, см. [concept.md](concept.md)). Программный стенд — экспорт [`sbd-open-platform-and-trainings-development/code`](../../../sbd-open-platform-and-trainings-development/code).
 
@@ -21,6 +21,8 @@
 - [stage-1-plan](#stage-1-plan) — Этап 1: контракт, стабилизация CI/E2E, PR-E1
 - [backlog-sync](#backlog-sync) — синхронизация с бэклогом этапа 0 (T1–T17)
 - [next-actions](#next-actions) — ближайшие действия оркестратора
+- [vuca-block-merge-2026-06-28](#vuca-block-merge-2026-06-28) — staged push blocks A–E, QA gates, master tip
+- [final-merge-purge-2026-06-28](#final-merge-purge-2026-06-28) — integration → master, branch purge
 
 ---
 
@@ -28,8 +30,8 @@
 
 | Репозиторий | Роль | Основная ветка работ |
 |-------------|------|----------------------|
-| [`sbd-drones-economics`](../../sbd-drones-economics) | Код платформы (субмодули, E2E, Jenkins) | `feature/uas-dev-company` (+32 к `master`) |
-| [`sbd-drones-economics-ai`](.) | AI-интеграция, Operator, учебные материалы, phase 0 | `test/integration-phase0-initiation` (+37 к `master`) |
+| [`sbd-drones-economics`](../../sbd-drones-economics) | Код платформы (субмодули, E2E, Jenkins) | `master` (канон после VUCA merge) |
+| [`sbd-drones-economics-ai`](.) | AI-интеграция, Operator, учебные материалы, phase 0 | `master` (общий remote с `-economics`) |
 | [`sbd-open-platform-and-trainings-development`](../../../sbd-open-platform-and-trainings-development) | Канонический стенд ТЭМ, агенты, CI-ворота | `main` / `code/` |
 
 **Расхождение линий развития:** в `-ai` основной deliverable — `systems/operator` (Python, MQTT/Kafka); в `-economics` — полный полигон с субмодулями (`Agregator`, `agrodron`, `SITL-module`, …) и `systems/uas_dev_company`. Слияние веток **без согласования контрактов топиков (T1–T2)** даст конфликт архитектур.
@@ -624,19 +626,37 @@ flowchart LR
 
 ---
 
+## vuca-block-merge-2026-06-28 {#vuca-block-merge-2026-06-28}
 
+**Отчёт:** [staged-push-reports/2026-06-28-vuca-block-merge.md](staged-push-reports/2026-06-28-vuca-block-merge.md).
+
+| DoD / AC | Result | Evidence |
+|----------|--------|----------|
+| Block C merged to `master` | **PASS** | merge `b435a3c8` (pre-session); QA fixes @ `d47ec827` |
+| `make ci-test` green before push | **PASS** | `/tmp/ci-test-vuca-block-c.log`, re-run before push |
+| `make e2e-codespace` green | **PASS** | 28 passed, 2 skipped — `/tmp/e2e-codespace-vuca-final4.log` |
+| Integration branch pushed / integrated | **PASS** | `test/integration-phase0-initiation` merged + purged ([final-merge-purge](#final-merge-purge-2026-06-28)); bulk push pivot documented |
+| `origin/master` only | **PASS** | post-push tip below |
+| Slides/72118/ksa excluded | **PASS** | untracked local only |
+
+**Session fixes (2026-06-28, agent):** insurer submodule `be3b3c74`, operator Kafka gateway restore, `.gitmodules` for notebook/cyber_drons/drone-operator-system, duplicate gitlink removal, operator `drones_net` compose.
+
+**`origin/master` tip (post QA push):** `d47ec827` → updated after `docs(vuca): record final QA`.
+
+---
 
 ## final-merge-purge-2026-06-28 {#final-merge-purge-2026-06-28}
 
 | Поле | Значение |
 |------|----------|
-| `origin/master` | `7a0c87de529616f848c46887ace3d4f7d2fbb791` |
+| `origin/master` | `d47ec827` (after VUCA QA session; was `7a0c87de`) |
 | Отчёт | [2026-06-28-final-merge-purge.md](staged-push-reports/2026-06-28-final-merge-purge.md) |
 | Ветки | Только `master` (local + origin); purge **PASS** |
 | QA unit | `make unit-test` — 70 passed (`-ai`) |
-| QA ci-test | SKIP (нет Docker) |
+| QA ci-test | **PASS** — `make ci-test` green @ `d47ec827` |
+| QA e2e | **PASS** — `make e2e-codespace` 28 passed, 2 skipped |
 
-Ключевые merge: `ee4bd7a8` (integration → master), `7a0c87de` (economics e2e/submodule).
+Ключевые merge: `ee4bd7a8` (integration → master), `7a0c87de` (economics e2e/submodule), VUCA QA fixes `b14cb2a..d47ec827`.
 
 
 *Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.1 — двухуровневая модель агентов и детализация Этапа 1 (1a–1c).*
