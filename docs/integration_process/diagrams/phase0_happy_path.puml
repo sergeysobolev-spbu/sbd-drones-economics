@@ -1,0 +1,26 @@
+@startuml phase0-happy-path-t12
+title Phase 0 happy path (T12): Заказчик → Агрегатор → Эксплуатант (Kafka TM-001/002)
+
+actor "Заказчик" as Customer
+participant "Агрегатор\n(HTTP + Kafka)" as Aggregator
+queue "Kafka\nv1.aggregator_insurer.local.operator.requests\n(TM-001)" as TM001
+queue "Kafka\nv1.aggregator_insurer.local.operator.responses\n(TM-002)" as TM002
+participant "Эксплуатант\n(BROKER_TYPE=kafka)" as Operator
+
+Customer -> Aggregator: POST /orders (service_type=agro_field)
+Aggregator -> Aggregator: validate + persist order
+Aggregator -> TM001: create_order(order_id, security_goals)
+TM001 -> Operator: consume create_order
+Operator -> Operator: MissionPlanner / price_offer
+Operator -> TM002: price_offer(order_id, total_cost)
+TM002 -> Aggregator: consume price_offer
+Aggregator --> Customer: HTTP 200 + proposal
+
+note over Operator
+  Env overrides (topic_map v0.2):
+  KAFKA_OPERATOR_REQUEST_TOPIC
+  KAFKA_OPERATOR_RESPONSE_TOPIC
+  BROKER_TYPE=kafka
+end note
+
+@enduml

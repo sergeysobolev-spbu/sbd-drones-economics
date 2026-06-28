@@ -1,0 +1,168 @@
+# Topic map — этап 0 интеграции ТЭМ БАС (T2)
+# doc-meta: status=active version=0.2 updated=2026-06-28
+# Статус: draft — accepted_by_orchestrator (sprint 2026-06-28)
+# Связано: ADR-001, ADR-003, phase0_remarks_and_technical_tasks.md (T1, T2, T12)
+
+schema_version: topic-map/v0.2
+phase: integration-phase0
+transport_default: kafka
+
+# Переменные окружения для согласования префикса (см. systems/agregator/internal/config/config.go)
+env:
+  KAFKA_PROTOCOL_VERSION: "v1"
+  KAFKA_SYSTEM_NAME: "aggregator_insurer"
+  KAFKA_INSTANCE_ID: "local"
+  # topic_prefix = "${KAFKA_PROTOCOL_VERSION}.${KAFKA_SYSTEM_NAME}.${KAFKA_INSTANCE_ID}"
+  topic_prefix: "v1.aggregator_insurer.local"
+
+systems:
+  aggregator:
+    repo_path: systems/agregator
+    language: go
+    broker: kafka
+    instance_env:
+      - KAFKA_BROKER
+      - KAFKA_PROTOCOL_VERSION
+      - KAFKA_SYSTEM_NAME
+      - KAFKA_INSTANCE_ID
+
+  operator:
+    repo_path: systems/operator
+    language: python
+    broker_default: mqtt
+    broker_phase0: kafka  # ADR-001 (phase 0 only); ADR-002 broker-agnostic target
+    instance_env:
+      - AGGREGATOR_ID
+      - INSURER_ID
+      - GCS_ID
+      - UTM_ID
+      - BROKER_TYPE
+      - KAFKA_BOOTSTRAP_SERVERS
+      - KAFKA_OPERATOR_REQUEST_TOPIC
+      - KAFKA_OPERATOR_RESPONSE_TOPIC
+
+  insurer:
+    repo_path: systems/insurer
+    language: java
+    broker: kafka
+    note: "Префикс v1.Insurer.* — требует адаптера (T4)"
+
+topics:
+  # --- Агрегатор ↔ Эксплуатант (P0) ---
+  - id: TM-001
+    name: aggregator_to_operator_requests
+    pattern: "{topic_prefix}.operator.requests"
+    resolved: "v1.aggregator_insurer.local.operator.requests"
+    producer: aggregator
+    consumer: operator
+    messages:
+      - action: create_order
+      - action: confirm_price
+    payload_schema: docs/integration/schemas/order_v1.json  # TODO T2.1
+    status: draft
+    operator_env:
+      subscribe: KAFKA_OPERATOR_REQUEST_TOPIC
+      default_value: "v1.aggregator_insurer.local.operator.requests"
+    gap: "Operator topics.py использует systems.aggregator.* — нужен env override (option_a)"
+
+  - id: TM-002
+    name: operator_to_aggregator_responses
+    pattern: "{topic_prefix}.operator.responses"
+    resolved: "v1.aggregator_insurer.local.operator.responses"
+    producer: operator
+    consumer: aggregator
+    messages:
+      - action: price_offer
+      - action: order_result
+    status: draft
+    operator_env:
+      publish: KAFKA_OPERATOR_RESPONSE_TOPIC
+      default_value: "v1.aggregator_insurer.local.operator.responses"
+    gap: см. TM-001
+
+  - id: TM-003
+    name: aggregator_internal_requests
+    pattern: "{topic_prefix}.aggregator.requests"
+    resolved: "v1.aggregator_insurer.local.aggregator.requests"
+    producer: external_clients
+    consumer: aggregator
+    status: reference
+
+  - id: TM-004
+    name: aggregator_internal_responses
+    pattern: "{topic_prefix}.aggregator.responses"
+    resolved: "v1.aggregator_insurer.local.aggregator.responses"
+    producer: aggregator
+    consumer: external_clients
+    status: reference
+
+  - id: TM-005
+    name: aggregator_dead_letter
+    pattern: "{topic_prefix}.aggregator.dead_letter"
+    resolved: "v1.aggregator_insurer.local.aggregator.dead_letter"
+    producer: aggregator
+    consumer: ops
+    status: reference
+
+  # --- Эксплуатант ↔ внешние системы (P1, заглушки на phase 0) ---
+  - id: TM-010
+    name: operator_insurer
+    pattern_legacy_operator: "systems.insurer.{INSURER_ID}"
+    pattern_insurer_java: "v1.Insurer.{id}.insurer-service.requests"
+    producer: operator
+    consumer: insurer
+    status: blocked
+    backlog: T4
+
+  - id: TM-011
+    name: operator_gcs
+    pattern_operator: "systems.gcs.{GCS_ID}"
+    producer: operator
+    consumer: DronePortGCS
+    status: blocked
+    backlog: T5
+
+  - id: TM-012
+    name: operator_utm_orvd
+    pattern_operator: "systems.utm.{UTM_ID}"
+    producer: operator
+    consumer: orvd_stub
+    status: stub_required
+    backlog: T7
+
+mapping_operator_phase0:
+  description: >
+    На phase 0 Operator подписывается на топики Aggregator (TM-001/002), а не на
+    systems.aggregator.*. Варианты реализации: (A) env KAFKA_OPERATOR_* в operator;
+    (B) правка SystemTopics.get_aggregator() при BROKER_TYPE=kafka.
+  recommended: option_a
+  env_overrides:
+    KAFKA_OPERATOR_REQUEST_TOPIC: "v1.aggregator_insurer.local.operator.requests"
+    KAFKA_OPERATOR_RESPONSE_TOPIC: "v1.aggregator_insurer.local.operator.responses"
+    BROKER_TYPE: kafka
+    KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  compose_profile: integration-phase0
+  diagram: docs/integration_process/diagrams/phase0_happy_path.puml
+
+verification:
+  smoke_test: tests/e2e/test_phase0_smoke.py  # T14
+  makefile_target: make phase0-smoke
+  traceability:
+    - id: TR-PH0-001
+      harm: потеря заказа на стыке Aggregator→Operator
+      security_goal: целостность цепочки заказа (СКИБ, ГОСТ Р 72118-2025)
+      topic: TM-001
+      test: test_tm001_operator_consumer_ack
+      acceptance: ack on TM-002 within 30s
+    - id: TR-PH0-002
+      harm: несогласованный префикс топиков (З2)
+      security_goal: однозначность маршрутизации сообщений
+      topic: TM-001, TM-002
+      test: test_topic_names_match_topic_map_v02
+
+human_review:
+  owner: "владелец ОП / Architect"
+  status: accepted_by_orchestrator
+  adr001: accepted 2026-06-28
+  adr002: broker-agnostic target accepted 2026-06-28
+  adr003: stub accepted 2026-06-28

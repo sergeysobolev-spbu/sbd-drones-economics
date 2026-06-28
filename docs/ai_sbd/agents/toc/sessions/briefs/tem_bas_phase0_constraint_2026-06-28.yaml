@@ -1,0 +1,47 @@
+# Brief: TOC phase 0 constraint — отсутствие контракта топиков
+# Запуск из open-platform: make toc-se-schools-session-dry-run TOC_SE_SCHOOLS_BRIEF=<path>
+
+session_id: tem_bas_phase0_constraint_2026-06-28
+iteration: se_schools_full
+question: >
+  Этап 0 интеграции ТЭМ БАС (ОП): какое ограничение системы деятельности
+  блокирует воспроизводимый сквозной сценарий «заказ агро-услуги» и стабильный CI?
+scope:
+  - sbd-drones-economics-ai
+  - integration_phase0
+  - e2e_stability
+agents_active:
+  - toc-orchestrator
+  - se-school-russian
+  - se-school-american
+  - se-school-chinese
+  - toc-evidence-curator
+role_agents:
+  - se-school-russian
+  - se-school-american
+  - se-school-chinese
+  - toc-evidence-curator
+inputs:
+  - /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/ai_dev_tasks.md
+  - /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/integration_process/phase0_remarks_and_technical_tasks.md
+  - /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/integration/topic_map.yaml
+  - /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/integration/adr/ADR-001-kafka-aggregator-operator.md
+  - /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/concept.md
+constraints:
+  - "Не предлагать решения в формулировках НЖЯ"
+  - "СКИБ — система с конструктивной информационной безопасностью (ГОСТ Р 72118-2025)"
+  - "Не изменять код приложений в этой сессии — только анализ и DBR"
+  - "Web — только через toc-evidence-curator с URL"
+p4_mode: auto_orchestrator
+human_owner: "координатор ОП ТЭМ БАС"
+output_dir: /home/user/projects/sbd-drones-economics/sbd-drones-economics-ai/docs/ai_sbd/agents/toc/sessions/tem_bas_phase0_constraint_2026-06-28
+optional_agents:
+  - software-architect-c4
+  - project-manager-ccpm
+p5_conflict_pair:
+  - se-school-american
+  - se-school-chinese
+merge_rules:
+  njya: "объединять по id; subject без решений; school_tag обязателен"
+  dtr: "orchestrator выбирает одно главное ограничение"
+  cloud: "конфликт p5_conflict_pair + review russian school"
