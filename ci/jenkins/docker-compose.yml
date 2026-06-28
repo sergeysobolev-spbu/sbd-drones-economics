@@ -11,12 +11,12 @@ services:
       - "${JENKINS_HTTP_PORT:-8080}:8080"
       - "${JENKINS_AGENT_PORT:-50000}:50000"
     volumes:
-      - jenkins_home:/var/jenkins_home
+      - drones_jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
       - ./casc.yaml:/var/jenkins_home/casc.yaml:ro
       - /tmp/drones-jenkins-workspace:/tmp/drones-jenkins-workspace
     environment:
-      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
+      JAVA_OPTS: "${JENKINS_JAVA_OPTS:--Djenkins.install.runSetupWizard=false -Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true}"
       CASC_JENKINS_CONFIG: /var/jenkins_home/casc.yaml
       JENKINS_URL: "${JENKINS_URL:-http://localhost:8080/}"
       JENKINS_ADMIN_USER: "${JENKINS_ADMIN_USER:-admin}"
@@ -25,4 +25,5 @@ services:
       GIT_BRANCH: "${GIT_BRANCH:-master}"
 
 volumes:
-  jenkins_home:
+  drones_jenkins_home:
+    name: drones_jenkins_home

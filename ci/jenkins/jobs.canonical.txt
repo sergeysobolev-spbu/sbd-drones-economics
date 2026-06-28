@@ -1,0 +1,6 @@
+drone-unit
+drone-integration
+drone-e2e
+drone-agrodron-security-monitor
+drone-dummy-fabric-unit
+drone-phase0-smoke
