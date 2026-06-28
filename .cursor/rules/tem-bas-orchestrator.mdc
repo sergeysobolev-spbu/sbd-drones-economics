@@ -12,7 +12,7 @@ alwaysApply: true
 - интеграция `systems/operator` с Aggregator/Insurer/GCS;
 - topic map, ADR, smoke E2E (T1–T14);
 - merge `sbd-drones-economics` ↔ `sbd-drones-economics-ai`;
-- учебные labs; slides — канон в `open-platform/docs/courses_specific/slides/` (без PII из локального `docs/slides/ksa/`).
+- учебные labs; slides и KSA tooling — канон в `open-platform/docs/courses_specific/`.
 
 ## Обязательно
 

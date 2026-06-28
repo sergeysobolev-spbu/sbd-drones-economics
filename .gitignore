@@ -17,20 +17,4 @@ Pipfile
 .jupyter/
 messages.html
 
-# Privacy: учебные данные ksa (локально в docs/slides/ksa/; см. docs/integration/privacy_review_ksa.md)
-docs/slides/ksa/ЗУНы/.venv/
-docs/slides/ksa/ЗУНы.zip
-docs/slides/ksa/**/final_results_*/
-docs/slides/ksa/**/*Ответы*.csv
-
-# LaTeX build artifacts (локальный ksa и прочие остатки)
-docs/slides/**/*.aux
-docs/slides/**/*.log
-docs/slides/**/*.nav
-docs/slides/**/*.out
-docs/slides/**/*.snm
-docs/slides/**/*.synctex*
-docs/slides/**/*.toc
-docs/slides/**/*.vrb
-docs/slides/**/*.fdb_latexmk
-docs/slides/**/*.fls
+# Privacy: учебные данные — см. open-platform docs/courses_specific/ksa/privacy_review.md

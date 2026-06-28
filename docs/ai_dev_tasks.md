@@ -130,7 +130,7 @@
 | `feature/Jenkins`, `feature/mqtt-e2e`, `feature/uas-dev-company-integration` (-economics) | Поглощены `feature/uas-dev-company` |
 | `tests/phase0-integration--ai` | 6 коммитов, superseded |
 | `origin/feature/uas-dev-company*` (-ai) wholesale | Конфликт с `systems/operator`; reconcile после T17 |
-| `docs/slides/ksa/ЗУНы/` bulk merge | Nested git + CSV с персональными данными — privacy review |
+| `docs/courses_specific/ksa/` (open-platform) | Scripts, resources, ЗУН tooling | 📚 перенесено и санитизировано |
 | `.venv/`, LaTeX aux/pdf в git | Добавить в `.gitignore`, не коммитить |
 
 ### Согласование двух репозиториев
