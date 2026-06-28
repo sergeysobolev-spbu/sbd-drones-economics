@@ -24,6 +24,7 @@
 - [vuca-block-merge-2026-06-28](#vuca-block-merge-2026-06-28) — staged push blocks A–E, QA gates, master tip
 - [final-merge-purge-2026-06-28](#final-merge-purge-2026-06-28) — integration → master, branch purge
 - [ci-failure-joint-plan](#ci-failure-joint-plan) — совместный план восстановления Jenkins CI/CD и upskilling агентов
+- [ci-recovery-orchestration](#ci-recovery-orchestration) — оркестрация Wave 1–3, APPLY gates, Wave 2 checklist
 
 ---
 
@@ -476,14 +477,14 @@ flowchart TB
 
 | # | Работа | Результат |
 |---|--------|-----------|
-| 3.1 | Labs phase 0 + rubrics | `docs/labs/` |
+| 3.1 | Labs phase 0 + rubrics | `docs/labs/` ([lab_ci_failure_triage.md](labs/lab_ci_failure_triage.md), [rubric_ci_literacy_agents.md](labs/rubric_ci_literacy_agents.md)) |
 | 3.2 | Notebooks sync (T16) | demos без WIP |
 | 3.3 | Slides release (72118, SBOM) | отдельный tag `teaching-YYYY-MM` |
 | 3.4 | Метрики студентов (concept.md ОП) | autograding hooks |
 | 3.5 | `tem-bas-purchase-*` интеграция | UAS purchase lab |
 | 3.6 | Gamification elements | по `gamification-facilitator` workspace |
 
-**Критерий выхода:** преподаватель проводит lab за 2 академических часа с demo-pack 45 min.
+**Критерий выхода:** преподаватель проводит lab за 2 академических часа с demo-pack 45 min (включая фрагмент «Разбор CI-отказа», см. [lab_ci_failure_triage.md](labs/lab_ci_failure_triage.md)).
 
 ---
 
@@ -610,7 +611,7 @@ flowchart LR
 - [ ] QA + DevOps: smoke E2E T14; policy skip→xfail (E2E-2)
 - [ ] Починить `ci-integration-test` (PR-E1 blocker)
 - [ ] Прогнать и зафиксировать `make e2e-codespace` green
-- [ ] **Jenkins recovery P0:** [ci_failure_joint_plan.md](ci_failure_joint_plan.md) — `jenkins-apply-jobs`, fix `e2e-codespace` jenkins profile, triage 6 job
+- [ ] **Jenkins recovery P0:** [ci_failure_joint_plan.md](ci_failure_joint_plan.md) + [ci_recovery_orchestration.md](ci_recovery_orchestration.md) — Wave 1 parallel RCA/upskilling; Wave 2 после skills; `make ci-recovery-check`
 
 **1c (merge):**
 
@@ -669,7 +670,16 @@ flowchart LR
 
 Совместный план DevOps / QA / SE / Architect / Educator / Orchestrator на восстановление Jenkins CI после массового red всех pipeline. Ключевая гипотеза P0: **`make e2e-codespace` не протягивает `E2E_RUN_MODE=jenkins`** в readiness/preflight (hardcode local-портов 8081/9092 при jenkins compose на 10801/19092).
 
-**Ближайшие шаги:** P0-2 `make jenkins-apply-jobs` → P0-3 `drone-phase0-smoke` → P0-4 выравнивание Makefile → HR-1 triage sign-off.
+**Ближайшие шаги:** Wave 1 parallel (DevOps RCA, educator skills, `make ci-recovery-check`) → HR-1/HR-6 → Wave 2 `ci-recovery-e2e-profile` → Wave 3 matrix 6 job.
+
+---
+
+## ci-recovery-orchestration {#ci-recovery-orchestration}
+
+**Статус:** active (2026-06-28)  
+**Документ:** [ci_recovery_orchestration.md](ci_recovery_orchestration.md)
+
+Параллельная оркестрация CI recovery: Wave 1 diagnosis + upskilling, Wave 2 script fixes (gated on skills), Wave 3 Jenkins green matrix (6 job). Checklist: `make ci-recovery-check` ([`scripts/ci_recovery_wave2_checklist.sh`](../scripts/ci_recovery_wave2_checklist.sh)).
 
 
 *Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.1 — двухуровневая модель агентов и детализация Этапа 1 (1a–1c).*

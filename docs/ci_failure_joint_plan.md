@@ -229,7 +229,12 @@ make jenkins-jobs-verify                              # если Jenkins зап�
 | `-economics/docs/*` | зеркальные правки (канон полигона) |
 | `docs/integration/adr/ADR-00X-ci-port-profile.md` | новый ADR (P1) |
 | `.cursor/skills/platform-ci-jenkins/SKILL.md` | § BAS drones economics, e2e-codespace caveat |
-| `.cursor/rules/sprint-autonomy-qa-devops.mdc` | ссылка на ci_failure_joint_plan |
+| `.cursor/skills/skill_ci_failure_triage/SKILL.md` | triage matrix, QA regression gate |
+| `.cursor/skills/skill_jenkins_casc_lifecycle/SKILL.md` | Post-JCasC checklist |
+| `.cursor/skills/skill_ci_port_profile/SKILL.md` | E2E_RUN_MODE propagation |
+| [ci_agent_upskilling_plan.md](ci_agent_upskilling_plan.md) | upskilling rollout (active v1.0) |
+| [labs/lab_ci_failure_triage.md](labs/lab_ci_failure_triage.md) | учебный фрагмент demo-pack |
+| `.cursor/rules/sprint-autonomy-qa-devops.mdc` | ссылка на ci_failure_joint_plan + mandatory preflight |
 
 ---
 

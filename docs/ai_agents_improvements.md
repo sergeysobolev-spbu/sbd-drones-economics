@@ -1,4 +1,4 @@
-<!-- doc-meta: status=active version=1.2 updated=2026-06-28 audience=internal -->
+<!-- doc-meta: status=active version=1.3 updated=2026-06-28 audience=internal -->
 
 # Улучшение AI-агентов и навыков для `sbd-drones-economics-ai`
 
@@ -63,6 +63,7 @@
 |---|---|---|---|---|
 | Чтение topic map v0.2 | L1 observe | L3 apply | exercise: map TM-001 → env | Architect |
 | Broker E2E classification (skip/xfail/pass) | L1 | L3 | lab: разбор `test_phase0_smoke.py` | QA |
+| CI literacy (local vs Jenkins, triage) | L0 | L2 | [lab_ci_failure_triage.md](labs/lab_ci_failure_triage.md), [rubric_ci_literacy_agents.md](labs/rubric_ci_literacy_agents.md) | Course-educator |
 | Compose profile `integration-phase0` | L0 | L2 | demo: `integration-phase0-compose.md` | DevOps |
 | Traceability TR-PH0-* | L1 | L3 | worksheet harm→test | SE-SBD |
 | Repo hygiene перед push | L1 | L2 | checklist `skill_repo_hygiene_release_gate` | PM |
@@ -78,7 +79,8 @@
 | T14 smoke не в CI gate | QA / DevOps | ✅ skeleton + `make phase0-smoke` |
 | ADR-003 compose без YAML | DevOps | stub doc + ADR-003 |
 | PlantUML T12 отсутствовал | Architect | ✅ `phase0_happy_path.puml` |
-| ZUN lab не формализован | Course-educator | §4.1 stub |
+| ZUN lab не формализован | Course-educator | §4.1 stub + CI literacy lab |
+| Jenkins regression missed | QA / DevOps | §4.5 + upskilling plan + new skills |
 | `team1-regulator` ломает `ci-unit-test` | DevOps | exclude в `-economics` Makefile |
 
 ## 4.3. Coding package stubs (rollout Этап 1b)
@@ -131,6 +133,32 @@
 
 **Канон:** [sprint-autonomy-policy](ai_dev_tasks.md#sprint-autonomy-policy) в `ai_dev_tasks.md`; skills `platform-validation` / `platform-ci-jenkins` § Sprint mode; rule `.cursor/rules/sprint-autonomy-qa-devops.mdc`; при массовом CI-fail — [ci_failure_joint_plan.md](ci_failure_joint_plan.md).
 
+### 4.5. Урок регрессии Jenkins CI (2026-06-28)
+
+**Инцидент:** DevOps-агент внедрил CI (профили портов, JCasC, `e2e-codespace`, job `drone-phase0-smoke`). Локально `make ci-config-check` и `make ports-check` — green. **Все** Jenkins pipeline `drone-*` остались red. QA-спринт не выполнил Jenkins regression smoke и не зафиксировал triage matrix до sign-off.
+
+**Корневые пробелы навыков (не только код):**
+
+| Пробел | Проявление | Закрытие |
+|---|---|---|
+| Structural ≠ Jenkins runtime | «CI готов» по `ci-config-check` | Mandatory Jenkins smoke + `skill_ci_failure_triage` |
+| JCasC lifecycle | Job в git, нет в UI; stale volume | `skill_jenkins_casc_lifecycle`, `make jenkins-apply-jobs` |
+| SCM preflight | Checkout fail, неверный `GIT_BRANCH` | `make jenkins-preflight` в sprint rule |
+| Port profile propagation | H1: wait на 8081 при jenkins compose 10801 | `skill_ci_port_profile`, ADR-004 |
+| QA early exit | Sprint closed без e2e/Jenkins evidence | §4.4 + regression gate в `qa-marinet-spec` |
+| Учебный soft-green | Unit green как доказательство phase 0 | Rubric CI literacy, lab «Разбор CI-отказа» |
+
+**Реализованные upskilling-артефакты:** [ci_agent_upskilling_plan.md](ci_agent_upskilling_plan.md); skills `skill_ci_failure_triage`, `skill_jenkins_casc_lifecycle`, `skill_ci_port_profile`; lab [labs/lab_ci_failure_triage.md](labs/lab_ci_failure_triage.md); rubric [labs/rubric_ci_literacy_agents.md](labs/rubric_ci_literacy_agents.md).
+
+**Обязательная политика после инцидента:**
+
+1. DevOps **не** объявляет CI complete без `make ci-config-check` + `make jenkins-preflight` + (после casc) `jenkins-apply-jobs` / `jenkins-jobs-verify`.
+2. QA **не** sign-off CI change без минимум одного Jenkins build smoke и evidence bundle при red.
+3. Координатор маршрутизирует mass red на `task_type`: **`ci_failure_recovery`**.
+4. Методист: demo-pack phase 0 включает фрагмент triage; partial green — явный defer в занятии.
+
+**human_review:** закрытие инцидента — HR-7 joint plan; rollout skills — HR-6.
+
 ## 5. План усиления
 
 | Шаг | Действие | Статус |
@@ -153,6 +181,9 @@
 | `skill_integration_phase0_contracts` | Управляет T1-T17, topic map, ADR, Kafka/MQTT boundary, `integration-phase0`, T14, PR-E1/PR-A1 |
 | `skill_agent_zun_development` | Описывает ЗУН агентов, maturity levels, exercises, rubrics и backlog развития |
 | `skill_repo_hygiene_release_gate` | Проверяет dirty tree, generated artifacts, privacy, WIP history и release readiness |
+| `skill_ci_failure_triage` | Triage mass Jenkins red, evidence bundle, failure taxonomy |
+| `skill_jenkins_casc_lifecycle` | JCasC reload, jobs.canonical.txt, jenkins-preflight |
+| `skill_ci_port_profile` | E2E_RUN_MODE propagation local ↔ jenkins |
 
 ### 6.2. Усиленные агенты
 
@@ -163,8 +194,8 @@
 | `course-educator-platform` | Добавлен `skill_agent_zun_development` и agent ЗУН block |
 | `project-manager-ccpm` | Добавлены T1-T17, PR-E1/PR-A1, release hygiene blockers |
 | `artifact-quality-controller` | Добавлены repo hygiene, phase 0 contract и broker E2E checks |
-| `ci-marinet-steward` | Ранее усилен для Kafka/Mosquitto CI/CD |
-| `qa-marinet-spec` | Ранее усилен для broker E2E SDET |
+| `ci-marinet-steward` | Mandatory preflight gates, drones BAS skills (JCasC, port profile, triage) |
+| `qa-marinet-spec` | Jenkins regression smoke gate, triage skill, sprint autonomy |
 | `dt-simulation-lead` | Адаптирован с TEM-Marinet источников на ТЭМ БАС phase 0, topic map и broker evidence |
 | `tem-economics-analyst` | Адаптирован с Marinet pilot bridge на ТЭМ БАС ОП/КТ, phase 0 и CCPM |
 
@@ -177,9 +208,11 @@
 - `repo_hygiene_release_gate`
 - `broker_cicd_infrastructure`
 - `sdet_broker_e2e`
+- `ci_failure_recovery` (2026-06-28 upskilling)
 
 Расширены маршруты:
 
+- `jenkins_or_ci_change` — recommended: `skill_ci_port_profile`, `skill_jenkins_casc_lifecycle`, broker skills
 - `systems_engineer_task`
 - `software_architecture_c4`
 - `artifact_quality_review`
@@ -206,6 +239,7 @@ flowchart LR
 
 | Risk | Почему остаётся | Следующий шаг |
 |---|---|---|
+| Soft-green / Jenkins regression | QA не поймал mass red до merge | skills triage + mandatory smoke; §4.5 |
 | Реальный E2E T14 ещё не реализован этим изменением | задача про навыки, не про код теста | issue/worktree для `integration_phase0` + `sdet_broker_e2e` |
 | Registry валиден, но в repo нет `agent_skill_router.py` | текущий repo хранит registry без локального router | использовать registry оркестратором или перенести router отдельной задачей |
 | Dirty tree содержит много unrelated untracked | не удалял пользовательские артефакты | прогнать `skill_repo_hygiene_release_gate` как отдельный review |
@@ -237,6 +271,8 @@ flowchart LR
 - 2026-06-28 09:36 — расширен `config/agent_skill_registry.json`.
 - 2026-06-28 09:39 — проверки пройдены: JSON registry, existence check для всех registry skills, IDE lints.
 - 2026-06-28 09:48 — после завершения всех экспертных агентов выполнен follow-up: исправлен `topic_map.yaml`, убраны Marinet-only skill references из BAS-профилей, обновлён отчёт.
+
+- 2026-06-28 — upskilling CI regression: skills triage/JCasC/port profile, lab, rubric, ADR-004, agent patches (см. [ci_agent_upskilling_plan.md](ci_agent_upskilling_plan.md)).
 
 ## 10. Проверки
 
