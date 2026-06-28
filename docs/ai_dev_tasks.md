@@ -1,6 +1,6 @@
 # Мультиагентная разработка проекта ТЭМ БАС
 
-<!-- doc-meta: status=active version=1.3 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.4 updated=2026-06-28 -->
 
 Документ — **контракт агент-оркестратора** для подготовки и проведения работ по открытой платформе моделирования экономики эксплуатации безопасных дронов (направление **ОП**, см. [concept.md](concept.md)). Программный стенд — экспорт [`sbd-open-platform-and-trainings-development/code`](../../../sbd-open-platform-and-trainings-development/code).
 
@@ -160,7 +160,7 @@ sbd-drones-economics-ai (operator + учебный контент)
 
 | PR | Содержание | Gate (обязательно green) |
 |----|------------|---------------------------|
-| **PR-E1** | Fast-forward `feature/uas-dev-company` → `master` | `make ci-test` **и** `make e2e-codespace`; sqlite не в git |
+| **PR-E1** | Fast-forward `feature/uas-dev-company` → `master` | ✅ `master` @ `8132c19`; `ci-test` + `e2e-codespace` green |
 | **PR-E2** | Cherry-pick negative E2E из `feature/negative-e2e-scenario` | По необходимости |
 | **PR-E3** | Fabric E2E job или manual-only | После PR-E1 |
 
@@ -530,7 +530,7 @@ gantt
 | **1b — Integration/E2E** | нед. 3–5 | DevOps + QA **lead**; coding: `tem-bas-operator`, `tem-bas-aggregator`, `tem-bas-integration-stubs` | T10 compose `integration-phase0`; smoke E2E T14; починка `ci-integration-test`; прогон `e2e-codespace`; xfail/skip policy (E2E-2); warmup/topics (E2E-4) | `make ci-test` green; smoke T14 green локально и в CI |
 | **1c — PR-E1 merge** | нед. 6 | Оркестратор + QA (sign-off) | Fast-forward `feature/uas-dev-company` → `master` в `-economics`; отчёт [pr-e1-gate-report.md](../../sbd-drones-economics/docs/pr-e1-gate-report.md) | **`ci-test` + `e2e-codespace` green**; push master разрешён |
 
-**Блокер (2026-06-28):** PR-E1 заблокирован — `ci-integration-test` red, `e2e-codespace` не прогнан → работы **1b** приоритетны.
+**1c complete (2026-06-28):** PR-E1 в `-economics` — `origin/master` @ `8132c19`; gate `ci-test` + `e2e-codespace` green (agent e4481536).
 
 ### Таблица: агент → фаза → deliverable → acceptance
 
@@ -585,9 +585,10 @@ flowchart LR
 
 | Фаза | Ветка GitFlic | Статус |
 |------|---------------|--------|
-| 1 `-economics` | `feature/uas-dev-company` @ `638a24b` | ✅ gate green; pushed |
+| 1 `-economics` | `master` @ `8132c19` | ✅ PR-E1 merged/pushed; `ci-test` + `e2e-codespace` green (agent e4481536) |
 | 2 `-ai` docs | `docs/orchestrator-v1.1` @ `c0a124a` | ✅ on remote |
 | 3 `-ai` slice | `docs/pr-a2-integration-process` @ `688f7cb` | ✅ pushed (integration_process, без slides) |
+| 4 `-ai` slim | `docs/integration-phase0-consolidated` | docs-only; push после commit |
 | bulk | `test/integration-phase0-initiation` | ⛔ pack >100 MB |
 
 **Немедленно (оркестратор / координатор):**
@@ -621,9 +622,9 @@ flowchart LR
 
 **1c (merge):**
 
-- [ ] QA sign-off на gate report ([phase-1](../sbd-drones-economics/docs/staged-push-reports/2026-06-28-phase-1.md))
-- [ ] PR-E1: **rebase/merge `origin/master`** в `feature/uas-dev-company` (не FF: +11/−5), затем повтор gate
-- [ ] PR-E1 merge → `master` + push при green gate
+- [x] QA sign-off на gate report — `ci-test` + `e2e-codespace` green (agent e4481536)
+- [x] PR-E1: reconcile с `origin/master`, повтор gate — green
+- [x] PR-E1 merge → `master` + push — `origin/master` @ `8132c19`
 
 **Human review (владелец ОП):**
 
@@ -680,7 +681,7 @@ flowchart LR
 
 | Repo | Branch | Note |
 |------|--------|------|
-| `sbd-drones-economics` | `feature/uas-dev-company` | PR-E1 line |
+| `sbd-drones-economics` | `master` @ `8132c19` | PR-E1 complete |
 | `sbd-drones-economics-ai` | `test/integration-phase0-initiation` | slim commits only; no bulk slides push |
 
 **Pushed (follow-up b9d16219):** gitflic `origin/feature/uas-dev-company` @ `f386b72` (ci-test green); `origin/docs/sprint-120min-2026-06-28` @ `5132f18`.
@@ -751,25 +752,27 @@ flowchart LR
 ### Push status
 
 - **gitflic `-ai` `test/integration-phase0-initiation`:** not pushed (+133); remote rejected: `Packfile is truncated`. **Slim push:** branch `docs/integration-phase0-consolidated` (docs @ `a2ca219`, no slides).
-- **gitflic `-economics` `master`:** not updated (gate red). Report: [`../sbd-drones-economics/docs/staged-push-reports/2026-06-28-phase-5-master-merge.md`](../../sbd-drones-economics/docs/staged-push-reports/2026-06-28-phase-5-master-merge.md).
+- **gitflic `-economics` `master`:** @ `8132c19` — PR-E1 complete; `ci-test` + `e2e-codespace` green (agent e4481536). Prior report: [`../sbd-drones-economics/docs/staged-push-reports/2026-06-28-phase-5-master-merge.md`](../../sbd-drones-economics/docs/staged-push-reports/2026-06-28-phase-5-master-merge.md).
 
 
 ### Phase C — follow-up (agent 58ce477e, 2026-06-28)
 
+**PR-E1 complete (agent e4481536, 2026-06-28):** `-economics` `origin/master` @ `8132c19`; `make ci-test` + `make e2e-codespace` green.
+
+
 | Gate / артеfact | Результат | Evidence |
 |-----------------|-----------|----------|
 | `-economics` `make e2e-codespace` | **GREEN** | 28 passed, 2 skipped (`/tmp/e2e-codespace-phase5.log`; mission-complete skip — Kafka publish timeout to `components.Agrodron.security_monitor`; analytics log test skipped) |
-| `-economics` `make ci-test` | **RED** | `systems/Agregator` integration: Kafka **Unknown Topic Or Partition** on `systems.agregator` / `components.agregator.operator.responses` (see `/tmp/ci-test-phase5-retry.log`). Prior run: **port 8081** bind conflict while E2E stack held Agregator — mitigated via `make e2e-down`. |
+| `-economics` `make ci-test` | **GREEN** | Gate перед push `master` (agent e4481536); см. PR-E1 @ `8132c19`. |
 | Slim branch `-ai` | **`docs/integration-phase0-consolidated`** | From `origin/test/integration-phase0-initiation` + doc paths @ `a2ca219` (**no** `docs/slides/**`) |
-| `master` merge / push | **Blocked** | ci-test not green; no master push |
+| `master` merge / push | **Done** | `-economics` `origin/master` @ `8132c19` pushed (PR-E1, agent e4481536) |
 
-### Blockers
+### Blockers (остаточные после PR-E1)
 
-1. `-economics`: Agregator integration — Kafka topics absent in isolated compose (`Unknown Topic Or Partition`); E2E pre-creates topics + restarts Agregator (see root Makefile `e2e-codespace`).
-2. `-ai`: remote push size limit (>100MB) — slides/72118 in history; local untracked bulk not committed.
-3. Local `-economics` `master` @ `54e365e` ≠ `origin/master` @ `b9f73df` — reconcile before PR-E1 merge.
+1. ~~`-economics` PR-E1 / `master` push~~ — **снято:** `origin/master` @ `8132c19` (agent e4481536).
+2. `-ai`: remote push size limit (>100MB) — slides/72118 in history; local untracked bulk not committed; slim path — `docs/integration-phase0-consolidated`.
 
 
 ---
 
-*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.2 — политика автономности QA/DevOps спринта (sprint-autonomy-policy).*
+*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.4 — PR-E1 complete (`master` @ `8132c19`); Phase C economics master pushed.*
