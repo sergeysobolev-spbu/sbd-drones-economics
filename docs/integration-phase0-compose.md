@@ -49,7 +49,7 @@ services:
 | Цель | Статус | Назначение |
 |------|--------|------------|
 | `make phase0-up` | planned | `docker compose --profile integration-phase0 up -d` |
-| `make phase0-smoke` | planned | `pytest tests/e2e/test_phase0_smoke.py -m phase0_smoke` |
+| `make phase0-smoke` | active | structural gate: `make phase0-smoke` (`pytest -k Structure`, без Docker); полный runtime — `make phase0-smoke-full` |
 | `make e2e-codespace` | ✅ | Полный полигон (не phase 0 minimal) |
 
 ## Запуск smoke без полного T10
