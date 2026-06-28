@@ -1,4 +1,4 @@
-<!-- doc-meta: status=active version=1.3 updated=2026-06-28 audience=internal -->
+<!-- doc-meta: status=active version=1.1 updated=2026-06-28 audience=internal -->
 
 # Улучшение AI-агентов и навыков для `sbd-drones-economics-ai`
 
@@ -22,7 +22,7 @@
 
 Подключённые экспертные роли:
 
-- `systems-engineer-sbd` / школа СИ: концепция эксплуатации, V&V, traceability, human_review.
+- `systems-engineer-sbd` / школа СИ: ConOps, V&V, traceability, human_review.
 - `software-architect-c4`: C4, topic map, ADR, broker boundary, integration views.
 - `course-educator-platform`: ЗУН агентов, рубрики развития, учебная применимость навыков.
 
@@ -48,7 +48,7 @@
 
 | Агент | Знания | Умения | Навыки, которые нужно развивать |
 |---|---|---|---|
-| `systems-engineer-sbd` | Концепция эксплуатации, ЦБ, V&V, PR-E1/PR-A1 constraints | строить traceability harm -> topic -> test | phase 0 contract review, release readiness |
+| `systems-engineer-sbd` | ConOps, ЦБ, V&V, PR-E1/PR-A1 constraints | строить traceability harm -> topic -> test | phase 0 contract review, release readiness |
 | `software-architect-c4` | C4, ADR, broker boundary, topic map | фиксировать архитектурные решения и зависимости | integration contract governance, broker E2E impact |
 | `ci-marinet-steward` | Jenkins/GHA, compose, Kafka/Mosquitto, ports | строить broker-backed CI profile | deterministic readiness, cleanup, evidence |
 | `qa-marinet-spec` | AC, TS, traceability, flake taxonomy | проектировать smoke/full E2E без mandatory skip | anti-flake broker SDET, failure classification |
@@ -88,48 +88,6 @@
 | `tem-bas-operator` | pending | env KAFKA_OPERATOR_* + green shell tests |
 | `tem-bas-aggregator` | pending | `service_type: agro_field` HTTP→Kafka |
 | `tem-bas-integration-stubs` | pending | ORVD ping stub, DronePort battery OK |
-
-## 4.4. Замечание QA/DevOps — автономность спринта (2026-06-28)
-
-**Проблема:** QA-спринт 120 мин завершился досрочно при невыполненных E2E-целях (`make e2e-codespace` не подтверждён green; `ci-integration-test` red на порту 8081). Агенты не использовали выделенное время, ресурсы и инструкции полностью.
-
-**Обязательная политика для `qa-marinet-spec`, `ci-marinet-steward` и связанных skills** (`platform-validation`, `platform-ci-jenkins`, `skill_sdet_broker_e2e`, `skill_devops_broker_cicd`):
-
-| # | Правило | Детали |
-|---|---|---|
-| 1 | **Полное использование time budget** | Не завершать спринт раньше срока (например, 120 мин), пока не выполнены все sprint goals **или** документированно не осталось незаблокированной полезной работы в границах репозитория |
-| 2 | **Pivot при блокере** | На blocking issue → переключиться на следующую приоритетную незаблокированную задачу, полезную для целей проекта; **не простаивать** и не ждать human без попыток обхода |
-| 3 | **Границы репозитория** | Работать в `-economics` / `-ai` согласно sprint scope; не уходить в open-platform или другие репо без явной инструкции |
-| 4 | **Повышенная автономность** | Самостоятельно: запускать тесты, читать логи, чинить infra (порты, compose down, exclude), итерировать циклы fix→retest **без запроса подтверждения** на каждый шаг |
-| 5 | **E2E gate обязателен** | Заявлять sprint complete только после **`make e2e-codespace` green** (или явного xfail/skip policy с issue, если цель спринта — только unit/integration) |
-
-### Pivot rules (приоритет незаблокированной работы)
-
-1. **Infra red** (порт занят, stack не поднялся) → `docker compose down`, освободить порт, retry; параллельно — structural/unit тесты, doc gates, flake classification.
-2. **Integration red, unit green** → не останавливаться на «unit достаточно»; pivot: port cleanup → retry integration → подготовка e2e-up.
-3. **Product red** (assertion, контракт) → классифицировать skip/xfail/pass; если fix вне scope — pivot на smoke skeleton, gate table, traceability, CI exclude.
-4. **Все цели текущего блока закрыты, время осталось** → взять следующий пункт из [backlog-sync](ai_dev_tasks.md#backlog-sync) или [next-actions](ai_dev_tasks.md#next-actions), не завершать спринт.
-
-### Anti-patterns (запрещено)
-
-| Anti-pattern | Почему плохо |
-|---|---|
-| Early exit при broken e2e | Soft-green: CI частично зелёный, интеграция не доказана |
-| «Blocked on port 8081» без cleanup/retry | Infra fix в scope DevOps; idle недопустим |
-| Остановка после `ci-unit-test` green, если цель — E2E | Unit ≠ sprint success для E2E-focused sprint |
-| Запрос human на каждый `make` / `docker` | Снижает автономность; human — только для merge/ADR/T3 |
-| Уход в другой репозиторий «починить платформу» | Нарушение границ; фиксировать issue, pivot внутри scope |
-
-### Checklist перед «sprint complete»
-
-- [ ] Time budget использован ≥90% **или** все sprint goals met с evidence
-- [ ] Если цель включала E2E: `make e2e-codespace` выполнен и **green** (или задокументированный defer с owner/issue)
-- [ ] Блокеры перечислены с классификацией: infra / product / scope / external
-- [ ] Для каждого блокера — что сделано (retry, pivot, workaround) или почему truly no unblocked work
-- [ ] Commits и test summary table обновлены в [sprint-120min-2026-06-28](ai_dev_tasks.md#sprint-120min-2026-06-28)
-- [ ] Не заявлено «готово» при red integration/e2e без явного sprint scope exception
-
-**Канон:** [sprint-autonomy-policy](ai_dev_tasks.md#sprint-autonomy-policy) в `ai_dev_tasks.md`; skills `platform-validation` / `platform-ci-jenkins` § Sprint mode; rule `.cursor/rules/sprint-autonomy-qa-devops.mdc`.
 
 ## 5. План усиления
 
@@ -219,48 +177,13 @@ flowchart LR
 
 - SE-обзор подтвердил необходимость contract-first подхода: traceability, human_review, release gate и отсутствие soft-green E2E.
 - Архитектурный обзор выявил конкретные дефекты: невалидный `docs/integration/topic_map.yaml`, Marinet-only skill references в BAS-агентах, отсутствие полного `integration-phase0` compose/smoke.
-- Преподавательский обзор подтвердил, что ЗУН агентов нужно описывать через наблюдаемые операции: topic map review, broker E2E, упаковка доказательных артефактов, repo hygiene.
+- Преподавательский обзор подтвердил, что ЗУН агентов нужно описывать через наблюдаемые операции: topic map review, broker E2E, evidence packaging, repo hygiene.
 
 Закрытый follow-up:
 
 - Исправлена YAML-структура `docs/integration/topic_map.yaml` для `operator.broker_phase0`.
 - Профили `ci-marinet-steward`, `qa-marinet-spec`, `project-manager-ccpm`, `course-educator-platform`, `dt-simulation-lead`, `tem-economics-analyst` адаптированы под ТЭМ БАС и существующие skills.
 - Удалены функциональные ссылки агентов на отсутствующие `skill_marinet_*` и `docs/tem_marinet/**`.
-
-## 8.2. Fabric smart contracts follow-up (2026-06-28)
-
-Активный VUCA-спринт по Hyperledger Fabric показал новый класс задач: ledger-контракты не укладываются полностью ни в broker E2E, ни в обычный C4/ADR-контур. Поэтому добавлен отдельный набор навыков и ролей для Fabric, EventJournal correlation, privacy и учебного handoff.
-
-### Новые skills
-
-| Skill | Назначение |
-|---|---|
-| `skill_fabric_chaincode_contracts` | Chaincode, MSP-роли, endorsement policy, state machine, idempotency и negative tests. |
-| `skill_ledger_eventjournal_traceability` | Связь requirement, broker event, EventJournal record, Fabric transaction и pytest evidence. |
-| `skill_fabric_e2e_sdet` | Fabric unit/mock/smoke/full E2E, skip/xfail policy, flake classification и evidence. |
-| `skill_fabric_devops_cicd` | Fabric network, Fabric Proxy, Ledger Gateway, ports/env, readiness, cleanup и PR-E3. |
-| `skill_contract_lab_design` | Учебные задания, scaffolds, rubrics и troubleshooting для Fabric/broker/EventJournal. |
-| `skill_ledger_privacy_review` | On-chain/off-chain граница, private data, secrets, generated crypto и privacy evidence. |
-
-### Новые роли
-
-| Агент | Зона ответственности |
-|---|---|
-| `fabric-chaincode-engineer` | Fabric chaincode contracts и role/state negative tests. |
-| `ledger-integration-architect` | Fabric Proxy / Ledger Gateway / EventJournal boundary и ADR. |
-| `fabric-devops-cicd-steward` | Fabric CI/manual/nightly profiles, readiness и cleanup. |
-| `eventjournal-traceability-sdet` | Evidence chain и pytest traceability. |
-| `fabric-lab-instructor` | Лабораторные, rubrics и воспроизводимость для преподавателя. |
-| `ledger-privacy-reviewer` | Privacy, private data, secrets и generated crypto hygiene. |
-
-### Проверки sprint follow-up
-
-| Проверка | Результат |
-|---|---|
-| `python3 -m json.tool config/agent_skill_registry.json` | OK |
-| Проверка существования всех skills из registry | OK |
-| IDE lints по новым docs/ADR/agent/skill/registry | OK |
-| Поиск проблемной терминологии в новых Fabric docs/ADR | OK |
 
 ## 9. Ход выполнения
 
@@ -272,7 +195,6 @@ flowchart LR
 - 2026-06-28 09:36 — расширен `config/agent_skill_registry.json`.
 - 2026-06-28 09:39 — проверки пройдены: JSON registry, existence check для всех registry skills, IDE lints.
 - 2026-06-28 09:48 — после завершения всех экспертных агентов выполнен follow-up: исправлен `topic_map.yaml`, убраны Marinet-only skill references из BAS-профилей, обновлён отчёт.
-- 2026-06-28 12:41 — начат активный VUCA-спринт по Fabric smart contracts; добавлены ADR-004/005/008, Fabric skills, agent profiles и registry routes.
 
 ## 10. Проверки
 
