@@ -101,3 +101,20 @@ jobs:
           }
         }
       }
+
+  - script: |
+      pipelineJob('drone-phase0-smoke') {
+        description('Phase 0 smoke structural gate (T14): make phase0-smoke (ci/Jenkinsfile.phase0-smoke)')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('${GIT_REPO_URL}') }
+                branch('${GIT_BRANCH}')
+              }
+            }
+            scriptPath('ci/Jenkinsfile.phase0-smoke')
+            lightweight(true)
+          }
+        }
+      }
