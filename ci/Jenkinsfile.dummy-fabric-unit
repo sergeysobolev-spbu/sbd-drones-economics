@@ -1,5 +1,5 @@
 // Unit-test pipeline для systems/dummy_fabric/tests/test_unit.py
-// Запускает только unit-тесты системы dummy_fabric под python:3.11.
+// Запускает только unit-тесты системы dummy_fabric под python:3.12.
 pipeline {
     agent any
 
@@ -44,7 +44,7 @@ pipeline {
         stage('Unit Tests: dummy_fabric') {
             agent {
                 docker {
-                    image 'python:3.11'
+                    image 'python:3.12'
                     args '-u root'
                     reuseNode true
                 }
@@ -58,7 +58,7 @@ pipeline {
                         python3 -m pip install --user pipenv
                     fi
                     export PATH="$HOME/.local/bin:$PATH"
-                    pipenv install --dev
+                    pipenv install --dev --python "$(which python3)"
                     pipenv run pytest -c config/pyproject.toml \
                         systems/dummy_fabric/tests/test_unit.py \
                         -v --tb=short

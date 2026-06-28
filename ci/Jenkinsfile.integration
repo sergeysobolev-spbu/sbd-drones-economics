@@ -65,7 +65,7 @@ pipeline {
                     fi
                     export PATH="$HOME/.local/bin:$PATH"
                     pipenv --version
-                    pipenv install --dev
+                    pipenv install --dev --python "$(which python3)"
                 '''
             }
         }

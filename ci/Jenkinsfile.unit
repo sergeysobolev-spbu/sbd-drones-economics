@@ -1,5 +1,5 @@
 // Unit-test pipeline: make ci-unit-test
-// Fast lane: pipenv + pytest в докер-агенте python:3.11, без Docker-in-Docker.
+// Fast lane: pipenv + pytest в докер-агенте python:3.12, без Docker-in-Docker.
 pipeline {
     agent any
 
@@ -44,7 +44,7 @@ pipeline {
         stage('Unit Tests') {
             agent {
                 docker {
-                    image 'python:3.11'
+                    image 'python:3.12'
                     args '-u root'
                     reuseNode true
                 }
@@ -58,7 +58,7 @@ pipeline {
                         python3 -m pip install --user pipenv
                     fi
                     export PATH="$HOME/.local/bin:$PATH"
-                    pipenv install --dev
+                    pipenv install --dev --python "$(which python3)"
                     make ci-unit-test
                 '''
             }
