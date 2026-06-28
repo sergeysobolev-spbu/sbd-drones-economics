@@ -50,12 +50,3 @@
 [submodule "notebooks/cyberimmune-systems-example-traffic-light-jupyter-notebook"]
 	path = notebooks/cyberimmune-systems-example-traffic-light-jupyter-notebook
 	url = https://github.com/cyberimmunity-edu/cyberimmune-systems-example-traffic-light-jupyter-notebook.git
-[submodule "systems/DronePortGCS"]
-	path = systems/DronePortGCS
-	url = https://github.com/Kaitrye/DronePortGCS.git
-[submodule "systems/agregator"]
-	path = systems/agregator
-	url = https://github.com/DashDashh/Agregator.git
-[submodule "systems/analytics"]
-	path = systems/analytics
-	url = https://github.com/OurPaintTeam/DroneAnalytics.git
