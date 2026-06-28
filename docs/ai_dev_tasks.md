@@ -1,6 +1,6 @@
 # Мультиагентная разработка проекта ТЭМ БАС
 
-<!-- doc-meta: status=active version=1.0 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.1 updated=2026-06-28 -->
 
 Документ — **контракт агент-оркестратора** для подготовки и проведения работ по открытой платформе моделирования экономики эксплуатации безопасных дронов (направление **ОП**, см. [concept.md](concept.md)). Программный стенд — экспорт [`sbd-open-platform-and-trainings-development/code`](../../../sbd-open-platform-and-trainings-development/code).
 
@@ -15,8 +15,10 @@
 - [e2e-problem](#e2e-problem) — проблема сквозных тестов
 - [agents-connect](#agents-connect) — подключение агентов и навыков
 - [orchestration-model](#orchestration-model) — модель оркестрации
+- [system-agents](#system-agents) — двухуровневая модель агентов (горизонталь + вертикаль)
 - [iterations](#iterations) — итерации проработки (SE × 4, архитектор, QA, DevOps, техпис, PM, методист)
 - [development-plan](#development-plan) — план развития платформы
+- [stage-1-plan](#stage-1-plan) — Этап 1: контракт, стабилизация CI/E2E, PR-E1
 - [backlog-sync](#backlog-sync) — синхронизация с бэклогом этапа 0 (T1–T17)
 - [next-actions](#next-actions) — ближайшие действия оркестратора
 
@@ -292,6 +294,73 @@ code/config/agent_skill_registry.json  # с task_type для BAS
 
 ---
 
+## system-agents {#system-agents}
+
+Предложение оркестратора: **двухуровневая** модель агентов для ТЭМ БАС (ОП). Горизонтальные роли — постоянный контур координации и приёмки; вертикальные пакеты — **временные** coding-агенты по подсистемам, подключаемые **после baseline Этапа 1a**, но **до** merge PR-E1 (см. [stage-1-plan](#stage-1-plan)).
+
+### Горизонтальный уровень (постоянный контур)
+
+| Роль | Профиль / `task_type` | Зона ответственности |
+|------|----------------------|----------------------|
+| **Оркестратор** | координатор Cursor / Makefile `APPLY=1` | GitHub Project Status, integrate, выбор PR, rollout coding-пакетов |
+| **Архитектор** | `software-architect-c4` | C4, ADR, `topic_map.yaml`, review изменений контрактов |
+| **Системный инженер СКИБ** | `systems-engineer-sbd` | КБП/ЦПБ, traceability harm → ЦБ → тест, human_review |
+| **QA / приёмка** | `qa-marinet-spec`, `artifact-quality-controller` | критерии приёмки, матрица T1–T17 ↔ pytest, smoke/full E2E |
+| **DevOps / CI** | `ci-marinet-steward` | Jenkins/JCasC, GitHub Actions, compose-профили, `ports-check` |
+| **Техпис** | `docs_change` (`documentation-governance`) | канон docs, doc-meta, термин **СКИБ** (ГОСТ Р 72118-2025) |
+| **Проектный менеджер** | `project-manager-ccpm` | WBS, буферы, milestone evidence, критический путь |
+| **Методист / преподаватель** | `course-educator-platform` | labs, rubrics, demo-pack; не блокирует CI-gate |
+
+Горизонтальные агенты **не** привязаны к одному worktree; coding-агенты **не** используют `gh` и **не** меняют статус GitHub Project.
+
+### Вертикальный уровень (coding-пакеты по подсистемам)
+
+Не 15 постоянных профилей, а **issue-scoped headless-пакеты** (один issue → один worktree → один coding-агент):
+
+| Пакет | Подсистема / scope | Типичные задачи |
+|-------|-------------------|-----------------|
+| `tem-bas-operator` | `systems/operator` (-ai) | Kafka consumer/producer, EventJournal, shell/integration tests |
+| `tem-bas-aggregator` | Aggregator / API заказа | `service_type: agro_field` (T3), HTTP→Kafka bridge |
+| `tem-bas-insurer-adapter` | страховой адаптер | topic alignment (T4), stub/real switch |
+| `tem-bas-integration-stubs` | ORVD / DronePort | детерминированные заглушки (T6–T7) для smoke |
+| `tem-bas-uas-dev-company` | `systems/uas_dev_company` | vitrine, purchase flow, Playwright (после PR-E1) |
+
+Пакеты `tem-registry-*`, `test-profile-refactor-*`, `certification-demo-*` — по необходимости, **не** входят в baseline Этапа 1.
+
+### Правила подключения coding-агентов
+
+1. **Один issue = один worktree = один coding-агент** — без параллельной правки одного issue разными агентами.
+2. **Coding-агенты не вызывают `gh`** — board, labels, PR создаёт координатор.
+3. **Запрет на изменение `topic_map.yaml` и ADR без review архитектора** — SE-SBD подтверждает traceability; merge только после `human_review`.
+4. **Rollout по фазам Этапа 1** — см. [stage-1-plan](#stage-1-plan): горизонталь только в **1a**; вертикаль подключается в **1b** (стабилизация integration/E2E); **1c** — merge PR-E1 при green gate.
+
+```mermaid
+flowchart TB
+  subgraph horizontal [Горизонталь — постоянно]
+    O[Оркестратор]
+    A[Architect]
+    SE[SE-SBD]
+    QA[QA]
+    DO[DevOps]
+    TW[Техпис]
+    PM[PM]
+    CE[Course-educator]
+  end
+  subgraph vertical [Вертикаль — по issue/worktree]
+    OP[tem-bas-operator]
+    AG[tem-bas-aggregator]
+    ST[tem-bas-integration-stubs]
+    IN[tem-bas-insurer-adapter]
+    UAS[tem-bas-uas-dev-company]
+  end
+  O --> A & SE & QA & DO
+  O -.->|Этап 1b+| OP & AG & ST
+  A -.->|review| OP & AG & ST
+  QA & DO -.->|CI gate| OP & AG & ST
+```
+
+---
+
 ## iterations {#iterations}
 
 Синтез нескольких раундов проработки подключёнными агентами (без исполнения кода — план).
@@ -373,59 +442,56 @@ code/config/agent_skill_registry.json  # с task_type для BAS
 
 ## development-plan {#development-plan}
 
-### Фаза 0 — Контракт и воспроизводимость (4–6 недель)
+Общий горизонт — см. [stage-1-plan](#stage-1-plan) для детализации **Этапа 1** (baseline phase 0). Ниже — последующие фазы после merge PR-E1 и smoke E2E green.
 
-| # | Работа | Арtefact | Агенты |
-|---|--------|----------|--------|
-| 0.1 | Topic map + ADR Kafka | `docs/integration/topic_map.yaml` | Architect, SE-SBD |
-| 0.2 | `service_type: agro_field` в Aggregator (T3) | API spec | SE-SBD, coding |
-| 0.3 | Compose `integration-phase0` (T10) | docker-compose profile | DevOps |
-| 0.4 | Smoke E2E (T14) | `tests/e2e/test_phase0_smoke.py` | QA, DevOps |
-| 0.5 | Merge PR-E1 + PR-A1/A2/A3 | master обоих repo | Coordinator |
-| 0.6 | PlantUML sequence (T12) | `docs/integration_process/diagrams/` | Architect, техпис |
+### Этап 1 — контракт, CI/E2E, PR-E1 (4–6 недель)
 
-**Критерий выхода:** `make integration-phase0-up && make test-phase0-smoke` — green на чистой VM.
+**Канонический план:** [stage-1-plan](#stage-1-plan) (подфазы **1a → 1b → 1c**).
+
+Кратко: **1a** — только горизонтальные агенты (T1–T2, ADR); **1b** — подключение coding-пакетов + стабилизация integration/E2E (T14, gate PR-E1); **1c** — merge PR-E1 при green `ci-test` и `e2e-codespace`.
+
+**Критерий выхода Этапа 1:** `make ci-test && make e2e-codespace` green; smoke E2E T14 без обязательных skip; PR-E1 в `master` (`-economics`).
 
 ---
 
-### Фаза 1 — Стабилизация CI и E2E (6–8 недель)
+### Фаза 2 — Расширение интеграции (6–8 недель, после Этапа 1)
 
 | # | Работа | Результат |
 |---|--------|-----------|
-| 1.1 | Пирамида тестов (E2E-1…6) | CI docs в `docs/build_and_test.md` |
-| 1.2 | Заглушки DronePort/ORVD (T6–T7) | `systems/stubs/` |
-| 1.3 | Insurer adapter (T4) | topic alignment |
-| 1.4 | Operator ↔ GCS стыковка (T5) | integration test |
-| 1.5 | Cherry-pick negative E2E | optional nightly job |
-| 1.6 | Agent headless: `test-profile-refactor-*` | маркеры pytest, profiles |
+| 2.1 | Пирамида тестов (E2E-1…6) | CI docs в `docs/build_and_test.md` |
+| 2.2 | Insurer adapter (T4) — `tem-bas-insurer-adapter` | topic alignment |
+| 2.3 | Operator ↔ GCS стыковка (T5) | integration test |
+| 2.4 | Cherry-pick negative E2E (PR-E2) | optional nightly job |
+| 2.5 | Agent headless: `test-profile-refactor-*` | маркеры pytest, profiles |
+| 2.6 | `tem-bas-uas-dev-company` — purchase lab hooks | UAS vitrine после PR-A1 |
 
 **Критерий выхода:** nightly smoke 7/7 green; full E2E — weekly, ≤2 flaky/week.
 
 ---
 
-### Фаза 2 — Учебный контур ОП (8–12 недель)
+### Фаза 3 — Учебный контур ОП (8–12 недель)
 
 | # | Работа | Результат |
 |---|--------|-----------|
-| 2.1 | Labs phase 0 + rubrics | `docs/labs/` |
-| 2.2 | Notebooks sync (T16) | demos без WIP |
-| 2.3 | Slides release (72118, SBOM) | отдельный tag `teaching-YYYY-MM` |
-| 2.4 | Метрики студентов (concept.md ОП) | autograding hooks |
-| 2.5 | `tem-bas-purchase-*` интеграция | UAS purchase lab |
-| 2.6 | Gamification elements | по `gamification-facilitator` workspace |
+| 3.1 | Labs phase 0 + rubrics | `docs/labs/` |
+| 3.2 | Notebooks sync (T16) | demos без WIP |
+| 3.3 | Slides release (72118, SBOM) | отдельный tag `teaching-YYYY-MM` |
+| 3.4 | Метрики студентов (concept.md ОП) | autograding hooks |
+| 3.5 | `tem-bas-purchase-*` интеграция | UAS purchase lab |
+| 3.6 | Gamification elements | по `gamification-facilitator` workspace |
 
 **Критерий выхода:** преподаватель проводит lab за 2 академических часа с demo-pack 45 min.
 
 ---
 
-### Фаза 3 — Связь с открытой платформой (ongoing)
+### Фаза 4 — Связь с открытой платформой (ongoing)
 
 | # | Работа |
 |---|--------|
-| 3.1 | Регулярный export/import с `sbd-open-platform/code` (quarterly) |
-| 3.2 | TOC-session при major release |
-| 3.3 | Traceability requirements ↔ CI gates |
-| 3.4 | КТ-ветка (simulators, swarm, AI) — отдельный repo/branch по [concept.md](concept.md) |
+| 4.1 | Регулярный export/import с `sbd-open-platform/code` (quarterly) |
+| 4.2 | TOC-session при major release |
+| 4.3 | Traceability requirements ↔ CI gates |
+| 4.4 | КТ-ветка (simulators, swarm, AI) — отдельный repo/branch по [concept.md](concept.md) |
 
 ---
 
@@ -435,16 +501,61 @@ code/config/agent_skill_registry.json  # с task_type для BAS
 gantt
   title TEM BAS Open Platform (OP track)
   dateFormat YYYY-MM
-  section Phase0
-  Contract T1-T2     :2026-07, 6w
-  Smoke E2E T14      :2026-08, 4w
-  section Phase1
-  CI pyramid         :2026-09, 8w
-  Stubs T6-T7        :2026-10, 4w
+  section Stage1
+  1a Contract T1-T2   :2026-07, 2w
+  1b E2E CI stabilize  :2026-07, 4w
+  1c PR-E1 merge       :2026-08, 1w
   section Phase2
-  Labs and slides    :2026-11, 12w
+  CI pyramid           :2026-09, 8w
+  Insurer T4           :2026-10, 4w
   section Phase3
-  Platform sync      :2027-01, 12w
+  Labs and slides      :2026-11, 12w
+  section Phase4
+  Platform sync        :2027-01, 12w
+```
+
+---
+
+## stage-1-plan {#stage-1-plan}
+
+**Этап 1** — единый baseline phase 0: контракт обмена, стабилизация integration/E2E и merge **PR-E1**. Coding-агенты по подсистемам подключаются **не раньше 1a-complete**, но **обязательно в 1b** — исправление integration/E2E входит в первый этап, а не откладывается на «Фазу 2».
+
+### Подфазы
+
+| Подфаза | Срок (ориентир) | Агенты | Работы | Gate |
+|---------|-----------------|--------|--------|------|
+| **1a — Контракт** | нед. 1–2 | Только [горизонталь](#system-agents): Architect, SE-SBD, техпис, оркестратор | T1, T2, T12; ADR-001/002 ✅; `topic_map.yaml` v0.2; PlantUML sequence; privacy review | `human_review`: владелец ОП утверждает topic map и T3-модель заказа |
+| **1b — Integration/E2E** | нед. 3–5 | DevOps + QA **lead**; coding: `tem-bas-operator`, `tem-bas-aggregator`, `tem-bas-integration-stubs` | T10 compose `integration-phase0`; smoke E2E T14; починка `ci-integration-test`; прогон `e2e-codespace`; xfail/skip policy (E2E-2); warmup/topics (E2E-4) | `make ci-test` green; smoke T14 green локально и в CI |
+| **1c — PR-E1 merge** | нед. 6 | Оркестратор + QA (sign-off) | Fast-forward `feature/uas-dev-company` → `master` в `-economics`; отчёт [pr-e1-gate-report.md](../../sbd-drones-economics/docs/pr-e1-gate-report.md) | **`ci-test` + `e2e-codespace` green**; push master разрешён |
+
+**Блокер (2026-06-28):** PR-E1 заблокирован — `ci-integration-test` red, `e2e-codespace` не прогнан → работы **1b** приоритетны.
+
+### Таблица: агент → фаза → deliverable → acceptance
+
+| Агент | Фаза | Deliverable | Acceptance |
+|-------|------|-------------|------------|
+| Architect | 1a | `topic_map.yaml`, ADR-003 (compose profile), C4 container update | Review SE-SBD; нет противоречий с ADR-001/002 |
+| SE-SBD | 1a | Traceability harm→ЦБ→topic→test; ЦПБ phase 0 | `human_review` владельца ОП |
+| Техпис (`docs_change`) | 1a | doc-meta, README index, термин СКИБ | `check_documentation_versioning` pass |
+| DevOps | 1b | compose `integration-phase0`, CI job smoke, `ports-check` | Jenkins/GHA log green на integration |
+| QA | 1b | `test_phase0_smoke.py` / T14 matrix; skip→xfail policy | Smoke без mandatory skip на happy path |
+| `tem-bas-operator` | 1b | Kafka align с topic map; shell+integration tests | pytest green в worktree issue |
+| `tem-bas-aggregator` | 1b | `service_type: agro_field` stub/API (T3 мин.) | HTTP→Kafka message в smoke |
+| `tem-bas-integration-stubs` | 1b | ORVD/DronePort stubs (T6–T7) | Детерминированный smoke без gateway timeout |
+| Оркестратор | 1c | PR-E1 merge, gate report обновлён | `ci-test` + `e2e-codespace` green |
+| PM | 1a–1c | Milestone M1–M2 evidence, buffer review | M2 закрыт до push master |
+| Course-educator | 1a (parallel) | Lab outline «Phase 0 integration» (черновик) | Не блокирует 1c |
+
+Агенты `tem-bas-insurer-adapter`, `tem-bas-uas-dev-company` — **после** 1c (Фаза 2), если архитектор явно не разблокирует раньше.
+
+### Зависимости подфаз
+
+```mermaid
+flowchart LR
+  A[1a Contract] --> B[1b Integration E2E]
+  B --> C[1c PR-E1 merge]
+  C --> D[PR-A1 topic sync -ai]
+  B -.->|parallel| CE[Course-educator draft lab]
 ```
 
 ---
@@ -455,14 +566,14 @@ gantt
 
 | ID | План | Спринт |
 |----|------|--------|
-| T1, T2, T12 | Фаза 0 | S1 |
-| T3, T14 | Фаза 0 | S1–S2 |
-| T10, T9 | Фаза 0–1 | S2 |
-| T4–T7 | Фаза 1 | S3–S4 |
-| T8, T13 | Фаза 1 | S4 |
-| T15, T11 | Фаза 1 | по возможности |
-| T16 | Фаза 2 | после M2 |
-| T17 | Итерация 1 | немедленно — свести с change_requests |
+| T1, T2, T12 | Этап 1a | S1 |
+| T3, T10, T14 | Этап 1b | S1–S2 |
+| T6, T7 | Этап 1b | S2 |
+| T4–T5 | Фаза 2 | S3–S4 |
+| T8, T9, T13 | Фаза 2 | S4 |
+| T15, T11 | Фаза 2 | по возможности |
+| T16 | Фаза 3 | после M2 |
+| T17 | Этап 1a | немедленно — свести с change_requests |
 
 ---
 
@@ -477,13 +588,40 @@ gantt
 5. [x] PR-A2 артефакты: `topic_map.yaml`, ADR-001, privacy review, `agent_skill_registry.json`  
 6. [x] Privacy review → [privacy_review_ksa.md](integration/privacy_review_ksa.md); `.gitignore` обновлён  
 
+**Этап 1 — rollout coding-агентов ([stage-1-plan](#stage-1-plan)):**
+
+**1a (горизонталь only):**
+
+- [x] ADR-001 (Kafka phase 0), ADR-002 (broker-agnostic target)
+- [x] `topic_map.yaml` v0.1 — довести до v0.2 + `human_review`
+- [ ] T3: утвердить модель заказа `agro_field` (владелец ОП)
+- [ ] T12: PlantUML sequence в `docs/integration_process/diagrams/`
+- [ ] Закрыть T17 ↔ change_requests CR5–CR10
+
+**1b (подключить coding-пакеты + CI/E2E):**
+
+- [ ] Issue + worktree: `tem-bas-integration-stubs` (T6–T7)
+- [ ] Issue + worktree: `tem-bas-operator` (Kafka align, T14 consumer path)
+- [ ] Issue + worktree: `tem-bas-aggregator` (T3 minimal, HTTP→Kafka)
+- [ ] DevOps: compose profile `integration-phase0` (T10)
+- [ ] QA + DevOps: smoke E2E T14; policy skip→xfail (E2E-2)
+- [ ] Починить `ci-integration-test` (PR-E1 blocker)
+- [ ] Прогнать и зафиксировать `make e2e-codespace` green
+
+**1c (merge):**
+
+- [ ] QA sign-off на gate report
+- [ ] PR-E1 merge при green `ci-test` + `e2e-codespace`
+- [ ] Push `master` `-economics`
+
 **Human review (владелец ОП):**
 
 - [x] Утвердить ADR-001 (Kafka) **для phase 0** — 2026-06-28
 - [x] Broker-agnostic после phase 0 → [ADR-002](integration/adr/ADR-002-broker-agnostic-platform.md)
 - [ ] Утвердить модель заказа `agro_field` (T3)
+- [ ] Утвердить rollout coding-агентов (таблица [stage-1-plan](#stage-1-plan))
 - [x] Merge: **PR-E1**; push master только при green tests
 
 ---
 
-*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.0 — первичный синтез анализа репозиториев и агентов платформы.*
+*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.1 — двухуровневая модель агентов и детализация Этапа 1 (1a–1c).*
