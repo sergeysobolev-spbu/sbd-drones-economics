@@ -1,4 +1,4 @@
-<!-- doc-meta: status=active version=1.2 updated=2026-06-28 audience=internal -->
+<!-- doc-meta: status=active version=1.3 updated=2026-06-28 audience=internal -->
 
 # Улучшение AI-агентов и навыков для `sbd-drones-economics-ai`
 
@@ -22,7 +22,7 @@
 
 Подключённые экспертные роли:
 
-- `systems-engineer-sbd` / школа СИ: ConOps, V&V, traceability, human_review.
+- `systems-engineer-sbd` / школа СИ: концепция эксплуатации, V&V, traceability, human_review.
 - `software-architect-c4`: C4, topic map, ADR, broker boundary, integration views.
 - `course-educator-platform`: ЗУН агентов, рубрики развития, учебная применимость навыков.
 
@@ -48,7 +48,7 @@
 
 | Агент | Знания | Умения | Навыки, которые нужно развивать |
 |---|---|---|---|
-| `systems-engineer-sbd` | ConOps, ЦБ, V&V, PR-E1/PR-A1 constraints | строить traceability harm -> topic -> test | phase 0 contract review, release readiness |
+| `systems-engineer-sbd` | Концепция эксплуатации, ЦБ, V&V, PR-E1/PR-A1 constraints | строить traceability harm -> topic -> test | phase 0 contract review, release readiness |
 | `software-architect-c4` | C4, ADR, broker boundary, topic map | фиксировать архитектурные решения и зависимости | integration contract governance, broker E2E impact |
 | `ci-marinet-steward` | Jenkins/GHA, compose, Kafka/Mosquitto, ports | строить broker-backed CI profile | deterministic readiness, cleanup, evidence |
 | `qa-marinet-spec` | AC, TS, traceability, flake taxonomy | проектировать smoke/full E2E без mandatory skip | anti-flake broker SDET, failure classification |
@@ -219,13 +219,48 @@ flowchart LR
 
 - SE-обзор подтвердил необходимость contract-first подхода: traceability, human_review, release gate и отсутствие soft-green E2E.
 - Архитектурный обзор выявил конкретные дефекты: невалидный `docs/integration/topic_map.yaml`, Marinet-only skill references в BAS-агентах, отсутствие полного `integration-phase0` compose/smoke.
-- Преподавательский обзор подтвердил, что ЗУН агентов нужно описывать через наблюдаемые операции: topic map review, broker E2E, evidence packaging, repo hygiene.
+- Преподавательский обзор подтвердил, что ЗУН агентов нужно описывать через наблюдаемые операции: topic map review, broker E2E, упаковка доказательных артефактов, repo hygiene.
 
 Закрытый follow-up:
 
 - Исправлена YAML-структура `docs/integration/topic_map.yaml` для `operator.broker_phase0`.
 - Профили `ci-marinet-steward`, `qa-marinet-spec`, `project-manager-ccpm`, `course-educator-platform`, `dt-simulation-lead`, `tem-economics-analyst` адаптированы под ТЭМ БАС и существующие skills.
 - Удалены функциональные ссылки агентов на отсутствующие `skill_marinet_*` и `docs/tem_marinet/**`.
+
+## 8.2. Fabric smart contracts follow-up (2026-06-28)
+
+Активный VUCA-спринт по Hyperledger Fabric показал новый класс задач: ledger-контракты не укладываются полностью ни в broker E2E, ни в обычный C4/ADR-контур. Поэтому добавлен отдельный набор навыков и ролей для Fabric, EventJournal correlation, privacy и учебного handoff.
+
+### Новые skills
+
+| Skill | Назначение |
+|---|---|
+| `skill_fabric_chaincode_contracts` | Chaincode, MSP-роли, endorsement policy, state machine, idempotency и negative tests. |
+| `skill_ledger_eventjournal_traceability` | Связь requirement, broker event, EventJournal record, Fabric transaction и pytest evidence. |
+| `skill_fabric_e2e_sdet` | Fabric unit/mock/smoke/full E2E, skip/xfail policy, flake classification и evidence. |
+| `skill_fabric_devops_cicd` | Fabric network, Fabric Proxy, Ledger Gateway, ports/env, readiness, cleanup и PR-E3. |
+| `skill_contract_lab_design` | Учебные задания, scaffolds, rubrics и troubleshooting для Fabric/broker/EventJournal. |
+| `skill_ledger_privacy_review` | On-chain/off-chain граница, private data, secrets, generated crypto и privacy evidence. |
+
+### Новые роли
+
+| Агент | Зона ответственности |
+|---|---|
+| `fabric-chaincode-engineer` | Fabric chaincode contracts и role/state negative tests. |
+| `ledger-integration-architect` | Fabric Proxy / Ledger Gateway / EventJournal boundary и ADR. |
+| `fabric-devops-cicd-steward` | Fabric CI/manual/nightly profiles, readiness и cleanup. |
+| `eventjournal-traceability-sdet` | Evidence chain и pytest traceability. |
+| `fabric-lab-instructor` | Лабораторные, rubrics и воспроизводимость для преподавателя. |
+| `ledger-privacy-reviewer` | Privacy, private data, secrets и generated crypto hygiene. |
+
+### Проверки sprint follow-up
+
+| Проверка | Результат |
+|---|---|
+| `python3 -m json.tool config/agent_skill_registry.json` | OK |
+| Проверка существования всех skills из registry | OK |
+| IDE lints по новым docs/ADR/agent/skill/registry | OK |
+| Поиск проблемной терминологии в новых Fabric docs/ADR | OK |
 
 ## 9. Ход выполнения
 
@@ -237,6 +272,7 @@ flowchart LR
 - 2026-06-28 09:36 — расширен `config/agent_skill_registry.json`.
 - 2026-06-28 09:39 — проверки пройдены: JSON registry, existence check для всех registry skills, IDE lints.
 - 2026-06-28 09:48 — после завершения всех экспертных агентов выполнен follow-up: исправлен `topic_map.yaml`, убраны Marinet-only skill references из BAS-профилей, обновлён отчёт.
+- 2026-06-28 12:41 — начат активный VUCA-спринт по Fabric smart contracts; добавлены ADR-004/005/008, Fabric skills, agent profiles и registry routes.
 
 ## 10. Проверки
 

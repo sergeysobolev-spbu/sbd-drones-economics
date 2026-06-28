@@ -1,6 +1,6 @@
 # Мультиагентная разработка проекта ТЭМ БАС
 
-<!-- doc-meta: status=active version=1.4 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.6 updated=2026-06-28 -->
 
 Документ — **контракт агент-оркестратора** для подготовки и проведения работ по открытой платформе моделирования экономики эксплуатации безопасных дронов (направление **ОП**, см. [concept.md](concept.md)). Программный стенд — экспорт [`sbd-open-platform-and-trainings-development/code`](../../../sbd-open-platform-and-trainings-development/code).
 
@@ -23,6 +23,7 @@
 - [next-actions](#next-actions) — ближайшие действия оркестратора
 - [sprint-120min-2026-06-28](#sprint-120min-2026-06-28)
 - [master-merge-agent-group](#master-merge-agent-group) — phase A/B consolidate и merge master — автономный спринт 120 мин (phase 0 artifacts)
+- [agent-vuca-history-100-review](#agent-vuca-history-100-review) — анализ 100 коммитов, VUCA/ЗУН дообучение и базовый план улучшений
 - [sprint-autonomy-policy](#sprint-autonomy-policy) — политика автономности QA/DevOps спринта
 
 ---
@@ -223,7 +224,7 @@ flowchart TB
 
 ## agents-connect {#agents-connect}
 
-Источник: [`sbd-open-platform-and-trainings-development/.cursor/`](../../../sbd-open-platform-and-trainings-development/.cursor/), реестр `code/config/agent_skill_registry.json`.
+Источник: [`sbd-open-platform-and-trainings-development/.cursor/`](../../../sbd-open-platform-and-trainings-development/.cursor/); локальная копия реестра — `config/agent_skill_registry.json`, исходный платформенный реестр — `code/config/agent_skill_registry.json`.
 
 ### Обязательный набор для ТЭМ БАС (ОП)
 
@@ -773,6 +774,151 @@ flowchart LR
 2. `-ai`: remote push size limit (>100MB) — slides/72118 in history; local untracked bulk not committed; slim path — `docs/integration-phase0-consolidated`.
 
 
+
+## agent-vuca-history-100-review {#agent-vuca-history-100-review}
+
+**Дата:** 2026-06-28. **Scope:** последние 100 коммитов `sbd-drones-economics-ai`, текущие `.cursor/agents`, `.cursor/skills`, `config/agent_skill_registry.json`, `docs/ai_agents_improvements.md`.
+
+### Сигналы из истории 100 коммитов
+
+| Сигнал | Наблюдение | Риск для проекта | VUCA-класс |
+|---|---|---|---|
+| WIP-итерации вокруг Operator и notebook demo | В истории много правок `systems/operator`, notebooks, shell/integration wrappers | агент чинит локальный сценарий, но не закрывает контур phase 0 целиком | volatility / uncertainty |
+| Broker churn | Частые изменения Kafka/MQTT, `topics.py`, broker factory, docker compose | topic contract становится слабее кода, появляется soft-green | complexity |
+| E2E и integration red/skip | История содержит shell/integration/e2e wrappers, позже `ci-test` red при `e2e-codespace` green | QA может принять частичный green за readiness | ambiguity |
+| Docs/slides/notebooks mixed with runtime | Слайды, notebooks, demos и runtime менялись рядом | риск грязного merge/push, privacy/generated artifacts | complexity |
+| Поздняя phase0 consolidation | ADR/topic map/TOC session добавлены поздно, после WIP-кода | архитектура догоняет реализацию, а не управляет ею | volatility |
+| Push/merge blockers | slim branch, packfile/tracked blobs, master gate red | release readiness отделена от engineering work | uncertainty |
+
+### Недостатки работы агентов
+
+1. **Недостаточно role-specific contracts.** Общий VUCA-блок был полезен, но не заставлял каждого агента давать свой evidence.
+2. **Soft-green risk.** QA/CI могли завершать итерацию по частичным проверкам без полного E2E или owner-approved defer.
+3. **Contract drift.** Архитектурные и broker-контракты появлялись позже кода, поэтому `topic_map -> implementation -> smoke` не был обязательной цепочкой.
+4. **Weak repo hygiene.** Смешение runtime, generated slides, notebooks и локальных systems усложняет merge/push и повышает риск лишних артефактов.
+5. **Недостаточная автономность по VUCA.** При blocker agent должен делать `observe -> classify -> decide -> act -> verify -> record`, а не останавливаться или уходить в соседний repo.
+
+### Доработанные навыки и профили
+
+| Артефакт | Доработка |
+|---|---|
+| `.cursor/agents/*.md` | Добавлен `Role-Specific VUCA Дообучение`: недостаток из истории, навык дообучения, evidence, autonomy rule |
+| `skill_vuca_decision_protocol` | Добавлен history-review workflow по churn areas и VUCA-сигналам |
+| `skill_agent_zun_development` | Добавлен history-based ЗУН-анализ: WIP, broker churn, soft-green, dirty tree, release blockers |
+| `skill_artifact_quality` | Добавлен agent-change quality gate: registry, profiles, role contracts, docs sync |
+
+### VUCA maturity gaps
+
+| Уровень | Текущий риск | Целевой переход |
+|---|---|---|
+| L0 Reactive | agent останавливается на blocker или угадывает | запрет early exit без blocker taxonomy |
+| L1 Structured | facts/risks есть, но next action не проверяемый | каждый gap получает evidence criterion |
+| L2 Adaptive | skill есть, но роль не доказывает свой вклад | role-specific contract + drill |
+| L3 Mission-Oriented | локальный успех не связан с readiness целого | whole-system scorecard и human_review только на high-impact decisions |
+
+### Базовый план улучшений проекта по агентам
+
+| Агент / роль | Базовая задача улучшения | Evidence / gate | Priority |
+|---|---|---|---|
+| `systems-engineer-sbd` | Сформировать phase0 traceability `harm -> ЦБ -> topic -> test -> evidence` для T1-T17 | traceability row + validation owner | P0 |
+| `software-architect-c4` | Закрепить contract-first baseline: `topic_map + ADR + C4 runtime view + compose impact` до coding package | ADR/topic map delta + C4 view | P0 |
+| `qa-marinet-spec` | Ввести broker E2E evidence gate и soft-green policy для skip/xfail/red | test summary + failure taxonomy + defer owner | P0 |
+| `ci-marinet-steward` | Сделать deterministic broker CI profile: readiness, cleanup, port retry, evidence bundle | compose config + health + logs | P0 |
+| `tem-bas-operator` | Закрыть Operator path: env overrides, topic-map aligned subscriptions, shell/integration tests | green shell/integration или точный blocker | P0 |
+| `project-manager-ccpm` | Ввести sprint scorecard: time budget, blockers, pivot log, buffer status | scorecard в sprint section | P1 |
+| `artifact-quality-controller` | Запускать pre-push hygiene gate для generated/slides/notebooks/privacy | release blockers list | P1 |
+| `course-educator-platform` | Подготовить VUCA drills L0-L3 для port busy, topic mismatch, dirty tree, soft-green | rubric + exercise + expected artifact | P1 |
+| `toc-orchestrator` | Выбрать главное ограничение из истории: broker contract vs E2E evidence vs release hygiene | selected constraint + DBR | P1 |
+| `triz-expert-tem` | Разобрать противоречие «скорость автономии vs доказуемость readiness» | function model + IKR + solution directions | P1 |
+| `toc-evidence-curator` | Привязать claims к commit/doc/log evidence, отделить fact/hypothesis | sources gate | P1 |
+| `dt-simulation-lead` | Связать SITL/replay/correlation_id с topic contracts и validation owner | run plan + replay evidence | P2 |
+| `tem-economics-analyst` | Разделить экономику ОП demo, КТ scale и cost of integration risk | assumptions + sensitivity | P2 |
+| `se-school-russian` | Описать activity boundaries и owners для autonomous agents | role/owner map | P2 |
+| `se-school-american` | Уточнить success criteria и V&V для readiness claims | verification/validation matrix | P2 |
+| `se-school-chinese` | Задать whole-system KPI: `topic_map -> compose -> CI/E2E -> evidence -> value` | whole readiness score | P2 |
+| `se-school-ai-native` | Упаковать worktree/agent package contract с execute+audit boundaries | agent package template | P2 |
+
+### Agent evidence scorecard
+
+Каждая автономная итерация агента должна завершаться строкой:
+
+| Поле | Требование |
+|---|---|
+| `vuca_assessment` | volatility / uncertainty / complexity / ambiguity |
+| `autonomy_level` | L1-L3, с обоснованием |
+| `decision_log` | решение, альтернатива, результат, residual risk |
+| `evidence` | команда, файл, тест, log или reviewer owner |
+| `pivot_log` | что сделано при blocker, почему не было early exit |
+| `human_review` | только high-impact decisions: ADR, ЦБ/ЦПБ, security, acceptance, merge/release |
+
+### Ближайшие базовые улучшения
+
+1. **P0:** закрыть broker contract chain: `topic_map.yaml -> Operator topics/env -> compose integration-phase0 -> smoke E2E`.
+2. **P0:** устранить soft-green: любой skip/xfail/red в E2E получает owner, issue/defer и impact.
+3. **P0:** сделать CI broker profile deterministic: no fixed sleeps, cleanup/retry, broker logs.
+4. **P1:** ввести repo hygiene gate перед push/merge: generated/slides/notebooks/privacy.
+5. **P1:** оформить VUCA drills преподавателем и использовать их в agent review.
+6. **P2:** связать digital twin/economics evidence с readiness целого, а не только с demo narrative.
+
+## fabric-smart-contracts-vuca-sprint {#fabric-smart-contracts-vuca-sprint}
+
+**Дата:** 2026-06-28. **Scope:** концепция Hyperledger Fabric smart contracts, PR-E3, EventJournal correlation, учебный handoff и агентные роли.
+
+### Основные решения
+
+| Решение | Статус | Evidence |
+|---|---|---|
+| Fabric не блокирует PR-E1 / phase 0 Kafka smoke | Proposed, требует `human_review` | `docs/ai_smart_contracts_integration.md`, ADR-004 |
+| Fabric вводится как доказательный ledger-слой | Proposed | ADR-004 |
+| EventJournal и Fabric связываются через `correlation_id` / `fabric_tx_id` | Proposed | ADR-005 |
+| Fabric E2E сначала manual/nightly, blocking gate только после решения PR-E3 | Proposed | ADR-008 |
+
+### Новые артефакты
+
+| Артефакт | Назначение |
+|---|---|
+| `docs/ai_smart_contracts_integration.md` | Концепция, фазы F0-F6, DoR/DoD/AC, VUCA, QA, CCPM, навыки и роли. |
+| `docs/integration/adr/ADR-004-fabric-ledger-scope.md` | Граница Fabric как доказательного ledger-слоя. |
+| `docs/integration/adr/ADR-005-ledger-event-correlation.md` | Связь broker event, EventJournal и Fabric tx. |
+| `docs/integration/adr/ADR-006-fabric-org-and-msp-model.md` | P1 MSP-модель и ограничения `admin` override. |
+| `docs/integration/adr/ADR-007-chaincode-domain-boundaries.md` | Границы доменов chaincode и P1/P2/P3 scope. |
+| `docs/integration/adr/ADR-008-fabric-ci-mode.md` | Режимы `fabric-fast`, `fabric-smoke`, `fabric-full` и skip/fail policy. |
+| `docs/integration/adr/ADR-009-ledger-data-privacy.md` | Privacy, private data и on-chain/off-chain граница. |
+| `docs/integration/fabric_traceability_matrix.md` | Рабочая матрица requirement -> method -> event -> test -> evidence. |
+| `docs/integration/issues/ISSUE-PR-E3-fabric-e2e-mode.md` | Issue-шаблон решения PR-E3: manual-only, nightly или blocking. |
+| `docs/integration/fabric_agent_task_packages.md` | Issue-scoped пакеты для Fabric-агентов и readiness gates. |
+| `docs/lab_works/fabric_contract_review_lab.md` | Лабораторная ревизии Fabric-контрактов и доказательности. |
+
+### Новые task_type в registry
+
+| `task_type` | Для чего |
+|---|---|
+| `fabric_chaincode_contracts` | Chaincode, MSP-роли, endorsement policy, state machine, negative tests. |
+| `ledger_eventjournal_traceability` | Трассировка broker event -> EventJournal -> Fabric tx -> pytest evidence. |
+| `fabric_e2e_sdet` | Fabric unit/mock/smoke/full E2E и flake/skip policy. |
+| `fabric_devops_cicd` | Fabric network, proxy health, ports/env, PR-E3 CI/manual decision. |
+| `contract_lab_design` | Учебные лабораторные по Fabric, broker contracts и EventJournal. |
+| `ledger_privacy_review` | On-chain/off-chain граница, secrets, private data и generated crypto. |
+
+### Новые agent profiles
+
+| Агент | Роль |
+|---|---|
+| `fabric-chaincode-engineer` | Chaincode contracts, MSP role checks, unit/negative tests. |
+| `ledger-integration-architect` | Fabric Proxy / Ledger Gateway / EventJournal boundary и ADR. |
+| `fabric-devops-cicd-steward` | CI/manual/nightly profiles, readiness, cleanup, evidence. |
+| `eventjournal-traceability-sdet` | Evidence chain и pytest traceability. |
+| `fabric-lab-instructor` | Labs, rubrics, troubleshooting, student evidence. |
+| `ledger-privacy-reviewer` | Privacy, private data, secrets, generated crypto hygiene. |
+
+### Ближайшие действия по PR-E3
+
+1. **P0:** выполнить contract review `docs/smart_contracts.md`: методы, роли, args, E2E 14 steps.
+2. **P0:** принять `human_review` по ADR-004/005/008.
+3. **P1:** добавить матрицу `requirement -> method -> event -> test -> evidence`.
+4. **P1:** подготовить fast checks без Fabric-сети: mapping, mock proxy, schema validation.
+5. **P2:** переводить Fabric smoke в nightly только после детерминированного startup и cleanup.
+
 ---
 
-*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.4 — PR-E1 complete (`master` @ `8132c19`); Phase C economics master pushed.*
+*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.6 — добавлен активный VUCA-спринт по Fabric smart contracts, ADR, skills, agent profiles и registry routes.*
