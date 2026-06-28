@@ -1,4 +1,4 @@
-.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test ci-config-check docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local e2e-mqtt-up e2e-mqtt-test e2e-mqtt-down e2e-mqtt jenkins-up jenkins-down jenkins-restart jenkins-logs jenkins-ps jenkins-preflight jenkins-apply-jobs jenkins-jobs-verify jenkins-reload-casc jenkins-build-unit jenkins-build-integration jenkins-build-e2e jenkins-build-agrodron-security-monitor jenkins-build-dummy-fabric-unit jenkins-build-phase0-smoke ports-check smart-contract-init smart-contract-up smart-contract-down e2e-smart-contracts-test e2e-smart-contracts
+.PHONY: help init unit-test tests test-dummy-fabric ci-unit-test ci-integration-test ci-test ci-config-check ci-recovery-check docker-up docker-down docker-logs docker-ps docker-clean prepare-multi e2e-up e2e-test e2e-logs e2e-down e2e e2e-codespace e2e-local e2e-mqtt-up e2e-mqtt-test e2e-mqtt-down e2e-mqtt jenkins-up jenkins-down jenkins-restart jenkins-logs jenkins-ps jenkins-preflight jenkins-apply-jobs jenkins-jobs-verify jenkins-reload-casc jenkins-build-unit jenkins-build-integration jenkins-build-e2e jenkins-build-agrodron-security-monitor jenkins-build-dummy-fabric-unit jenkins-build-phase0-smoke ports-check smart-contract-init smart-contract-up smart-contract-down e2e-smart-contracts-test e2e-smart-contracts
 
 PROJECT_ROOT := $(CURDIR)
 DOCKER_COMPOSE = docker compose -f docker/docker-compose.yml --env-file docker/.env
@@ -59,6 +59,7 @@ help:
 	@echo "make jenkins-apply-jobs           - JCasC reload + проверка job в UI"
 	@echo "make ports-check                  - Реестр портов local/jenkins (docs/ports.md)"
 	@echo "make ci-config-check              - ports-check + phase0-smoke structural"
+	@echo "make ci-recovery-check            - Wave 2 CI recovery checklist (optional WAIT=1)"
 
 init:
 	@command -v pipenv >/dev/null 2>&1 || pip install pipenv
@@ -141,6 +142,9 @@ ci-test: ci-unit-test ci-integration-test
 ci-config-check: ports-check phase0-smoke
 	@python3 scripts/check_jenkins_e2e_makefile.py
 	@test -f $(JENKINS_DIR)/.env && $(MAKE) jenkins-preflight || true
+
+ci-recovery-check:
+	@bash scripts/ci_recovery_wave2_checklist.sh
 
 ports-check:
 	@test -f docs/ports.md
