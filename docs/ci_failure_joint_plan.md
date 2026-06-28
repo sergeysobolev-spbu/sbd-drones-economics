@@ -1,4 +1,4 @@
-<!-- doc-meta: status=active version=1.0 updated=2026-06-28 audience=internal -->
+<!-- doc-meta: status=active version=1.1 updated=2026-06-28 -->
 
 # Совместный план восстановления Jenkins CI/CD и развития агентов
 
@@ -19,7 +19,7 @@
 
 ### 1. DevOps / CI (`ci-marinet-steward`, `platform-ci-jenkins`, `skill_devops_broker_cicd`, `skill_fabric_devops_cicd`)
 
-Инфраструктурный контур отвечает за **детерминированность** стенда: JCasC создаёт job, но **не подхватывает** новый `Jenkinsfile` без `make jenkins-apply-jobs`; volume `jenkins_home` сохраняет старое состояние UI. Профили портов разведены (`config/e2e_ports.local.env` ↔ `config/e2e_ports.jenkins.env`), однако таргет **`make e2e-codespace` не использует `E2E_ENV`**: readiness-циклы и дописывание `.env` жёстко привязаны к local-портам (`8081`, `8088`, `9092`), тогда как `Jenkinsfile.e2e` задаёт `E2E_RUN_MODE=jenkins` и jenkins-диапазон (`10801`, `19092`, …). Это **контрактный разрыв** между pipeline и Makefile — наиболее вероятная причина red `drone-e2e` даже при корректном `prepare_multi.py`.
+Инфраструктурный контур отвечает за **детерминированность** стенда: JCasC создаёт job, но **не подхватывает** новый `Jenkinsfile` без `make jenkins-apply-jobs`; volume `jenkins_home` сохраняет старое состояние UI. Профили портов разведены (`config/e2e_ports.local.env` ↔ `config/e2e_ports.jenkins.env`); таргет **`make e2e-codespace`** протягивает `E2E_RUN_MODE` через `$(E2E_ENV)` (проверка: `scripts/check_jenkins_e2e_makefile.py` в `make ci-config-check`); эмуляция Jenkins на хосте: **`make e2e-jenkins-core`**. Остающийся риск — fallback URL в wait-циклах при неполной загрузке профиля (см. P0-SM4 в [ci_recovery_orchestration.md](ci_recovery_orchestration.md)).
 
 Общие точки отказа всех job: checkout из **удалённого** `GIT_REPO_URL` (gitflic) при незапушенных локальных правках; `git submodule update --init --recursive`; отсутствие `docker.sock` / compose на агенте; коллизии портов при `disableConcurrentBuilds` = false на соседних job (частично снято для e2e/phase0-smoke).
 

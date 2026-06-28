@@ -1,4 +1,4 @@
-<!-- doc-meta: status=active version=1.0 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.1 updated=2026-06-28 -->
 
 # Оркестрация восстановления Jenkins CI/CD (sbd-drones-economics)
 
@@ -177,9 +177,8 @@ Wave 2 coding-пакет **может** стартовать с `APPLY=1`, ко�
 
 Wave 2 **не** считается завершённой без:
 
-- `E2E_RUN_MODE=jenkins make e2e-codespace` green на хосте (оба репо) **или** HR-4 defer с issue;
-- **HR-2** merge sign-off;
-- sync Makefile fragment идентичен в `-economics` и `-ai`.
+- `make e2e-jenkins-core` green на хосте **или** HR-4 defer с issue;
+- **HR-2** merge sign-off.
 
 ---
 

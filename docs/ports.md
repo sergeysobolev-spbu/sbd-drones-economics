@@ -1,10 +1,10 @@
-<!-- doc-meta: status=active version=1.0 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.1 updated=2026-06-28 -->
 
 # Реестр публичных портов E2E и CI
 
 Канонические профили: `config/e2e_ports.local.env` (локальный `make e2e`) и `config/e2e_ports.jenkins.env` (Jenkins pipeline с `E2E_RUN_MODE=jenkins`). Числовые значения **local** и **jenkins** не пересекаются.
 
-Проверка: `make ports-check`.
+Проверка: `make ports-check` (`scripts/check_ports_registry.py`).
 
 ## Брокер (хост)
 

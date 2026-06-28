@@ -2,7 +2,7 @@
 
 # Рубрика и чек-лист: CI literacy для агентов и студентов ПИКС
 
-**Назначение:** оценивать зрелость работы с CI/CD контура `sbd-drones-economics` / `-ai`.  
+**Назначение:** оценивать зрелость работы с CI/CD контура `sbd-drones-economics`.  
 **Skill агента:** `skill_course_educator_platform`, `skill_agent_zun_development`.  
 **Связь:** [lab_ci_failure_triage.md](lab_ci_failure_triage.md), [ci_agent_upskilling_plan.md](../ci_agent_upskilling_plan.md).
 
@@ -21,7 +21,7 @@
 |---|---|---|---|
 | Профили портов local/jenkins | знает, что файлы разные | `make ports-check`; читает `e2e_ports.*.env` | объясняет H1 и ADR-004; находит hardcode в Makefile |
 | JCasC lifecycle | знает, что job из yaml | `make jenkins-apply-jobs`, `jenkins-jobs-verify` | диагностирует stale volume / missing job (H2) |
-| SCM preflight | видит Checkout fail | `make jenkins-preflight` | связывает GIT_BRANCH с remote; класс scm |
+| SCM preflight | видит Checkout fail | `make jenkins-preflight` | связывает GIT_BRANCH с remote; pin субмодулей; класс scm |
 | Тип gate | unit vs e2e | `make ci-config-check` vs `e2e-codespace` | gate table + Jenkins smoke requirement |
 | skip / xfail / fail | видит skip в логе | считает mandatory skip budget | E2E-2 policy; не soft-green |
 | Evidence | скачивает console log | JUnit + compose log + class | полный evidence bundle; pivot без early exit |
@@ -33,9 +33,8 @@
 - [ ] `make jenkins-preflight` (если remote SCM)
 - [ ] `make jenkins-apply-jobs` + `make jenkins-jobs-verify` после casc change
 - [ ] `make ports-check` после изменения портов
-- [ ] `E2E_RUN_MODE=jenkins` emulation для e2e Makefile changes
-- [ ] Fix синхронизирован в `-economics` и `-ai` (если зеркало)
-- [ ] Документация: `jenkins.md`, `ports.md`, ADR при contract change
+- [ ] `E2E_RUN_MODE=jenkins` emulation: `make e2e-jenkins-core`
+- [ ] Документация: `jenkins.md`, `build_and_test.md`, `ports.md`, ADR при contract change
 - [ ] **Не** claim complete без минимум одного Jenkins smoke evidence
 
 ## Чек-лист агента QA (`qa-marinet-spec`) — regression gate

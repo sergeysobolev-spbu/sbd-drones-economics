@@ -114,12 +114,16 @@ make docker-up
 
 Подробнее: [docs/smart_contracts.md](smart_contracts.md)
 
-## Тесты 
-- make e2e-local/e2e-codespace (Запуск e2e тестов одной командой сразу включая клонирование репозиториев и установку зависимостей с ELK/без ELK)
+## Тесты и CI
 
-- make ci-unit-test Запускает все unit тесты систем
+Подробное руководство: [build_and_test.md](build_and_test.md), Jenkins: [jenkins.md](jenkins.md).
 
-- make ci-integration-test Запускает все интеграционные тесты систем (ищет в Makefile)
+- `make ci-config-check` — structural gate (порты, phase0-smoke, preflight-скрипты)
+- `make ci-unit-test` — все unit-тесты систем
+- `make ci-integration-test` — интеграционные тесты (ищет target в Makefile систем)
+- `make e2e-local` / `make e2e-codespace` — полный E2E одной командой
+- `make e2e-jenkins-core` — E2E с профилем jenkins-портов
+- `make jenkins-up` → `make jenkins-build-phase0-smoke WAIT=1` — локальный Jenkins
 
 ## Troubleshooting
 

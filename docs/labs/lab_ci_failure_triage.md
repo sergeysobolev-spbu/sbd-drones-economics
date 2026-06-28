@@ -1,4 +1,4 @@
-<!-- doc-meta: status=active version=1.0 updated=2026-06-28 audience=teaching -->
+<!-- doc-meta: status=active version=1.1 updated=2026-06-28 -->
 
 # Лабораторная работа (фрагмент): разбор CI-отказа
 
@@ -20,7 +20,7 @@
 
 ## Сценарий (на основе инцидента 2026-06-28)
 
-Преподаватель показывает ситуацию: **локально** `make ci-config-check` — OK; **все** job `drone-*` в Jenkins — red на стадии Checkout.
+Преподаватель показывает ситуацию: **локально** `make ports-check` и `make phase0-smoke` — OK; **`make ci-config-check`** может падать на `check_jenkins_submodule_pins`; **все** job `drone-*` в Jenkins — red на стадии Checkout или Submodule.
 
 ### Шаг 1 — Наблюдение (10 мин)
 
@@ -36,7 +36,10 @@
 cd /path/to/sbd-drones-economics
 make ci-config-check
 make jenkins-preflight   # при наличии ci/jenkins/.env
+bash scripts/check_jenkins_submodule_pins.sh   # отдельно, если preflight не настроен
 ```
+
+Если `check_jenkins_submodule_pins: FAIL` — класс **scm**, playbook в [jenkins.md](../jenkins.md#playbook-commit-не-на-remote-not-our-ref). Канарейка `drone-phase0-smoke` может быть green без init субмодулей.
 
 Сопоставить вывод с [rubric_ci_literacy_agents.md](rubric_ci_literacy_agents.md) (L2).
 
@@ -44,9 +47,9 @@ make jenkins-preflight   # при наличии ci/jenkins/.env
 
 1. Прочитать [ADR-004](../integration/adr/ADR-004-ci-port-profile-propagation.md) — C2 view.
 2. Сравнить `AGREGATOR_PORT` в `config/e2e_ports.local.env` и `config/e2e_ports.jenkins.env`.
-3. Выполнить `grep -n '8081\|10801' Makefile` — найти hardcode (учебный кейс H1).
+3. Выполнить `make e2e-jenkins-core` или `E2E_RUN_MODE=jenkins make e2e-codespace` — эмуляция `drone-e2e`.
 
-**Вывод:** Jenkinsfile ждёт jenkins-порт; Makefile wait — local → **infra/readiness**, не product bug.
+**Вывод:** профили local и jenkins разведены; при red e2e после green structural — классифицировать **infra/readiness** vs **product**.
 
 ### Шаг 4 — Evidence bundle (10 мин)
 
@@ -58,7 +61,7 @@ make jenkins-preflight   # при наличии ci/jenkins/.env
 | Stage | e2e-codespace |
 | Class | infra / readiness |
 | Hypothesis | H1 |
-| Verification | `E2E_RUN_MODE=jenkins make e2e-codespace` |
+| Verification | `make e2e-jenkins-core` |
 
 ### Шаг 5 — Рефлексия (5 мин)
 

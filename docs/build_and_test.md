@@ -1,10 +1,25 @@
 # Сборка, тесты и Jenkins локально
 
-<!-- doc-meta: status=active version=1.2 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.3 updated=2026-06-28 -->
 
 Руководство для нового окружения: зависимости, субмодули, Docker, автотесты и Jenkins (`ci/jenkins/`).
 
 См. также: [jenkins.md](jenkins.md), [ports.md](ports.md), [integration-phase0-compose.md](integration-phase0-compose.md).
+
+## Быстрый старт: окружение и автотесты
+
+| Контур | Команды | Профиль портов |
+|--------|---------|----------------|
+| **Минимальный gate (без Docker)** | `make init` → `make ci-config-check` | local (structural) |
+| **Unit + integration** | `make ci-test` | local |
+| **Phase 0 structural (T14)** | `make phase0-smoke` | local, без стека |
+| **Phase 0 runtime** | `make e2e-up` → `make phase0-smoke-full` | `E2E_RUN_MODE=local` |
+| **Полный E2E** | `make e2e-codespace` или `make e2e-local` | local |
+| **E2E как в Jenkins** | `make e2e-jenkins-core` | `E2E_RUN_MODE=jenkins` |
+| **Jenkins + канарейка** | `make jenkins-up` → `make jenkins-preflight` → `make jenkins-build-phase0-smoke WAIT=1` | jenkins для pipeline |
+| **Wave 2 recovery** | `make ci-recovery-check` (опционально `WAIT=1`) | оба профиля |
+
+`make ci-config-check` выполняет: `ports-check`, `phase0-smoke`, `scripts/check_jenkins_e2e_makefile.py`, `scripts/check_jenkins_submodule_pins.sh`, и при наличии `ci/jenkins/.env` — `jenkins-preflight`. Подробности preflight и playbook «commit не на remote»: [jenkins.md](jenkins.md#preflight-ветка-scm-и-pin-субмодулей).
 
 ## Требования
 
@@ -50,9 +65,13 @@ make init
 | `make ci-unit-test` | Unit-тесты по всем `components/*/tests` и системам (`test_*unit*.py`) |
 | `make ci-integration-test` | Интеграционные тесты систем (docker/pytest по Makefile систем) |
 | `make ci-test` | `ci-unit-test` + `ci-integration-test` |
-| `make phase0-smoke` | Smoke phase 0 (T14): structural checks в `tests/e2e/test_phase0_smoke.py` |
-| `make ci-config-check` | `ports-check` + `phase0-smoke` (быстрый CI gate без Docker) |
-| `make ports-check` | Реестр портов `config/e2e_ports.*.env` ↔ `docs/ports.md` |
+| `make phase0-smoke` | Smoke phase 0 (T14): structural checks (`-k Structure`, без Docker) |
+| `make phase0-smoke-full` | T14 runtime: полный `-m phase0_smoke`, нужен поднятый стек |
+| `make ci-config-check` | Structural CI gate: `ports-check` + `phase0-smoke` + `check_jenkins_e2e_makefile.py` + `check_jenkins_submodule_pins.sh` + опционально `jenkins-preflight` |
+| `make ci-recovery-check` | Wave 2 checklist: `scripts/ci_recovery_wave2_checklist.sh` (`WAIT=1` — канарейка Jenkins) |
+| `make ports-check` | Реестр портов `config/e2e_ports.*.env` ↔ `docs/ports.md` (`scripts/check_ports_registry.py`) |
+| `make e2e-jenkins-core` | `E2E_RUN_MODE=jenkins make e2e-codespace` — эмуляция `drone-e2e` на хосте |
+| `make jenkins-preflight` | `check_jenkins_env.sh` + `check_jenkins_submodule_pins.sh` |
 
 ### Ворота CI / профили тестов (gate table)
 
@@ -77,12 +96,15 @@ Sprint autonomy (QA/DevOps): time-boxed спринты с E2E-целями не 
 | `make e2e-test` | `pytest tests/e2e/` |
 | `make e2e-down` | Остановка E2E-окружения |
 | `make e2e` | `e2e-up` → `e2e-test` → логи → `e2e-down` |
-| `make jenkins-up` | Jenkins в Docker (`ci/jenkins/`), JCasC, `jenkins-apply-jobs` |
-| `make jenkins-apply-jobs` | JCasC reload + проверка job в UI |
-| `make jenkins-build-unit WAIT=1` | Триггер job `drone-unit` и ожидание результата |
-| `make jenkins-build-phase0-smoke WAIT=1` | Триггер job `drone-phase0-smoke` |
+| `make jenkins-up` | Jenkins в Docker (`ci/jenkins/`), volume `drones_jenkins_home`, JCasC |
+| `make jenkins-apply-jobs` | `jenkins-preflight` + JCasC reload + проверка job в UI |
+| `make jenkins-jobs-verify` | Сверка job в UI с `ci/jenkins/jobs.canonical.txt` (без reload) |
+| `make jenkins-build-unit WAIT=1` | Триггер job `drone-unit` |
+| `make jenkins-build-integration WAIT=1` | Триггер job `drone-integration` |
+| `make jenkins-build-e2e WAIT=1` | Триггер job `drone-e2e` |
+| `make jenkins-build-phase0-smoke WAIT=1` | Триггер job `drone-phase0-smoke` (канарейка, без submodule init) |
 
-Локально без Jenkins: **`make e2e`** или **`make ci-test`**. Jenkins: **`make jenkins-up`**, затем job из [jenkins.md](jenkins.md).
+Локально без Jenkins: **`make e2e`** или **`make ci-test`**. Jenkins: [jenkins.md](jenkins.md) — быстрый старт и preflight.
 
 Брокер: `make docker-up` (`docker/.env` из `docker/example.env`).
 
@@ -92,9 +114,11 @@ Sprint autonomy (QA/DevOps): time-boxed спринты с E2E-целями не 
 
 ```bash
 make jenkins-up
+make jenkins-preflight     # GIT_BRANCH + pin субмодулей
 make jenkins-apply-jobs    # после правки casc.yaml
 make ports-check           # local vs jenkins порты
-make jenkins-build-unit WAIT=1
+make ci-recovery-check     # Wave 2 structural gates
+WAIT=1 make jenkins-build-phase0-smoke WAIT=1   # канарейка
 ```
 
 E2E из Jenkins использует `E2E_RUN_MODE=jenkins` и порты из `config/e2e_ports.jenkins.env` (не пересекаются с local).

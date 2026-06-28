@@ -84,7 +84,7 @@
 | Компонент | Описание |
 |-----------|----------|
 | `systems/uas_dev_company/` | UAS Dev Company: certification, registry, purchase, Nuxt UI, Playwright |
-| `ci/jenkins/` | JCasC: 5 job (`drone-unit`, `drone-integration`, `drone-e2e`, …) |
+| `ci/jenkins/` | JCasC: 6 job (`drone-unit`, `drone-integration`, `drone-e2e`, `drone-phase0-smoke`, …) |
 | `tests/e2e/test_e2e_scenario.py` | Полный Kafka-сценарий; **29 `pytest.skip`** при неготовности контейнеров |
 | `make e2e-codespace` | CI-путь E2E без DroneAnalytics (`E2E_SKIP_ANALYTICS=1`) |
 | `make e2e-mqtt-*` | Экспериментальный dual-transport E2E |
@@ -640,7 +640,7 @@ flowchart LR
 
 Совместный план DevOps / QA / SE / Architect / Educator / Orchestrator на восстановление Jenkins CI после массового red всех pipeline. Ключевая гипотеза P0: **`make e2e-codespace` не протягивает `E2E_RUN_MODE=jenkins`** в readiness/preflight (hardcode local-портов 8081/9092 при jenkins compose на 10801/19092).
 
-**Ближайшие шаги:** Wave 1 parallel (DevOps RCA, educator skills, `make ci-recovery-check`) → HR-1/HR-6 → Wave 2 `ci-recovery-e2e-profile` → Wave 3 matrix 6 job.
+**Ближайшие шаги:** Wave 1 parallel (DevOps RCA, educator skills, `make ci-recovery-check`) → HR-1/HR-6 → Wave 2 `ci-recovery-e2e-profile` → Wave 3 matrix 6 job. Окружение и gates: [build_and_test.md](build_and_test.md), [jenkins.md](jenkins.md).
 
 ---
 
