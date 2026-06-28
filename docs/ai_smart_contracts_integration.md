@@ -166,7 +166,7 @@ flowchart LR
 | ПБ-FAB-5 | ПБ | On-chain не записываются чувствительные данные без privacy review. | `ledger-privacy-reviewer` | ADR-009, data classification | draft |
 | ПБ-FAB-6 | ПБ | Sensitive data хранится off-chain, как hash/reference или private data только после review. | Privacy + owner ОП | Privacy checklist | draft |
 
-### 6.2. Security assumptions
+### 6.3. Security assumptions
 
 | ID | Предположение |
 |---|---|
@@ -177,7 +177,7 @@ flowchart LR
 | ПБ-FAB-5 | On-chain не записываются персональные, коммерчески чувствительные и секретные данные без privacy review. |
 | ПБ-FAB-6 | Для sensitive data используются off-chain ссылки, хэши или private data collections с явными endorsement policies. |
 
-### 6.3. Доверенная граница
+### 6.4. Доверенная граница
 
 По умолчанию Fabric предлагается как **D1/D2 evidence component**, а не D0/TCB. Включение `Ledger Gateway`, `Fabric Proxy`, peers/orderer или chaincode в доверенную базу конкретной цели безопасности требует отдельного `human_review` и тестовой базы.
 
@@ -200,6 +200,18 @@ flowchart LR
 | Фальсификация допуска к полёту | ПБ-FAB-3 | Разрешение ОрВД | `OrvdMSP`, P2 contract | `FlightPermissionRequested`, `FlightPermissionApproved` | `test_orvd_only_can_approve_flight_permission` | SE + QA | P2 planned |
 | Финансовый спор | ECO-FAB, ADR-009 | Распределение средств | Off-chain model + optional ledger hash | `FundsDistributed` | `test_distribute_funds_demo_only_after_model_review` | economics owner + privacy reviewer | P2/P3 demo-only |
 | Компрометация роли admin | ПБ-FAB-1 | MSP/attributes | MSP role policy | rejected privileged transaction | `test_wrong_msp_rejected_for_privileged_methods` | `fabric-chaincode-engineer` | planned |
+
+## 7.1. Economic assumptions
+
+| ID | Предположение |
+|---|---|
+| ECO-FAB-1 | Fabric не является платёжной системой; он фиксирует решение, распределение или evidence, но не выполняет расчёт и перечисление денег. |
+| ECO-FAB-2 | Тариф, комиссии, страховая премия, доли участников и налоги считаются off-chain и имеют владельца модели. |
+| ECO-FAB-3 | Недоступность Fabric не останавливает аварийные и операционные функции БАС. |
+| ECO-FAB-4 | Full Fabric E2E до PR-E3 имеет статус manual/nightly; иначе стоимость CI и flaky-риск превышают пользу. |
+| ECO-FAB-5 | On-chain пишутся только минимальные суммы/статусы/хэши/tx id; коммерческие условия и персональные данные остаются off-chain. |
+
+`DistributeFunds` до отдельной финансовой модели имеет статус **demo-only / P2-P3**. Его нельзя трактовать как готовый механизм платежей или расчёта тарифа.
 
 ## 8. Фазы реализации с DoR, DoD и AC
 
@@ -399,6 +411,40 @@ flowchart LR
 - compose/env snapshot без секретов;
 - версии Fabric image, channel, chaincode;
 - traceability: requirement -> contract method -> test node id -> evidence file.
+
+### 10.5. Test matrix
+
+| Уровень | Planned test id / файл | Fixture/profile | Env flag | Gate | Required evidence |
+|---|---|---|---|---|---|
+| Unit mapping | `test_fabric_contract_mapping_unit` | mock gateway | none | `fabric-fast` | JUnit, method/args matrix |
+| Mock proxy | `test_ledger_gateway_handles_proxy_errors` | fake HTTP proxy | none | `fabric-fast` | JUnit, error envelope cases |
+| Fabric smoke | `test_fabric_proxy_health_and_query` | Fabric proxy + network | `RUN_FABRIC_SMOKE=1` | nightly/manual | health logs, query snapshot |
+| Full `dummy_fabric` | `test_dummy_fabric_full_order_workflow` | Fabric network + 5 proxies | `RUN_FABRIC_E2E=1` | manual/full | tx ids, final `ReadOrder`, logs |
+| Dual-write | `test_business_event_writes_eventjournal_and_ledger` | business stack + ledger | `ENABLE_FABRIC_LEDGER=true` | release candidate | EventJournal excerpt + tx ids |
+| Negative MSP | `test_wrong_msp_rejected_for_privileged_methods` | mock/Fabric | per mode | fast/full | rejected transaction evidence |
+
+### 10.6. Skip/xfail registry format
+
+| Поле | Обязательное значение |
+|---|---|
+| `node_id` | pytest node id или planned id |
+| `mode` | `fabric-fast`, `fabric-smoke`, `fabric-full`, `dual-write` |
+| `status` | `skip`, `xfail`, `hard_fail`, `manual_defer` |
+| `reason` | infra, product, contract, test bug, scope, external |
+| `owner` | роль или человек-владелец |
+| `review_date` | дата пересмотра |
+| `remove_condition` | условие снятия skip/xfail |
+
+Правило: при `RUN_FABRIC_E2E=1` недоступный Fabric/proxy/orderer и mandatory skip считаются hard fail.
+
+### 10.7. CI/manual split acceptance
+
+| Mode | Acceptance |
+|---|---|
+| `fabric-fast` | Не требует Fabric-сети, не имеет runtime skip, ловит method/args/schema regressions. |
+| `fabric-smoke` | Имеет bounded readiness, proxy health, один invoke/query и cleanup. |
+| `fabric-full` | Сохраняет evidence bundle, tx ids, final query и список skipped/xfail. |
+| `release-blocking` | Включается только для изменений chaincode/proxy/gateway/MSP/ledger schema после `human_review`. |
 
 ## 11. Навыки, которые нужно добавить или усилить
 
