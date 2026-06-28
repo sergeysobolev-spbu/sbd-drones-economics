@@ -41,7 +41,7 @@ pipeline {
         stage('Phase 0 smoke (structural)') {
             agent {
                 docker {
-                    image 'python:3.11'
+                    image 'python:3.12'
                     args '-u root'
                     reuseNode true
                 }
