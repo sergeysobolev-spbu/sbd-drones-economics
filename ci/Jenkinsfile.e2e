@@ -21,11 +21,17 @@ pipeline {
         COMPOSE_DOCKER_CLI_BUILD = '1'
         COMPOSE_PARALLEL_LIMIT = '4'
         E2E_WARMUP_SECONDS = '180'
-        AGREGATOR_URL = 'http://host.docker.internal:8081'
-        REGULATOR_URL = 'http://host.docker.internal:8088'
-        ANALYTICS_URL = 'http://host.docker.internal:8090'
-        KAFKA_BOOTSTRAP_SERVERS = 'host.docker.internal:9092'
+        E2E_RUN_MODE = 'jenkins'
+        AGREGATOR_URL = 'http://host.docker.internal:10801'
+        REGULATOR_URL = 'http://host.docker.internal:10808'
+        ANALYTICS_URL = 'http://host.docker.internal:10990'
+        KAFKA_BOOTSTRAP_SERVERS = 'host.docker.internal:19092'
         KAFKA_ADVERTISED_HOST = 'host.docker.internal'
+        KAFKA_PORT = '19092'
+        KAFKA_INTERNAL_PORT = '39092'
+        AGREGATOR_PORT = '10801'
+        REGULATOR_PORT = '10808'
+        ANALYTICS_PORT = '10990'
     }
 
     stages {
