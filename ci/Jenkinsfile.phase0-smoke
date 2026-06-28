@@ -55,7 +55,7 @@ pipeline {
                         python3 -m pip install --user pipenv
                     fi
                     export PATH="$HOME/.local/bin:$PATH"
-                    pipenv install --dev
+                    pipenv install --dev --python "$(which python3)"
                     make phase0-smoke
                 '''
             }
