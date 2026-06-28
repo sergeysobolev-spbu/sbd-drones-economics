@@ -1,0 +1,204 @@
+@startuml 01-customer-aggregator-receive_order
+title Заказчик → Агрегатор: `receive_order`
+
+actor "Заказчик" as Заказчик
+participant "Агрегатор" as Агрегатор
+
+Заказчик -> Агрегатор: receive_order(order + scenario_security_goals)
+Агрегатор -> Агрегатор: формирует order_security_goals\n(по правилам v2.0, покрытие)
+Агрегатор --> Заказчик: response(status + order_security_goals)
+@enduml
+
+@startuml 02-aggregator-operator-receive_order-proposal
+title Агрегатор → Эксплуатант(ы): запрос предложений (proposal_request)
+
+participant "Агрегатор" as Агрегатор
+participant "Эксплуатант(ы)" as Эксплуатанты
+participant "Дронопорт(ы)" as Дронопорты
+participant "Страховщики" as Страховщики
+autonumber
+
+Агрегатор -> Эксплуатанты: proposal_request(order + order_security_goals)\n(рассылка множеству эксплуатантов)
+loop для каждого Эксплуатанта
+  Эксплуатанты -> Дронопорты: запрос доступных БАС\n(локация + доступность для задачи)
+  Дронопорты --> Эксплуатанты: available_uas + готовность
+  Эксплуатанты -> Страховщики: request_insurance_quote(mission_candidate + selected_uas + order_security_goals)
+  Страховщики --> Эксплуатанты: insurer_quote(quote + coverage + premium)
+  Эксплуатанты --> Агрегатор: response(proposal + applied_security_goals + total_cost)
+end
+@enduml
+
+@startuml 03-operator-insurer-request_insurance_quote
+title Эксплуатант → Страховщик: `request_insurance_quote`
+
+participant "Эксплуатант" as Эксплуатант
+participant "Страховщик" as Страховщик
+
+Эксплуатант -> Страховщик: request_insurance_quote(mission + order_security_goals)
+Страховщик --> Эксплуатант: response(quote_id + premium + coverage + valid_until)
+@enduml
+
+@startuml 04-operator-developers-purchase_uas
+title Эксплуатант → Разработчики: покупка БАС (опционально)
+
+participant "Эксплуатант" as Эксплуатант
+participant "Разработчик БАС" as Разработчик
+
+alt если собственных БАС недостаточно
+  Эксплуатант -> Разработчик: purchase_uas(model_id + quantity + order_security_goals)
+  Разработчик --> Эксплуатант: response(purchased_uas)
+else если БАС уже доступны у эксплуатанта
+  Эксплуатант -> Эксплуатант: выбор из собственного парка\n(по данным Дронопорта)
+end
+@enduml
+
+@startuml 05-operator-droneportgcs-mission_config
+title Эксплуатант ↔ Дронопорт(ы): доступность БАС и подготовка dispatch
+
+participant "Эксплуатант" as Эксплуатант
+participant "Дронопорт(ы)" as Дронопорты
+participant "Дронопорт (выбранный)" as Дронопорт
+
+Эксплуатант -> Дронопорты: запрос доступных БАС\n(локация + требования задачи)
+Дронопорты --> Эксплуатант: response(available_uas + статусы готовности)
+
+Эксплуатант -> Дронопорт: prepare_dispatch(mission_id + uas_id)\n(физический допуск на вылет выполняется после проверки ОрВД)
+Дронопорт --> Эксплуатант: response(dispatch_ready=true)
+@enduml
+
+@startuml 06-operator-nus-mission_details
+title Эксплуатант ↔ НУС: формирование деталей миссии
+
+participant "Эксплуатант" as Эксплуатант
+participant "НУС" as НУС
+
+Эксплуатант -> НУС: mission_planning(order + order_security_goals + selected_uas)
+НУС --> Эксплуатант: response(mission_details + mission_security_goals + идентификаторы)\nили response(failure)
+@enduml
+
+@startuml 07-nus-agrodrone-agro_mission_choice
+title НУС → Агро-дрон: передача миссии для выбранного БАС
+
+participant "НУС" as НУС
+participant "Агро-дрон" as АгроДрон
+
+НУС -> АгроДрон: agro_mission_received(mission_details + selected_uas)\n(выбор UAS выполнен на стороне Эксплуатанта)
+АгроДрон -> АгроДрон: выполнение агро-миссии\n(без выбора БАС)
+АгроДрон --> НУС: response(mission_ready=true)
+@enduml
+
+@startuml 08-agrodrone-sitl-montecarlo
+title Агро-дрон ↔ СИТЛ: моделирование в контуре
+
+participant "Агро-дрон" as АгроДрон
+participant "СИТЛ (контур моделирования)" as СИТЛ
+
+АгроДрон -> СИТЛ: sitl_simulate(mission_id + scenario)
+СИТЛ --> АгроДрон: response(simulation_result)
+@enduml
+
+@startuml 09-operator-atm-validate_mission
+title Эксплуатант ↔ ОрВД БАС (ATM): согласование миссии и допуск на вылет
+
+participant "Эксплуатант" as Эксплуатант
+participant "ОрВД БАС (ATM)" as ОрВД
+participant "Агрегатор" as Агрегатор
+participant "Дронопорт (выбранный)" as Дронопорт
+participant "Агро-дрон (БАС)" as АгроДрон
+autonumber
+
+Эксплуатант -> ОрВД: validate_mission(mission_details + mission_security_goals)
+
+alt одобрено (approved=true)
+  ОрВД --> Эксплуатант: response(approved=true + mission_id)
+  Эксплуатант -> Эксплуатант: оплачивает страховку миссии\n(insurance_payment_id)
+  АгроДрон -> ОрВД: request_takeoff_permission(mission_id + uas_id + insurance_payment_id)
+  ОрВД -> ОрВД: проверка: миссия согласована + страховка оплачена
+  ОрВД --> АгроДрон: takeoff_permission(approved + mission_id)\n(разрешение на вылет)
+  ОрВД -> Дронопорт: allow_takeoff(mission_id + uas_id)
+  АгроДрон -> Дронопорт: check_droneport_ready(mission_id + uas_id)\n(готовность физически выпустить БАС)
+  Дронопорт --> АгроДрон: response(takeoff_allowed=true)
+else отклонено
+  ОрВД --> Эксплуатант: response(rejection + rejected_by_security_goals + reason_code)
+  Эксплуатант --> Агрегатор: response(error/rejection)
+end
+@enduml
+
+@startuml 10-e2e-agro-drone
+title Сквозной сценарий: агро-дрон (полный цикл с предложениями, страховкой и допуском на вылет)
+
+autonumber
+
+actor "Заказчик" as Заказчик
+participant "Агрегатор" as Агрегатор
+participant "Эксплуатант(ы)" as Эксплуатанты
+participant "Эксплуатант (выбранный)" as Эксплуатант
+participant "Дронопорт(ы)" as Дронопорты
+participant "Дронопорт (выбранный)" as Дронопорт
+participant "Страховщики" as Страховщики
+participant "НУС" as НУС
+participant "ОрВД БАС (ATM)" as ОрВД
+participant "Агро-дрон (БАС)" as АгроДрон
+participant "СИТЛ" as СИТЛ
+
+== Этап 1: заказ, рассылка запросов предложений ==
+Заказчик -> Агрегатор: receive_order(order + scenario_security_goals)
+Агрегатор -> Агрегатор: формирует order_security_goals\n(слой Заказчика + константы Агрегатора)
+Агрегатор --> Заказчик: response(status + order_security_goals)
+
+Агрегатор -> Эксплуатанты: proposal_request(order + order_security_goals)\n(рассылка множеству эксплуатантов)
+loop для каждого Эксплуатанта
+  Эксплуатанты -> Дронопорты: запрос доступных БАС\n(локация + доступность для задачи)
+  Дронопорты --> Эксплуатанты: response(available_uas + готовность)
+  Эксплуатанты -> Страховщики: request_insurance_quote(mission_candidate + selected_uas + order_security_goals)
+  Страховщики --> Эксплуатанты: insurer_quote(quote + coverage + premium)
+  Эксплуатанты --> Агрегатор: response(proposal + applied_security_goals + total_cost)
+end
+
+== Этап 2: фильтрация агрегатором и выбор исполнителя ==
+Агрегатор -> Агрегатор: фильтрует предложения\nпо целям безопасности + максимальной стоимости + условиям
+Агрегатор --> Заказчик: response(proposal_options)
+Заказчик -> Агрегатор: select_executor(executor_id)
+Агрегатор -> Эксплуатант: assign_order(order + selected_uas + order_security_goals)
+
+== Этап 3: планирование миссии и согласование ОрВД ==
+Эксплуатант -> НУС: mission_planning(order + order_security_goals + selected_uas)
+НУС -> АгроДрон: agro_mission_received(mission_details + selected_uas)\n(выбор UAS выполнен ранее Эксплуатантом)
+АгроДрон --> НУС: response(mission_ready=true)
+НУС --> Эксплуатант: response(mission_details + mission_security_goals + mission_id)
+
+Эксплуатант -> ОрВД: validate_mission(mission_details + mission_security_goals)
+alt approved=true
+  ОрВД --> Эксплуатант: response(approved=true + mission_id)
+else rejection
+  ОрВД --> Эксплуатант: response(rejection + rejected_by_security_goals + reason_code)
+  Эксплуатант --> Агрегатор: response(error/rejection)
+  Агрегатор --> Заказчик: response(error/rejection)
+end
+
+== Этап 4: оплата страховки и подготовка вылета ==
+Эксплуатант -> Эксплуатант: оплачивает страховку миссии\n(insurance_payment_id)
+Эксплуатант -> Дронопорт: prepare_dispatch(mission_id + selected_uas)\n(ожидается допуск ОрВД на вылет)
+
+== Этап 5: допуск на вылет и фактический вылет ==
+АгроДрон -> ОрВД: request_takeoff_permission(mission_id + uas_id + insurance_payment_id)
+ОрВД -> ОрВД: проверяет: миссия согласована + страховка оплачена
+ОрВД --> АгроДрон: takeoff_permission(approved + mission_id)\n(разрешение на вылет)
+ОрВД -> Дронопорт: allow_takeoff(mission_id + uas_id)
+АгроДрон -> Дронопорт: check_droneport_ready(mission_id + uas_id)\n(готовность физически выпустить БАС)
+Дронопорт --> АгроДрон: response(takeoff_allowed=true)
+
+АгроДрон -> СИТЛ: sitl_simulate(mission_id + scenario)\n(опционально перед вылетом)
+СИТЛ --> АгроДрон: response(simulation_result)
+АгроДрон -> АгроДрон: выполняет вылет по маршруту\n(после допуска Дронопорта)
+
+== Этап 6: завершение миссии, возврат и посадка ==
+АгроДрон -> АгроДрон: завершает миссию\nи возвращается к Дронопорту возврата\n(указанному в согласованной миссии)
+АгроДрон -> Дронопорт: request_landing_permission(mission_id + return_port + landing_site)\n(точные координаты площадки)
+Дронопорт --> АгроДрон: response(landing_allowed=true + landing_coordinates)
+АгроДрон -> АгроДрон: выполняет посадку на landing_coordinates
+
+Эксплуатант --> Агрегатор: response(order_execution_completed)
+Агрегатор --> Заказчик: response(order_execution_completed)
+@enduml
+
