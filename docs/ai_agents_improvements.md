@@ -129,7 +129,7 @@
 - [ ] Commits и test summary table обновлены в [sprint-120min-2026-06-28](ai_dev_tasks.md#sprint-120min-2026-06-28)
 - [ ] Не заявлено «готово» при red integration/e2e без явного sprint scope exception
 
-**Канон:** [sprint-autonomy-policy](ai_dev_tasks.md#sprint-autonomy-policy) в `ai_dev_tasks.md`; skills `platform-validation` / `platform-ci-jenkins` § Sprint mode; rule `.cursor/rules/sprint-autonomy-qa-devops.mdc`.
+**Канон:** [sprint-autonomy-policy](ai_dev_tasks.md#sprint-autonomy-policy) в `ai_dev_tasks.md`; skills `platform-validation` / `platform-ci-jenkins` § Sprint mode; rule `.cursor/rules/sprint-autonomy-qa-devops.mdc`; при массовом CI-fail — [ci_failure_joint_plan.md](ci_failure_joint_plan.md).
 
 ## 5. План усиления
 

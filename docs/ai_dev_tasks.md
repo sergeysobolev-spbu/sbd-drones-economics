@@ -23,6 +23,7 @@
 - [next-actions](#next-actions) — ближайшие действия оркестратора
 - [vuca-block-merge-2026-06-28](#vuca-block-merge-2026-06-28) — staged push blocks A–E, QA gates, master tip
 - [final-merge-purge-2026-06-28](#final-merge-purge-2026-06-28) — integration → master, branch purge
+- [ci-failure-joint-plan](#ci-failure-joint-plan) — совместный план восстановления Jenkins CI/CD и upskilling агентов
 
 ---
 
@@ -609,6 +610,7 @@ flowchart LR
 - [ ] QA + DevOps: smoke E2E T14; policy skip→xfail (E2E-2)
 - [ ] Починить `ci-integration-test` (PR-E1 blocker)
 - [ ] Прогнать и зафиксировать `make e2e-codespace` green
+- [ ] **Jenkins recovery P0:** [ci_failure_joint_plan.md](ci_failure_joint_plan.md) — `jenkins-apply-jobs`, fix `e2e-codespace` jenkins profile, triage 6 job
 
 **1c (merge):**
 
@@ -657,6 +659,17 @@ flowchart LR
 | QA e2e | **PASS** — `make e2e-codespace` 28 passed, 2 skipped |
 
 Ключевые merge: `ee4bd7a8` (integration → master), `7a0c87de` (economics e2e/submodule), VUCA QA fixes `b14cb2a..d47ec827`.
+
+---
+
+## ci-failure-joint-plan {#ci-failure-joint-plan}
+
+**Статус:** active (2026-06-28)  
+**Документ:** [ci_failure_joint_plan.md](ci_failure_joint_plan.md)
+
+Совместный план DevOps / QA / SE / Architect / Educator / Orchestrator на восстановление Jenkins CI после массового red всех pipeline. Ключевая гипотеза P0: **`make e2e-codespace` не протягивает `E2E_RUN_MODE=jenkins`** в readiness/preflight (hardcode local-портов 8081/9092 при jenkins compose на 10801/19092).
+
+**Ближайшие шаги:** P0-2 `make jenkins-apply-jobs` → P0-3 `drone-phase0-smoke` → P0-4 выравнивание Makefile → HR-1 triage sign-off.
 
 
 *Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.1 — двухуровневая модель агентов и детализация Этапа 1 (1a–1c).*
