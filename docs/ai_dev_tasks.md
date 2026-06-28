@@ -229,23 +229,22 @@ flowchart TB
 
 | Роль | Агент (профиль) | Навыки (skills) | `task_type` |
 |------|-----------------|-----------------|-------------|
-| Системный инженер СКИБ | `systems-engineer-sbd` | `skill_systems_engineer_sbd`, `skill_select_pattern`, `skill_traceability`, `skill_human_review` | `systems_engineer_task` |
-| Школа СИ — русская | `se-school-russian` | `skill_toc_se_schools` | `toc_dtr_session` |
-| Школа СИ — американская | `se-school-american` | `skill_toc_se_schools` | `toc_dtr_session` |
-| Школа СИ — китайская | `se-school-chinese` | `skill_toc_se_schools` | `toc_dtr_session` |
-| Школа СИ — agent-native | `se-school-ai-native` | `skill_agent_native_se`, `skill_human_review` | `agent_native_se_design` |
-| Архитектор | `software-architect-c4` | `skill_software_architecture_c4`, `documentation-governance` | `software_architecture_c4` |
-| QA / приёмка | `qa-marinet-spec` * | `skill_artifact_quality`, `skill_traceability`, `platform-validation` | `artifact_quality_review` |
-| DevOps / CI | `ci-marinet-steward` * | `platform-ci-jenkins`, `platform-validation`, `skill_marinet_ci_gates` | `jenkins_or_ci_change` |
-| Техпис / документация | *(нет отдельного профиля)* | `documentation-governance`, `skill_artifact_quality` | `docs_change` |
-| Проектный менеджер | `project-manager-ccpm` | `skill_project_management_ccpm`, `skill_human_review` | `project_management_ccpm` |
-| Методист / преподаватель | `course-educator-platform` | `skill_course_educator_platform`, `skill_human_review` | `course_educator_task` |
-| Качество артеfactов | `artifact-quality-controller` | `skill_artifact_quality`, `skill_human_review` | `artifact_quality_review` |
-| Оркестратор TOC | `toc-orchestrator` | `skill_toc_se_schools`, `skill_toc_dtr_session` | `toc_dtr_session` |
-| Цифровой двойник / SITL | `dt-simulation-lead` | `skill_dt_simulation_tem` | `tem_marinet_domain_task` |
-| Экономика / TCO | `tem-economics-analyst` * | `skill_marinet_domain` (экономический контур) | `tem_marinet_domain_task` |
-
-\* — Marinet-профиль; для БАС использовать **с адаптацией** (переименовать job `tem-marinet-*` → `tem-bas-*`, порты из `e2e_ports.*.env`).
+| Системный инженер СКИБ | `systems-engineer-sbd` | `skill_systems_engineer_sbd`, `skill_select_pattern`, `skill_traceability`, `skill_human_review`, `skill_vuca_decision_protocol` | `systems_engineer_task` |
+| Школа СИ — русская | `se-school-russian` | `skill_toc_se_schools`, `skill_vuca_decision_protocol` | `toc_dtr_session` |
+| Школа СИ — американская | `se-school-american` | `skill_toc_se_schools`, `skill_vuca_decision_protocol` | `toc_dtr_session` |
+| Школа СИ — китайская | `se-school-chinese` | `skill_toc_se_schools`, `skill_vuca_decision_protocol` | `toc_dtr_session` |
+| Школа СИ — agent-native | `se-school-ai-native` | `skill_agent_native_se`, `skill_human_review`, `skill_vuca_decision_protocol` | `systems_engineer_task` |
+| Архитектор | `software-architect-c4` | `skill_software_architecture_c4`, `skill_integration_phase0_contracts`, `documentation-governance` | `software_architecture_c4` |
+| QA / приёмка | `qa-marinet-spec` | `skill_artifact_quality`, `skill_sdet_broker_e2e`, `skill_traceability`, `platform-validation` | `sdet_broker_e2e` |
+| DevOps / CI | `ci-marinet-steward` | `platform-ci-jenkins`, `platform-validation`, `skill_devops_broker_cicd` | `broker_cicd_infrastructure` |
+| Техпис / документация | *(нет отдельного профиля)* | `documentation-governance`, `skill_artifact_quality`, `skill_vuca_decision_protocol` | `docs_change` |
+| Проектный менеджер | `project-manager-ccpm` | `skill_project_management_ccpm`, `skill_human_review`, `skill_repo_hygiene_release_gate` | `project_management_ccpm` |
+| Методист / преподаватель | `course-educator-platform` | `skill_course_educator_platform`, `skill_agent_zun_development`, `skill_human_review` | `course_educator_task` |
+| Качество артефактов | `artifact-quality-controller` | `skill_artifact_quality`, `skill_human_review`, `skill_repo_hygiene_release_gate` | `artifact_quality_review` |
+| Оркестратор TOC | `toc-orchestrator` | `skill_toc_se_schools`, `skill_toc_dtr_session`, `skill_triz_tem` | `toc_dtr_session` |
+| TRIZ | `triz-expert-tem` | `skill_triz_tem`, `skill_vuca_decision_protocol` | `vuca_decision_support` |
+| Цифровой двойник / SITL | `dt-simulation-lead` | `skill_dt_simulation_tem`, `skill_integration_phase0_contracts`, `skill_sdet_broker_e2e` | `integration_phase0` |
+| Экономика / TCO | `tem-economics-analyst` | `skill_project_management_ccpm`, `skill_integration_phase0_contracts`, `skill_artifact_quality` | `project_management_ccpm` |
 
 ### Headless-пакеты (кодинг-агенты)
 
