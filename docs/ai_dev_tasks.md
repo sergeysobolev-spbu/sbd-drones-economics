@@ -1,6 +1,6 @@
 # Мультиагентная разработка проекта ТЭМ БАС
 
-<!-- doc-meta: status=active version=1.6 updated=2026-06-28 -->
+<!-- doc-meta: status=active version=1.7 updated=2026-06-28 -->
 
 Документ — **контракт агент-оркестратора** для подготовки и проведения работ по открытой платформе моделирования экономики эксплуатации безопасных дронов (направление **ОП**, см. [concept.md](concept.md)). Программный стенд — экспорт [`sbd-open-platform-and-trainings-development/code`](../../../sbd-open-platform-and-trainings-development/code).
 
@@ -26,6 +26,7 @@
 - [master-merge-agent-group](#master-merge-agent-group) — phase A/B consolidate и merge master — автономный спринт 120 мин (phase 0 artifacts)
 - [agent-vuca-history-100-review](#agent-vuca-history-100-review) — анализ 100 коммитов, VUCA/ЗУН дообучение и базовый план улучшений
 - [sprint-autonomy-policy](#sprint-autonomy-policy) — политика автономности QA/DevOps спринта
+- [vuca-block-merge](#vuca-block-merge) — block-by-block push/merge 2026-06-28 (GitFlic pack limit)
 
 ---
 
@@ -45,8 +46,8 @@
 
 ## repo-analysis-ai {#repo-analysis-ai}
 
-**Ветка:** `test/integration-phase0-initiation` (HEAD `c6cccf7`, +17 непушенных коммитов к origin).  
-**`master`:** скелет (~86 файлов, только `dummy_system`) — **не отражает** состояние проекта.
+**Ветка:** `test/integration-phase0-initiation` (HEAD `bda83a48`, synced with `origin`).  
+**`master`:** @ `48eae2fa` on `origin` — operator, docs, vuca blocks C–E merged.
 
 ### Что добавлено относительно `master`
 
@@ -590,8 +591,10 @@ flowchart LR
 | 1 `-economics` | `master` @ `8132c19` | ✅ PR-E1 merged/pushed; `ci-test` + `e2e-codespace` green (agent e4481536) |
 | 2 `-ai` docs | `docs/orchestrator-v1.1` @ `c0a124a` | ✅ on remote |
 | 3 `-ai` slice | `docs/pr-a2-integration-process` @ `688f7cb` | ✅ pushed (integration_process, без slides) |
-| 4 `-ai` slim | `docs/integration-phase0-consolidated` | docs-only; push после commit |
-| bulk | `test/integration-phase0-initiation` | ⛔ pack >100 MB |
+| 4 `-ai` slim | `docs/integration-phase0-consolidated` @ `bda83a48` | ✅ pushed |
+| 5 `-ai` vuca C–E | `vuca/block-c/d/e-*` | ✅ merged → `master` @ `48eae2fa` |
+| integration | `test/integration-phase0-initiation` @ `bda83a48` | ✅ slim FF push (8 commits) |
+| bulk history | slides/72118 in old integration history | ⛔ never bulk-push |
 
 **Немедленно (оркестратор / координатор):**
 
@@ -959,4 +962,32 @@ flowchart LR
 
 ---
 
-*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.6 — добавлен активный VUCA-спринт по Fabric smart contracts, ADR, skills, agent profiles и registry routes.*
+## vuca-block-merge {#vuca-block-merge}
+
+**Дата:** 2026-06-28. **Цель:** сохранить WIP, синхронизировать `test/integration-phase0-initiation` и влить intended changes в `master` без превышения лимита GitFlic pack (~100 MB).
+
+### Блоки и SHA
+
+| Block | Branch | Tip | QA | Push | `master` |
+|-------|--------|-----|-----|------|----------|
+| WIP | `docs/integration-phase0-consolidated` | `bda83a48` | docs-only | ✅ | via D |
+| C | `vuca/block-c-operator-2026-06-28` | `b435a3c8` (merge) | `make unit-test` 70 pass | ✅ | ✅ |
+| D | `vuca/block-d-docs-2026-06-28` | `655b7bbd` | `make unit-test` 70 pass | ✅ | ✅ FF |
+| E | `vuca/block-e-operator-tests-2026-06-28` | `48eae2fa` | `make unit-test` 70 pass | ✅ | ✅ FF |
+| Integration | `test/integration-phase0-initiation` | `bda83a48` | docs-only | ✅ slim FF | — |
+
+### VUCA pivot
+
+Bulk push `test/integration-phase0-initiation` (+144) → **slim path:** reset to `origin/test/integration-phase0-initiation`, fast-forward `docs/integration-phase0-consolidated` (objects already on remote), push 8 commits. Slides/72118 и `docs/slides/ksa/` **не** в scope push.
+
+### DoD evidence (2026-06-28)
+
+| Criterion | Status | Evidence |
+|-----------|--------|----------|
+| `origin/test/integration-phase0-initiation..HEAD` empty | **PASS** | tip `bda83a48` |
+| `origin/master..master` empty | **PASS** | tip `48eae2fa` |
+| QA per block | **PASS** (unit); operator isolated pytest — defer | [final report](staged-push-reports/2026-06-28-vuca-block-merge-final.md) |
+
+---
+
+*Документ подлежит обновлению после каждой интеграционной итерации. Версия 1.7 — § vuca-block-merge: block C–E merged, integration slim push, master @ `48eae2fa`.*
