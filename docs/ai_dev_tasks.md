@@ -794,6 +794,8 @@ flowchart LR
 
 **PR-E1 complete (agent e4481536, 2026-06-28):** `-economics` `origin/master` @ `8132c19`; `make ci-test` + `make e2e-codespace` green.
 
+- **Agregator ci-test (2026-06-28):** `kafka-init` must finish before aggregator/tests — submodule `Agregator` @ `08533d2` on `feature/uas-dev-company`; `make ci-test` exit 0.
+
 
 | Gate / артеfact | Результат | Evidence |
 |-----------------|-----------|----------|
