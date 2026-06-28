@@ -66,5 +66,5 @@ secrets:
 
 networks:
   drones_net:
-    external: true
+    driver: bridge
     name: ${DOCKER_NETWORK:-drones_net}

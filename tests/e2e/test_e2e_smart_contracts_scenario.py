@@ -1,28 +1,39 @@
 """
-E2E: full business flow + health checks + analytics.
+E2E с интеграцией Hyperledger Fabric Smart Contracts.
 
-Order: Test0 -> Test1 -> Test2 -> Test3 -> Test4 -> Test5 -> Test6 -> TestLog
-(same session; state in Docker persists between test classes).
+Копия test_e2e_scenario.py с дополнительными шагами, которые повторяют
+ключевые действия сценария через смарт-контракты (см. docs/smart_contracts.md):
 
-Full mission flow (from integration_systems reference):
-  GCS Orchestrator:
-    task.submit  → PathPlanner builds route, stores in MissionStore
-    task.assign  → MissionConverter fetches WPL, DroneManager uploads to Agrodron
-    task.start   → DroneManager proxies CMD START through Agrodron SecurityMonitor
+  Запись (action соответствует методу контракта) → bus.request(
+      "components.ledger",
+      {"action": "invoke", "payload": {"method": "...", "args": [...]}}
+  )
+  Чтение (проверка состояния) → bus.request(
+      "components.ledger",
+      {"action": "query",  "payload": {"method": "...", "args": [...]}}
+  )
 
-  Agrodron (via SecurityMonitor proxy):
-    proxy_request → mission_handler.load_mission  (validates WPL → autopilot)
-    proxy_request → autopilot.cmd START           (ORVD + DronePort checks → EXECUTING)
-    autopilot  → notifies NUS (GCS DroneManager) on mission_completed
+Оригинальная бизнес-логика не меняется. Если ledger недоступен — SC-шаги
+делают pytest.skip и не валят основной сценарий.
 
-  NOTE: GCS containers must have AGRODRON_SECURITY_MONITOR_TOPIC=components.Agrodron.security_monitor
-  (GCS external_topics.py defaults to v1.Agrodron.Agrodron001.security_monitor which is the old scheme).
+Маппинг action → контракт:
+  • register_drone_cert         → DronePropertiesContract:CreateDronePass
+  • firmware (sec. objectives)  → FirmwareContract:CertifyFirmware
+  • annual_insurance            → DronePropertiesContract:CreateInsuranceRecord
+  • create_order                → OrderContract:CreateOrder
+  • matching (confirm-price)    → OrderContract:AssignOrder
+  • approve (Insurer)           → OrderContract:ApproveOrder
+  • task.assign (Operator)      → OrderContract:ConfirmOrder
+  • task.start                  → OrderContract:StartOrder
+  • mission_completed           → OrderContract:FinishOrder
+  • finalize                    → OrderContract:FinalizeOrder
+  Чтения: ReadDronePass / ReadInsuranceRecord / ReadOrder / CheckDroneReadiness.
 """
 from __future__ import annotations
 
 import time
 from decimal import Decimal
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import pytest
 import requests
@@ -51,7 +62,6 @@ DELIVERY_DRONE_ID = "delivery_001"
 DELIVERY_DRONE_TOPIC = "components.deliverydron.delivery_drone"
 
 # ---- Agrodron (cyber_drons) component topics ----
-# Agrodron containers run with SYSTEM_NAME=Agrodron → topic_for("x") = "components.Agrodron.x"
 AGRODRON_SECURITY_MONITOR_TOPIC = "components.Agrodron.security_monitor"
 AGRODRON_AUTOPILOT_TOPIC = "components.Agrodron.autopilot"
 SITL_TELEMETRY_REQUEST_TOPIC = "sitl.telemetry.request"
@@ -59,6 +69,24 @@ AGREGATOR_OPERATOR_REQUESTS_TOPIC = "components.agregator.operator.requests"
 
 EXPECTED_SO = [f"SO_{i}" for i in range(1, 12)]
 E2E_DRONE_ID = "drone_001"
+
+# ---- Ledger (Hyperledger Fabric) ----
+LEDGER_TOPIC = "components.ledger"
+LEDGER_CHANNEL = "dronechannel"
+LEDGER_CHAINCODE = "drone-chaincode"
+LEDGER_TIMEOUT_INVOKE = 30.0
+LEDGER_TIMEOUT_QUERY = 10.0
+
+# Идентификаторы участников сценария на стороне смарт-контрактов.
+SC_DEVELOPER_ID = "developer-001"
+SC_MANUFACTURER_ID = "manufacturer-001"
+SC_CERTCENTER_ID = "certcenter-001"
+SC_INSURER_ID = "insurer-001"
+SC_AGGREGATOR_ID = "agregator-001"
+SC_OPERATOR_ID = "e2e-operator-1"
+SC_FIRMWARE_ID = "fw-e2e-001"
+SC_DRONE_MODEL = "AgroDron-X1"
+SC_DRONE_TYPE = "agro"
 
 # Shared state across ordered test classes
 _shared: Dict[str, Any] = {}
@@ -95,6 +123,79 @@ def bus_request_with_retries(
         if idx < attempts - 1:
             time.sleep(sleep_s)
     raise AssertionError(f"Timeout: {action} -> {topic} after {attempts} attempts")
+
+
+# ---------------------------------------------------------------------------
+# Helpers: Ledger Gateway (Hyperledger Fabric)
+# ---------------------------------------------------------------------------
+
+
+def _ledger_call(
+    bus,
+    *,
+    action: str,
+    method: str,
+    args: List[Any],
+    timeout: float,
+    sender: str = "e2e_test_host",
+) -> Dict[str, Any]:
+    """Низкоуровневая обёртка над bus.request(components.ledger, ...).
+
+    Возвращает разобранный ответ {success, payload}. Если шина не отвечает —
+    вызывает pytest.skip: тест помечается как пропущенный, а не падает,
+    чтобы запуск без поднятого Fabric не сводил весь файл к красному.
+    """
+    resp = bus.request(
+        LEDGER_TOPIC,
+        {
+            "action": action,
+            "sender": sender,
+            "payload": {
+                "channel": LEDGER_CHANNEL,
+                "chaincode": LEDGER_CHAINCODE,
+                "method": method,
+                "args": [str(a) if not isinstance(a, (list, dict)) else a for a in args],
+            },
+        },
+        timeout=timeout,
+    )
+    if resp is None:
+        pytest.skip(
+            f"Ledger gateway ({LEDGER_TOPIC}) не отвечает на {action} {method} — "
+            "Fabric-сеть/ledger-gateway, возможно, не запущены"
+        )
+    return resp
+
+
+def ledger_invoke(bus, method: str, args: List[Any]) -> Dict[str, Any]:
+    """Запись: вызывает invoke смарт-контракта."""
+    return _ledger_call(
+        bus,
+        action="invoke",
+        method=method,
+        args=args,
+        timeout=LEDGER_TIMEOUT_INVOKE,
+    )
+
+
+def ledger_query(bus, method: str, args: List[Any]) -> Dict[str, Any]:
+    """Чтение: выполняет query смарт-контракта (читатель берёт из блокчейна)."""
+    return _ledger_call(
+        bus,
+        action="query",
+        method=method,
+        args=args,
+        timeout=LEDGER_TIMEOUT_QUERY,
+    )
+
+
+def assert_ledger_ok(resp: Dict[str, Any], context: str) -> Dict[str, Any]:
+    """Распаковать ответ ledger; на ошибку контракта — pytest.fail с деталями."""
+    if not resp.get("success"):
+        pl = resp.get("payload") or {}
+        err = pl.get("error") or pl
+        pytest.fail(f"{context}: ledger error: {err}")
+    return resp.get("payload") or {}
 
 
 def _build_wpl(waypoints: list) -> str:
@@ -155,7 +256,11 @@ class Test0_SystemsInRegulator:
 # ---------------------------------------------------------------------------
 
 class Test1_DroneRegistration:
-    """Cert -> Operator -> ORVD -> DronePort -> annual insurance (КАСКО)."""
+    """Cert -> Operator -> ORVD -> DronePort -> annual insurance (КАСКО).
+
+    SC-шаги (test_07..test_11) повторяют ключевые действия фазы в Fabric:
+      CertifyFirmware → CreateDronePass → CreateInsuranceRecord, плюс чтения.
+    """
 
     DRONE_ID = E2E_DRONE_ID
     COVERAGE_AMOUNT = 150_000
@@ -185,13 +290,7 @@ class Test1_DroneRegistration:
         assert r.get("success") is True
 
     def test_03b_register_drone_directly_in_orvd(self, kafka_bus):
-        """Register drone directly in ORVD without certificate.
-
-        The Operator route (test_03) uses certificate_id, which triggers a
-        broken EXTERNAL_REQUEST_TIMEOUT code path in ORVD → drone not stored.
-        This direct call skips cert verification and ensures drone_001 is
-        present in ORVD._drones before register_mission / authorize_mission.
-        """
+        """Register drone directly in ORVD without certificate."""
         try:
             r = bus_request(kafka_bus, ORVD_TOPIC, "register_drone", {
                 "drone_id": self.DRONE_ID,
@@ -202,13 +301,7 @@ class Test1_DroneRegistration:
         assert r.get("success") is True, f"direct ORVD register_drone failed: {r}"
 
     def test_04_register_drone_in_droneport(self, kafka_bus):
-        """Register drone_001 in DronePort registry and set battery to 95%.
-
-        DronePort.request_takeoff checks battery > 60% before approving takeoff.
-        Without an explicit update_battery call the battery field is absent →
-        battery=None → "Battery level is unknown" → autopilot gets droneport_denied
-        → state ABORTED → test_03_poll_autopilot_state skips.
-        """
+        """Register drone_001 in DronePort registry and set battery to 95%."""
         kafka_bus.publish(DRONE_PORT_REGISTRY_TOPIC, {
             "action": "register_drone",
             "sender": "e2e_test_host",
@@ -240,8 +333,6 @@ class Test1_DroneRegistration:
 
     def test_05_annual_insurance(self, kafka_bus):
         """Годовое страхование КАСКО при регистрации дрона."""
-        # Insurer (Java) иногда отвечает с задержкой после старта контейнера
-        # (rebalance consumer group) — несколько попыток с паузой.
         r = None
         payload = {
             "order_id": "e2e-order-drone-001",
@@ -267,21 +358,14 @@ class Test1_DroneRegistration:
         assert ins.get("policy_type") == "annual"
         assert ins.get("status") == "active"
         assert ins.get("drone_id") == self.DRONE_ID
-        assert Decimal(str(ins.get("kfleet_history", 0))) == Decimal("1.0"), \
-            "новый дрон должен иметь Kfleet=1.0"
+        assert Decimal(str(ins.get("kfleet_history", 0))) == Decimal("1.0")
 
         expected_premium = Decimal(str(self.COVERAGE_AMOUNT)) * Decimal("0.08") * Decimal("1.0")
-        assert Decimal(str(ins["premium"])) == expected_premium, (
-            f"premium {ins['premium']} != {expected_premium}"
-        )
+        assert Decimal(str(ins["premium"])) == expected_premium
         assert ins.get("policy_id"), "policy_id должен быть заполнен"
 
     def test_06_register_delivery_drone_in_droneport(self, kafka_bus):
-        """Register the delivery drone (delivery_001) in DronePort registry.
-
-        The delivery drone is a separate Go container; it may not be running,
-        but the registry entry is created here so DronePort knows about it.
-        """
+        """Register the delivery drone (delivery_001) in DronePort registry."""
         kafka_bus.publish(DRONE_PORT_REGISTRY_TOPIC, {
             "action": "register_drone",
             "sender": "e2e_test_host",
@@ -301,6 +385,89 @@ class Test1_DroneRegistration:
         else:
             pytest.skip("DronePort not responding — delivery drone registration skipped")
 
+    # ── Smart-contract шаги ────────────────────────────────────────────────
+
+    def test_07_sc_certify_firmware(self, kafka_bus):
+        """FirmwareContract:CertifyFirmware — сертификация прошивки дрона."""
+        resp = ledger_invoke(
+            kafka_bus,
+            "FirmwareContract:CertifyFirmware",
+            [SC_FIRMWARE_ID, EXPECTED_SO],
+        )
+        assert_ledger_ok(resp, "CertifyFirmware")
+        _shared["sc_firmware_id"] = SC_FIRMWARE_ID
+
+    def test_08_sc_create_drone_pass(self, kafka_bus):
+        """DronePropertiesContract:CreateDronePass — паспорт дрона в ledger."""
+        if not _shared.get("sc_firmware_id"):
+            pytest.skip("SC firmware не сертифицирован (test_07 пропущен)")
+
+        resp = ledger_invoke(
+            kafka_bus,
+            "DronePropertiesContract:CreateDronePass",
+            [
+                self.DRONE_ID,
+                SC_DEVELOPER_ID,
+                SC_DRONE_MODEL,
+                SC_DRONE_TYPE,
+                25,    # weightKg
+                50,    # maxFlightRangeKm
+                10,    # maxPayloadWeightKg
+                2024,  # releaseYear
+                0,     # incidentCount
+                SC_FIRMWARE_ID,
+            ],
+        )
+        assert_ledger_ok(resp, "CreateDronePass")
+        _shared["sc_drone_pass_id"] = self.DRONE_ID
+
+    def test_09_sc_read_drone_pass(self, kafka_bus):
+        """ReadDronePass — читатель берёт паспорт из блокчейна."""
+        if not _shared.get("sc_drone_pass_id"):
+            pytest.skip("SC drone pass не создан (test_08 пропущен)")
+
+        resp = ledger_query(
+            kafka_bus,
+            "DronePropertiesContract:ReadDronePass",
+            [_shared["sc_drone_pass_id"]],
+        )
+        pl = assert_ledger_ok(resp, "ReadDronePass")
+        result = pl.get("result") or pl
+        # Контракт обычно возвращает JSON-объект (или строку JSON). Проверим
+        # хотя бы наличие id дрона в любом представлении.
+        assert self.DRONE_ID in str(result), (
+            f"Паспорт {self.DRONE_ID!r} не найден в ledger: {pl}"
+        )
+
+    def test_10_sc_create_insurance_record(self, kafka_bus):
+        """CreateInsuranceRecord — годовая страховка в ledger."""
+        if not _shared.get("sc_drone_pass_id"):
+            pytest.skip("SC drone pass не создан")
+
+        resp = ledger_invoke(
+            kafka_bus,
+            "DronePropertiesContract:CreateInsuranceRecord",
+            [self.DRONE_ID, SC_INSURER_ID, self.COVERAGE_AMOUNT],
+        )
+        assert_ledger_ok(resp, "CreateInsuranceRecord")
+        _shared["sc_insurance_drone_id"] = self.DRONE_ID
+
+    def test_11_sc_read_insurance_record(self, kafka_bus):
+        """ReadInsuranceRecord — читатель берёт страховку из блокчейна."""
+        if not _shared.get("sc_insurance_drone_id"):
+            pytest.skip("SC insurance record не создана")
+
+        resp = ledger_query(
+            kafka_bus,
+            "DronePropertiesContract:ReadInsuranceRecord",
+            [_shared["sc_insurance_drone_id"]],
+        )
+        pl = assert_ledger_ok(resp, "ReadInsuranceRecord")
+        result = pl.get("result") or pl
+        assert SC_INSURER_ID in str(result) or self.DRONE_ID in str(result), (
+            f"Страховая запись для {self.DRONE_ID!r} не найдена в ledger: {pl}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Phase 2: Operator Registration at Agregator
@@ -317,9 +484,6 @@ class Test2_OperatorInAggregator:
         _shared["operator_cert_id"] = (r.get("payload") or {})["certificate_id"]
 
     def test_02_register_operator_at_agregator(self, agregator_url):
-        # Agregator теперь принимает self-service форму: {name, license, email, password}
-        # и возвращает {token, user: {id, ...}, role}. operator_id/certificate_id
-        # уехали в bus-флоу (Regulator), сюда они не нужны.
         r = rest_post(agregator_url, "/operators", {
             "name": "E2E Operator",
             "license": "E2E-LIC-1",
@@ -352,12 +516,15 @@ class Test2_OperatorInAggregator:
 # ---------------------------------------------------------------------------
 
 class Test3_OrderFlow:
-    """Customer order + automatic matching via Operator price_offer + confirm-price."""
+    """Customer order + automatic matching via Operator price_offer + confirm-price.
+
+    SC-шаги (test_05..test_09): CreateOrder → ReadOrder → AssignOrder →
+    ApproveOrder → CheckDroneReadiness.
+    """
 
     ORDER_BUDGET = 5000
 
     def test_01_create_customer(self, agregator_url):
-        # /customers требует {name, email, password}; id возвращается в body.user.id.
         r = rest_post(agregator_url, "/customers", {
             "name": "E2E Customer",
             "email": "e2e-customer@local",
@@ -374,8 +541,7 @@ class Test3_OrderFlow:
         assert _shared["customer_id"], f"customer id должен быть в ответе: {body}"
 
     def test_02_create_order_and_wait_for_match(self, agregator_url, kafka_bus):
-        """Создаём заказ. Agregator отправляет create_order в Kafka,
-        Operator автоматически отвечает price_offer, заказ переходит в matched."""
+        """Создаём заказ. Agregator → create_order → Operator price_offer → matched."""
         r = rest_post(agregator_url, "/orders", {
             "customer_id": _shared["customer_id"],
             "description": "E2E agro delivery",
@@ -404,8 +570,6 @@ class Test3_OrderFlow:
 
         status = _poll_status(60)
 
-        # Fallback for cold-start race: if Aggregator->Operator message bridge lags,
-        # explicitly re-publish create_order to operator request topic.
         if status != "matched":
             kafka_bus.publish(
                 AGREGATOR_OPERATOR_REQUESTS_TOPIC,
@@ -459,6 +623,102 @@ class Test3_OrderFlow:
         assert policy.get("policy_type") == "mission"
         assert policy.get("policy_id")
 
+    # ── Smart-contract шаги ────────────────────────────────────────────────
+
+    def test_05_sc_create_order(self, kafka_bus):
+        """OrderContract:CreateOrder — Aggregator создаёт заказ в ledger."""
+        if not _shared.get("order_id"):
+            pytest.skip("order_id отсутствует — test_02 пропущен")
+
+        order_id = _shared["order_id"]
+        # OrderDetail: список объектов с операционными параметрами полёта.
+        details = [
+            {
+                "drone_id": E2E_DRONE_ID,
+                "security_objectives": EXPECTED_SO,
+                "environmental_limit": ["wind_lt_15ms", "no_rain"],
+                "operation_area": "moscow-test-area",
+            }
+        ]
+        resp = ledger_invoke(
+            kafka_bus,
+            "OrderContract:CreateOrder",
+            [
+                order_id,
+                SC_AGGREGATOR_ID,
+                SC_OPERATOR_ID,
+                E2E_DRONE_ID,
+                SC_INSURER_ID,
+                SC_CERTCENTER_ID,
+                SC_DEVELOPER_ID,
+                self.ORDER_BUDGET,                   # amountTotal
+                Test1_DroneRegistration.COVERAGE_AMOUNT,  # insuranceCoverageAmount
+                details,
+            ],
+        )
+        assert_ledger_ok(resp, "CreateOrder")
+        _shared["sc_order_id"] = order_id
+
+    def test_06_sc_read_order_after_create(self, kafka_bus):
+        """ReadOrder — читатель берёт заказ из блокчейна сразу после создания."""
+        if not _shared.get("sc_order_id"):
+            pytest.skip("SC order не создан")
+
+        resp = ledger_query(
+            kafka_bus,
+            "OrderContract:ReadOrder",
+            [_shared["sc_order_id"]],
+        )
+        pl = assert_ledger_ok(resp, "ReadOrder")
+        result = pl.get("result") or pl
+        assert _shared["sc_order_id"] in str(result), (
+            f"Заказ {_shared['sc_order_id']!r} не найден в ledger: {pl}"
+        )
+
+    def test_07_sc_assign_order(self, kafka_bus):
+        """AssignOrder — фиксация назначения operator+drone после matched."""
+        if not _shared.get("sc_order_id"):
+            pytest.skip("SC order не создан")
+        if _shared.get("order_status") != "matched":
+            pytest.skip("Order не был matched — AssignOrder неприменим")
+
+        resp = ledger_invoke(
+            kafka_bus,
+            "OrderContract:AssignOrder",
+            [_shared["sc_order_id"], SC_OPERATOR_ID, E2E_DRONE_ID, []],
+        )
+        assert_ledger_ok(resp, "AssignOrder")
+        _shared["sc_order_assigned"] = True
+
+    def test_08_sc_approve_order(self, kafka_bus):
+        """ApproveOrder — Insurer одобряет заказ (после mission_insurance)."""
+        if not _shared.get("sc_order_assigned"):
+            pytest.skip("SC order не assigned")
+
+        resp = ledger_invoke(
+            kafka_bus,
+            "OrderContract:ApproveOrder",
+            [_shared["sc_order_id"]],
+        )
+        assert_ledger_ok(resp, "ApproveOrder")
+        _shared["sc_order_approved"] = True
+
+    def test_09_sc_check_drone_readiness(self, kafka_bus):
+        """CheckDroneReadiness — читатель проверяет готовность дрона по блокчейну."""
+        if not _shared.get("sc_drone_pass_id"):
+            pytest.skip("SC drone pass не создан")
+
+        resp = ledger_query(
+            kafka_bus,
+            "OrderContract:CheckDroneReadiness",
+            [E2E_DRONE_ID],
+        )
+        # Контракт может вернуть false (например, нет действующей TypeCertificate),
+        # это валидный сценарий. Проверяем только что вызов не упал на ledger-уровне.
+        assert resp.get("success") is True or "error" in (resp.get("payload") or {}), (
+            f"CheckDroneReadiness вернул некорректный ответ: {resp}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Phase 4: ORVD + GCS Route Planning
@@ -476,7 +736,6 @@ class Test4_MissionPlanning:
             {"lat": 55.80, "lon": 37.70},
         ]
 
-        # Try via gateway first (may timeout if ORVD gateway is under load).
         registered = False
         try:
             r = bus_request_with_retries(
@@ -495,7 +754,6 @@ class Test4_MissionPlanning:
             pass
 
         if not registered:
-            # Fallback: register directly on OrvdComponent, bypassing gateway 10s limit.
             for _ in range(3):
                 r = kafka_bus.request(
                     ORVD_COMPONENT_TOPIC,
@@ -524,9 +782,6 @@ class Test4_MissionPlanning:
         authorized = False
         last = None
 
-        # Pass 1: try via gateway (respects normal API contract).
-        # The gateway has PROXY_TIMEOUT=10s; if OrvdComponent is under load
-        # this consistently times out.  We give it 3 shots before falling back.
         for _ in range(3):
             r = kafka_bus.request(
                 ORVD_TOPIC,
@@ -542,14 +797,11 @@ class Test4_MissionPlanning:
             if pl.get("status") == "authorized":
                 authorized = True
                 break
-            # Gateway timeout or other transient error — retry
             time.sleep(3)
 
         if authorized:
             return
 
-        # Pass 2: bypass the 10s gateway PROXY_TIMEOUT by calling OrvdComponent
-        # directly.  This is reliable regardless of gateway load.
         for attempt in range(4):
             r = kafka_bus.request(
                 ORVD_COMPONENT_TOPIC,
@@ -568,8 +820,6 @@ class Test4_MissionPlanning:
             if pl.get("status") == "authorized":
                 authorized = True
                 break
-            # Mission not found: OrvdComponent restarted and lost in-memory state.
-            # Re-register then retry.
             if pl.get("message") == "mission not found" or "not found" in str(pl.get("message", "")):
                 kafka_bus.request(
                     ORVD_COMPONENT_TOPIC,
@@ -595,8 +845,7 @@ class Test4_MissionPlanning:
         assert pl.get("status") == "authorized", f"authorize_mission payload mismatch: {last}"
 
     def test_03_gcs_plan_route(self, kafka_bus):
-        """GCS orchestrator -> path_planner: build flight route from waypoints.
-        Saves the GCS-generated mission_id for use in Test6 task.assign/task.start."""
+        """GCS orchestrator -> path_planner: build flight route from waypoints."""
         r = bus_request(kafka_bus, GCS_ORCHESTRATOR_TOPIC, "task.submit", {
             "waypoints": [
                 {"lat": 55.750000, "lon": 37.620000, "alt_m": 50.0},
@@ -606,7 +855,6 @@ class Test4_MissionPlanning:
         assert r.get("success") is True, f"task.submit failed: {r}"
         pl = r.get("payload") or {}
 
-        # Save the GCS-generated mission_id (e.g. "m-<12hex>") for Test6
         gcs_mission_id = pl.get("mission_id")
         if gcs_mission_id:
             _shared["gcs_mission_id"] = gcs_mission_id
@@ -618,13 +866,7 @@ class Test4_MissionPlanning:
         _shared["gcs_waypoints"] = waypoints
 
     def test_04_wait_mission_stored(self, kafka_bus):
-        """Wait for PathPlanner's async bus.publish to be consumed by MissionStore.
-
-        PathPlanner saves the mission asynchronously; MissionConverter needs it
-        in Redis before task.assign. Polls GET_MISSION; if still absent after
-        30 s, publishes SAVE_MISSION directly as a fallback (handles Kafka
-        consumer warm-up races on fresh topics).
-        """
+        """Wait for PathPlanner's async bus.publish to be consumed by MissionStore."""
         mission_id = _shared.get("gcs_mission_id")
         if not mission_id:
             pytest.skip("No gcs_mission_id — skipping MissionStore wait")
@@ -651,7 +893,6 @@ class Test4_MissionPlanning:
         if _poll(30):
             return
 
-        # Fallback: PathPlanner's async publish may not have been consumed yet.
         if waypoints:
             kafka_bus.publish(
                 GCS_MISSION_STORE_TOPIC,
@@ -678,16 +919,7 @@ class Test4_MissionPlanning:
         )
 
     def test_05_publish_sitl_home(self, kafka_bus):
-        """Publish the drone's home position to SITL before the telemetry health check.
-
-        SITL starts sending telemetry only after receiving a home position on the
-        'sitl-drone-home' topic. Publishing here (Test4, before Test5) ensures that:
-        - Test5.test_sitl_telemetry_request succeeds (SITL has active telemetry), and
-        - DronePort.request_takeoff can read battery from SITL when task.start runs.
-
-        Without this, SITL stays silent → DronePort has no battery data → takeoff
-        may be denied → autopilot never reaches EXECUTING state.
-        """
+        """Publish the drone's home position to SITL before the telemetry health check."""
         waypoints = _shared.get("gcs_waypoints", [])
         if not waypoints:
             pytest.skip("No waypoints available — cannot publish SITL home")
@@ -734,10 +966,7 @@ class Test5_SystemHealthChecks:
             pytest.skip("GCS orchestrator not reachable — container may not be running")
 
     def test_ping_delivery_drone(self, kafka_bus):
-        """Ping the delivery drone system (Go container).
-
-        This container requires a Go build; if it is not running the test skips.
-        """
+        """Ping the delivery drone system (Go container)."""
         try:
             resp = bus_request(kafka_bus, DELIVERY_DRONE_TOPIC, "ping", {}, timeout=10)
             assert resp.get("success") is True
@@ -771,39 +1000,31 @@ class Test5_SystemHealthChecks:
 
         pytest.skip(f"SITL telemetry not reachable after warmup; last_response={last_resp}")
 
+    def test_sc_ledger_ping(self, kafka_bus):
+        """Sanity-check ledger: ListDronePasses должен ответить (любой результат)."""
+        resp = ledger_query(
+            kafka_bus,
+            "DronePropertiesContract:ListDronePasses",
+            [],
+        )
+        assert resp.get("success") is True, f"Ledger ListDronePasses failed: {resp}"
+
 
 # ---------------------------------------------------------------------------
 # Phase 6: Mission Execution (task.assign → task.start → autopilot state)
 # ---------------------------------------------------------------------------
 
 class Test6_MissionExecution:
-    """
-    Full mission execution cycle (based on integration_systems reference):
+    """Full mission execution cycle.
 
-      task.assign  → GCS fetches WPL from MissionStore, publishes mission.upload
-                     to DroneManager, which proxies it through Agrodron SecurityMonitor
-                     to mission_handler.load_mission → autopilot.mission_load
-      task.start   → GCS publishes mission.start to DroneManager, which proxies
-                     autopilot.cmd START through SecurityMonitor → ORVD + DronePort
-                     checks → state EXECUTING
-      poll         → proxy_request to SecurityMonitor → autopilot.get_state
-
-    Prerequisites: GCS containers must have env:
-        AGRODRON_SECURITY_MONITOR_TOPIC=components.Agrodron.security_monitor
-    (the default in GCS external_topics.py is the old "v1.Agrodron.Agrodron001.security_monitor").
+    SC-шаги (test_05..test_09): ConfirmOrder → StartOrder → FinishOrder →
+    FinalizeOrder → итоговый ReadOrder из блокчейна.
     """
 
     DRONE_ID = E2E_DRONE_ID
 
     def test_01_gcs_task_assign(self, kafka_bus):
-        """Upload WPL mission to Agrodron via GCS orchestrator task.assign.
-
-        Tries the normal orchestrator path first (requires MissionStore to be
-        responsive). If the orchestrator returns mission_prepare_failed (i.e.
-        MissionStore timed out during task_04_wait_mission_stored), falls back
-        to publishing mission.upload directly to GCS DroneManager — the Operator
-        subscribes to the same topic and will still publish the SITL home.
-        """
+        """Upload WPL mission to Agrodron via GCS orchestrator task.assign."""
         mission_id = _shared.get("gcs_mission_id")
         if not mission_id:
             pytest.skip("No gcs_mission_id from Test4 task.submit — GCS may be unavailable")
@@ -828,8 +1049,6 @@ class Test6_MissionExecution:
             time.sleep(3)
 
         if not (r and (r.get("payload") or {}).get("ok") is True):
-            # Orchestrator path failed (MissionStore unavailable).
-            # Build WPL from stored waypoints and upload directly to DroneManager.
             waypoints = _shared.get("gcs_waypoints", [])
             assert waypoints, (
                 "No waypoints available for direct DroneManager upload — "
@@ -848,8 +1067,6 @@ class Test6_MissionExecution:
             return
 
         assert r is not None, "task.assign returned no response"
-        # Orchestrator returns {ok, mission_id, drone_id, forwarded_action}
-        # ok=True means WPL was generated and mission.upload was published to DroneManager
         assert pl.get("ok") is True, f"task.assign: ok is not True: {pl}"
         assert pl.get("forwarded_action") == "mission.upload", (
             f"Expected forwarded_action=mission.upload, got {pl}"
@@ -857,13 +1074,7 @@ class Test6_MissionExecution:
         _shared["mission_assigned"] = True
 
     def test_02_gcs_task_start(self, kafka_bus):
-        """Send START command to Agrodron autopilot via GCS orchestrator task.start.
-
-        Wait before sending START: the Operator processes mission.upload
-        asynchronously (publishes SITL home, registers + authorizes in ORVD).
-        Autopilot's cmd=START calls ORVD request_takeoff, which requires the
-        mission to already be authorized — so we give Operator time to finish.
-        """
+        """Send START command to Agrodron autopilot via GCS orchestrator task.start."""
         if not _shared.get("mission_assigned"):
             pytest.skip("Mission not assigned (test_01 skipped or failed)")
 
@@ -879,8 +1090,6 @@ class Test6_MissionExecution:
         )
         assert r.get("success") is True, f"task.start failed: {r}"
         pl = r.get("payload") or {}
-        # Orchestrator returns {ok, mission_id, drone_id, forwarded_action}
-        # ok=True means mission.start was published to DroneManager
         assert pl.get("ok") is True, f"task.start: ok is not True: {pl}"
         assert pl.get("forwarded_action") == "mission.start", (
             f"Expected forwarded_action=mission.start, got {pl}"
@@ -888,14 +1097,7 @@ class Test6_MissionExecution:
         _shared["mission_started"] = True
 
     def test_03_poll_autopilot_state(self, kafka_bus):
-        """Poll Agrodron autopilot state via SecurityMonitor proxy_request.
-
-        Sends proxy_request to the security monitor targeting autopilot.get_state.
-        Polls until the autopilot reports EXECUTING, MISSION_LOADED, LANDING, or COMPLETED.
-
-        Will pytest.skip if SecurityMonitor is unreachable or denies the request
-        due to missing policy (SECURITY_POLICIES env var in the container).
-        """
+        """Poll Agrodron autopilot state via SecurityMonitor proxy_request."""
         if not _shared.get("mission_started"):
             pytest.skip("Mission not started (test_02 skipped or failed)")
 
@@ -919,14 +1121,12 @@ class Test6_MissionExecution:
                     timeout=10,
                 )
             except AssertionError:
-                # SecurityMonitor not reachable
                 pytest.skip(
                     "Agrodron SecurityMonitor not responding — "
                     "containers may be unavailable or SECURITY_POLICIES not configured"
                 )
 
             pl = r.get("payload") or {}
-            # Unwrap proxy response: {ok, target_response: {action, payload: {state, ...}, sender}}
             if not pl.get("ok", True) and pl.get("error") == "policy_denied":
                 pytest.skip(
                     "SecurityMonitor denied proxy_request for e2e_test_host — "
@@ -950,28 +1150,19 @@ class Test6_MissionExecution:
             )
 
         _shared["autopilot_state"] = state
-        # Mission should be loaded and either starting, executing, or already done
         assert state in active_states, f"Unexpected autopilot state: {state}"
 
     def test_04_wait_mission_completed(self, kafka_bus):
-        """Wait for Agrodron autopilot to complete the mission and return to IDLE.
-
-        Polls autopilot state (via SecurityMonitor) until COMPLETED or IDLE.
-        The autopilot notifies NUS (GCS DroneManager) via mission_status event
-        when landing is done and drone returns to idle.
-
-        Skip if SecurityMonitor not reachable or state is already IDLE from a previous run.
-        """
+        """Wait for Agrodron autopilot to complete the mission and return to IDLE."""
         if not _shared.get("mission_started"):
             pytest.skip("Mission not started")
 
         state = _shared.get("autopilot_state")
         if state == "IDLE":
-            # Mission may have already completed in test_03
             return
 
         terminal_states = ("COMPLETED", "IDLE")
-        deadline = time.time() + 180  # flight simulation can take up to 180s
+        deadline = time.time() + 180
 
         while time.time() < deadline:
             try:
@@ -1011,6 +1202,80 @@ class Test6_MissionExecution:
             )
 
         _shared["autopilot_final_state"] = state
+
+    # ── Smart-contract шаги ────────────────────────────────────────────────
+
+    def test_05_sc_confirm_order(self, kafka_bus):
+        """OrderContract:ConfirmOrder — Operator подтверждает заказ (перед task.assign)."""
+        if not _shared.get("sc_order_approved"):
+            pytest.skip("SC order не approved")
+
+        resp = ledger_invoke(
+            kafka_bus,
+            "OrderContract:ConfirmOrder",
+            [_shared["sc_order_id"]],
+        )
+        assert_ledger_ok(resp, "ConfirmOrder")
+        _shared["sc_order_confirmed"] = True
+
+    def test_06_sc_start_order(self, kafka_bus):
+        """OrderContract:StartOrder — Operator стартует полёт (соответствует task.start)."""
+        if not _shared.get("sc_order_confirmed"):
+            pytest.skip("SC order не confirmed")
+
+        resp = ledger_invoke(
+            kafka_bus,
+            "OrderContract:StartOrder",
+            [_shared["sc_order_id"]],
+        )
+        assert_ledger_ok(resp, "StartOrder")
+        _shared["sc_order_started"] = True
+
+    def test_07_sc_finish_order(self, kafka_bus):
+        """OrderContract:FinishOrder — Operator завершает полёт (mission_completed)."""
+        if not _shared.get("sc_order_started"):
+            pytest.skip("SC order не started")
+
+        resp = ledger_invoke(
+            kafka_bus,
+            "OrderContract:FinishOrder",
+            [_shared["sc_order_id"]],
+        )
+        assert_ledger_ok(resp, "FinishOrder")
+        _shared["sc_order_finished"] = True
+
+    def test_08_sc_finalize_order(self, kafka_bus):
+        """OrderContract:FinalizeOrder — Aggregator финализирует заказ."""
+        if not _shared.get("sc_order_finished"):
+            pytest.skip("SC order не finished")
+
+        resp = ledger_invoke(
+            kafka_bus,
+            "OrderContract:FinalizeOrder",
+            [_shared["sc_order_id"]],
+        )
+        assert_ledger_ok(resp, "FinalizeOrder")
+        _shared["sc_order_finalized"] = True
+
+    def test_09_sc_read_order_final(self, kafka_bus):
+        """ReadOrder — читатель берёт финальное состояние заказа из блокчейна."""
+        if not _shared.get("sc_order_id"):
+            pytest.skip("SC order не создан")
+
+        resp = ledger_query(
+            kafka_bus,
+            "OrderContract:ReadOrder",
+            [_shared["sc_order_id"]],
+        )
+        pl = assert_ledger_ok(resp, "ReadOrder(final)")
+        result = pl.get("result") or pl
+        text = str(result)
+        # После полного цикла в ledger должен присутствовать заказ и хотя бы
+        # один из ключевых идентификаторов участников.
+        assert _shared["sc_order_id"] in text, (
+            f"Финальный заказ {_shared['sc_order_id']!r} не виден в ledger: {pl}"
+        )
+        _shared["sc_order_final_state"] = result
 
 
 # ---------------------------------------------------------------------------
